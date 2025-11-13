@@ -21,12 +21,12 @@ def explain_workout(plan: Dict[str, Any]) -> str:
     Take a structured workout plan (from build_workout_plan) and return
     a natural-language explanation for the user.
     """
-    focus = plan.get("focus")
-    equipment = plan.get("equipment")
+    focus = plan.get("focus", "full body")
+    equipment = plan.get("equipment", "gym")
     exercises = plan.get("exercises", [])
 
     # Build a compact description of the plan to feed to the model
-    summary_lines = []
+    summary_lines: List[str] = []
     for ex in exercises:
         summary_lines.append(
             f"- {ex['name']}: {ex['sets']}x{ex['reps']} (weight_delta: {ex.get('weight_delta', 0)})"
@@ -43,7 +43,7 @@ Equipment: {equipment}
 Exercises:
 {summary_text}
 
-Explain the workout in simple, friendly language. 
+Explain the workout in simple, friendly language.
 Include:
 - What the focus is
 - What the main lifts do
@@ -51,16 +51,17 @@ Include:
 Keep it to about 2–3 short paragraphs.
 """
 
-    resp = _client.chat.completions.create(
-        model=DEFAULT_MODEL,
-        messages=[
-            {"role": "system", "content": "You explain workouts clearly and simply."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.6,
-    )
-
-    return resp.choices[0].message.content.strip()
+    try:
+        resp = _client.responses.create(
+            model=DEFAULT_MODEL,
+            input=prompt,
+        )
+        # New Responses API shape
+        return resp.output[0].content[0].text.strip()
+    except Exception as e:
+        print("LLM error in explain_workout:", e)
+        # Let the caller decide how to handle None
+        raise
 
 
 def coach_reply(user_message: str, logs_summary: str = "") -> str:
@@ -68,23 +69,23 @@ def coach_reply(user_message: str, logs_summary: str = "") -> str:
     Generic 'chat with a coach' helper. You can call this later from a /coach route.
     """
     prompt = f"""
+You are a practical strength coach. Answer briefly, clearly, and with concrete steps.
+
 The user said:
-\"\"\"{user_message}\"\"\" 
+\"\"\"{user_message}\"\"\"
 
 Recent training summary:
-\"\"\"{logs_summary}\"\"\" 
+\"\"\"{logs_summary}\"\"\"
 
-Answer as a concise, practical strength coach.
-Avoid fluff. Give clear action steps.
+Respond with clear, actionable advice. Avoid fluff.
 """
 
-    resp = _client.chat.completions.create(
-        model=DEFAULT_MODEL,
-        messages=[
-            {"role": "system", "content": "You are a practical strength coach."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.7,
-    )
-
-    return resp.choices[0].message.content.strip()
+    try:
+        resp = _client.responses.create(
+            model=DEFAULT_MODEL,
+            input=prompt,
+        )
+        return resp.output[0].content[0].text.strip()
+    except Exception as e:
+        print("LLM error in coach_reply:", e)
+        raise

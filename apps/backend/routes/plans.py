@@ -87,8 +87,8 @@ def workout(req: WorkoutRequest):
     # Optionally guard this so tests don't require an API key:
     try:
         plan["explanation"] = explain_workout(plan)
-    except Exception:
-        # Fail open: still return the plan even if LLM borks
+    except Exception as e:
+        print("Explain workout failed in /plans/workout:", e)
         plan["explanation"] = None
 
     return plan
