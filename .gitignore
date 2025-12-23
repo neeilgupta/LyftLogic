@@ -1,8 +1,27 @@
-.venv/
+# Python
+.python-version
 __pycache__/
-.env*
-.DS_Store
-node_modules/
-apps/**/__pycache__/
 *.pyc
+.venv/
 
+# DB / SQLite
+apps/data/*.db
+apps/data/*.db-wal
+apps/data/*.db-shm
+
+# Node / Nuxt
+node_modules/
+apps/frontend/node_modules/
+apps/frontend/.nuxt/
+apps/frontend/.output/
+apps/frontend/nuxt-imports.d.ts
+apps/frontend/.eslintcache
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# local SQLite db + journals
+apps/data/*.db
+apps/data/*.db-wal
+apps/data/*.db-shm
