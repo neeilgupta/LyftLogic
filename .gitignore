@@ -24,4 +24,4 @@ apps/frontend/.eslintcache
 # local SQLite db + journals
 apps/data/*.db
 apps/data/*.db-wal
-apps/data/*.db-shm
+apps/data/*.db-shm.vscode/

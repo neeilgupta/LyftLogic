@@ -5,57 +5,13 @@ import os
 from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field, conint, ConfigDict
+from models.plans import GeneratePlanRequest, GeneratePlanResponse
 from services.db import add_plan, list_plans, get_plan
+from .rules.engine import apply_rules_v1
 from openai import OpenAI
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
-# ---------- Request / Response Schemas ----------
-
-class GeneratePlanRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    goal: Literal["strength", "hypertrophy", "fat_loss", "endurance"] = "hypertrophy"
-    experience: Literal["beginner", "intermediate", "advanced"] = "intermediate"
-    days_per_week: conint(ge=1, le=6) = 4
-    session_minutes: conint(ge=20, le=120) = 60
-
-    soreness_notes: str = Field(default="", description="Free-text soreness/recovery notes.")
-    equipment: Literal["full_gym", "dumbbells", "bodyweight"] = "full_gym"
-    constraints: Optional[str] = Field(default="", description="Any injuries, preferences, dislikes.")
-
-
-class ExerciseItem(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    name: str
-    sets: conint(ge=1, le=10)
-    reps: str = Field(description='e.g. "6-8" or "10-12"')
-    rpe: Optional[conint(ge=6, le=10)] = None
-    rest_seconds: Optional[conint(ge=30, le=300)] = None
-    notes: str = ""
-
-
-
-class DayPlan(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    day: str = Field(description='e.g. "Day 1"')
-    focus: str = Field(description='e.g. "Upper (push emphasis)"')
-    warmup: list[str] = []
-    main: list[ExerciseItem]
-    accessories: list[ExerciseItem] = []
-    finisher: list[str] = []
-    cooldown: list[str] = []
-
-
-class GeneratePlanResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    title: str
-    summary: str
-    weekly_split: list[DayPlan]
-    progression_notes: list[str] = []
-    safety_notes: list[str] = []
 
 
 # ---------- Prompting ----------
@@ -86,6 +42,7 @@ Rules:
 - Prefer compound lifts if equipment allows.
 - Provide short progression notes for weeks 1-4.
 - Output must validate against the JSON schema exactly.
+- Prefer rep ranges of 6-8 or 8-12 for most lifts (user preference; avoid very high-rep main work).
 """.strip()
 
 
@@ -137,6 +94,8 @@ def generate_plan(req: GeneratePlanRequest):
         data = json.loads(content)
 
         plan = GeneratePlanResponse(**data)
+        plan = apply_rules_v1(plan=plan, req=req)
+
 
         saved = add_plan(
             title=plan.title,
