@@ -25,3 +25,4 @@ apps/frontend/.eslintcache
 apps/data/*.db
 apps/data/*.db-wal
 apps/data/*.db-shm.vscode/
+.vscode/
