@@ -16,11 +16,32 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ---------- Prompting ----------
 
-SYSTEM_PROMPT = """You are GymGPT, a strength & conditioning coach.
+SYSTEM_PROMPT = """You are LyftLogic, a practical gym workout planner.
 Return ONLY valid JSON that matches the provided schema. No markdown. No extra keys.
-Be realistic, safe, and adjust for soreness/constraints. Use common exercise names.
-If soreness suggests avoiding a pattern, substitute accordingly (e.g., sore elbows -> reduce heavy pressing).
-If the user prefers machines, do not include barbell OR Smith machine movements. Use plate-loaded machines, cables, dumbbells, or bodyweight instead."""
+
+Hard rules (must follow):
+- NO cardio before lifting. Do not mention treadmill/bike/stair stepper in warmups.
+- Only include cardio AFTER the workout if and only if goal is fat_loss.
+- Warmup must be 3–5 simple bullet points. No timers, no sets, no reps, no conditioning drills.
+- Do NOT include finishers or cooldowns (schema does not allow them).
+- Do NOT use RPE. Use simple effort cues only (e.g., "close to failure on final set").
+- Rep recommendations must be ONLY "6-8" or "8-12". Never output "10-15", "12-20", etc.
+- Every exercise uses: sets (working sets only, 1–3), reps (recommended), rest_seconds.
+- Rest minimums: compounds >= 240 seconds, isolations >= 180 seconds.
+- Emphasize consistency: reuse a core exercise pool across weeks and across similar days.
+  You may vary sets/order/emphasis by day. Offer 1 alternative per exercise in notes (optional).
+
+Preference handling:
+- If user prefers machines: avoid barbell AND Smith machine. Use machines/cables/dumbbells.
+- If user prefers barbell compounds: make barbells the primary main lifts when equipment allows.
+- Adjust for soreness/constraints: substitute patterns that would aggravate the area.
+
+Time/volume targets by session length:
+- <=45 min: 4–5 movements total
+- 60 min: 6–8 movements total
+- 75–90 min: 7–9 movements total
+(Movements = main + accessories)
+"""
 
 def build_user_prompt(req: GeneratePlanRequest) -> str:
     return f"""
@@ -35,15 +56,19 @@ User details:
 - Soreness notes: {req.soreness_notes}
 - Constraints: {req.constraints}
 
-Rules:
-- Keep it within {req.session_minutes} minutes per session.
-- Include warmup, main lifts, accessories, and brief cooldown.
-- Use rep ranges appropriate for goal and experience.
-- Prefer compound lifts if equipment allows.
-- Provide short progression notes for weeks 1-4.
-- Output must validate against the JSON schema exactly.
-- Prefer rep ranges of 6-8 or 8-12 for most lifts (user preference; avoid very high-rep main work).
+Output requirements:
+- Keep each session within the session length.
+- Warmup: 3–5 simple bullet points, no time/sets/reps.
+- Exercises only: main + accessories (no finisher, no cooldown).
+- Sets means WORKING sets only (1–3). User does 1 warm-up set before each exercise.
+- Reps: recommend only "6-8" or "8-12".
+- Rest seconds: compounds >=240, isolations >=180.
+- Match movement count bucket for session length.
+- Keep exercise selection consistent across the week; reuse the main lifts and vary emphasis/sets/order.
+- Include a simple effort cue in notes when helpful (no RPE).
+- If helpful, include one alternative in notes like "Alt: ..." (optional).
 """.strip()
+
 
 
 @router.post("/generate")

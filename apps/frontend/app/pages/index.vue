@@ -1,6 +1,6 @@
 <template>
   <div style="padding: 20px; font-family: system-ui;">
-    <h1>GymGPT</h1>
+    <h1>LyftLogic</h1>
 
     <button @click="test" :disabled="loading" style="padding: 10px 14px;">
       {{ loading ? "Loading..." : "Test GET /plans" }}
