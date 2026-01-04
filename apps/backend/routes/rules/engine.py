@@ -561,11 +561,6 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
         _apply_template(day, req, template_key, has_sharms)
 
 
-        # Warmup: clean + fallback defaults
-        day.warmup = _clean_warmup_items(day.warmup)
-        if len(day.warmup) < 3:
-            day.warmup = _default_warmup_for_focus(day.focus)
-
         # Enforce barbell preference in main (minimal)
         _enforce_barbell_priority(day, req)
 
@@ -586,18 +581,47 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
         _enforce_compound_cap(day, req.session_minutes)
         _dedupe_day(day)
 
+        
+
     # Notes (short, deterministic, matches your philosophy)
+    WARMUP_LINE = "Before each main or accessory lift, do 1 lighter warm-up set at ~50% of your working weight."
+
+    def _clean_lines(lines):
+        if not lines:
+            return []
+        out = []
+        for s in lines:
+            if not s:
+                continue
+            s2 = str(s).strip()
+            if not s2:
+                continue
+            # remove simple markdown noise if present
+            s2 = s2.replace("**", "").replace("__", "")
+            out.append(s2)
+        return out
+
+    def _ensure_warmup_line(lines):
+        hay = " ".join(lines).lower()
+        # don't duplicate if model already says it
+        if ("50%" in hay) or ("warm-up set" in hay) or ("warm up set" in hay):
+            return lines
+        return [WARMUP_LINE] + lines
+
+    plan.progression_notes = _clean_lines(plan.progression_notes)
     if not plan.progression_notes:
         plan.progression_notes = [
-            "**Warm-up sets:** 1 set @ ~50% for each lift.",
-            "**Working sets:** Take the final set close to failure (0–2 RIR).",
-            "",
-            "Stick with the same core lifts week to week and add weight or reps when form stays clean."
-]
+            "Working sets: take the final set close to failure (0–2 RIR).",
+            "Progress week to week by adding a rep or small weight when form stays clean.",
+        ]
+    plan.progression_notes = _ensure_warmup_line(plan.progression_notes)
+
+    plan.safety_notes = _clean_lines(plan.safety_notes)
     if not plan.safety_notes:
         plan.safety_notes = [
             "No cardio before lifting. If goal is fat loss, add optional cardio after the workout.",
             "Rest >=4 min on compounds and >=3 min on isolations."
         ]
+
 
     return plan
