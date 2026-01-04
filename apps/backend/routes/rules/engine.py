@@ -4,6 +4,63 @@ from typing import List, Optional, Tuple
 
 from models.plans import GeneratePlanRequest, GeneratePlanResponse, DayPlan, ExerciseItem
 
+from routes.rules.exercise_catalog import (
+    EXERCISES,
+    is_compound,
+    is_isolation,
+    get_isolations_for_focus,
+    get_compounds_for_focus,
+    normalize_name,
+)
+
+_CANON = {k.lower(): k for k in EXERCISES.keys()}
+# -----------------------------
+# LyftLogic v2 priorities (minimal set for templates)
+# -----------------------------
+CHEST_COMPOUND = ["Incline Bench Press", "Chest Press", "Barbell Bench Press"]  # :contentReference[oaicite:4]{index=4}
+LAT_COMPOUND = ["Lat Pulldown", "Pull Ups"]                                     # :contentReference[oaicite:5]{index=5}
+ROW_CLOSE = ["T-Bar Row (Close grip)", "Chest Supported Rows (Close grip)", "Seated Cable Row"]  # :contentReference[oaicite:6]{index=6}
+ROW_WIDE  = ["T-Bar Row (Wide Grip)", "Chest Supported Rows (Wide Grip)", "Seated Cable Row"]   # :contentReference[oaicite:7]{index=7}
+
+QUAD_COMPOUND = ["Hack Squat", "Leg Press", "Bulgarian Split Squat"]            # :contentReference[oaicite:8]{index=8}
+HINGE = ["Romanian Dead Lifts", "Romanian Deadlift"]                           # :contentReference[oaicite:9]{index=9}
+HIP_THRUST = ["Hipthrust", "Hip Thrust"]                                        # :contentReference[oaicite:10]{index=10}
+
+CHEST_ISO = ["Pec Deck", "Cable Fly (low, mid, high)"]                          # :contentReference[oaicite:11]{index=11}
+LATERAL = ["Machine Lateral Raises", "Cable Lateral Raises", "Lateral Raises (DB)", "Lateral Raises"]  # :contentReference[oaicite:12]{index=12}
+REAR_DELT = ["Reverse Pec Deck", "Rear Delt Fly (DB)", "Face Pull (rear-delt bias)"]  # :contentReference[oaicite:13]{index=13}
+
+BICEPS = [
+    "Preacher Curl",
+    "EZ Bar Curl",
+    "Incline Dumbbell Curl",
+    "EZ Bar Preacher Curl",
+    "Dumbbell Curl",
+    "Cable Curl",
+]
+
+TRI_SIDES = [
+    "Triceps Pushdown",
+    "V-Bar Tricep Pushdown",
+    "Rope Triceps Pushdown",
+    "Single-Arm Cable Extension",
+]
+
+TRI_OVERHEAD = [
+    "Overhead Triceps Extension",
+    "Cable Overhead Triceps Extension",
+    "Skullcrushers",
+    "JM Press",
+]
+CALVES = ["Seated Calf Raise", "Standing Calf Raise"]                                 # :contentReference[oaicite:17]{index=17}
+LEG_EXT = ["Leg Extension (machine)", "Leg Extension"]                                # :contentReference[oaicite:18]{index=18}
+HAM_CURL = ["Seated Leg Curl", "Lying Leg Curl"]                                      # :contentReference[oaicite:19]{index=19}
+ABS = ["Machine Crunch", "Cable Crunch", "Hanging Leg Raises"]                        # :contentReference[oaicite:20]{index=20}
+
+SHOULDER_PRESS = ["Machine Shoulder Press", "Dumbell Shoulder Press", "Dumbbell Shoulder Press"]  # :contentReference[oaicite:21]{index=21}
+
+
+
 
 # -----------------------------
 # helpers
@@ -23,24 +80,22 @@ def _wants_barbells(req: GeneratePlanRequest) -> bool:
     c = _lc(req.constraints)
     return ("prefer barbell" in c) or ("barbell" in c and "avoid barbell" not in c)
 
-def _is_compound(name: str) -> bool:
-    n = _lc(name)
-    compound_keywords = (
-        "bench", "press", "squat", "leg press", "hack", "deadlift", "rdl", "row",
-        "pull-up", "pullup", "chin", "pulldown", "overhead", "shoulder press"
-    )
-    return any(k in n for k in compound_keywords)
 
 def _is_barbell_like(name: str) -> bool:
     n = _lc(name)
-    return ("barbell" in n) or (n.startswith("bench press")) or (n.startswith("back squat")) or ("deadlift" in n)
+    return (
+        "barbell" in n
+        or "bench press" in n
+        or "back squat" in n
+        or "deadlift" in n
+        or "rdl" in n
+        or "bent-over barbell row" in n
+        or "bent-over barbell rows" in n
+    )
 
 def _is_smith(name: str) -> bool:
     return "smith" in _lc(name)
 
-def _is_isolation(name: str) -> bool:
-    # conservative: if not compound, treat as isolation
-    return not _is_compound(name)
 
 def _normalize_reps(name: str, reps: str) -> str:
     """
@@ -52,13 +107,13 @@ def _normalize_reps(name: str, reps: str) -> str:
     if r in ("6-8", "8-12"):
         return reps
 
-    if _is_compound(name):
+    if is_compound(name):
         return "6-8"
     return "8-12"
 
 def _normalize_rest_seconds(name: str, rest_seconds: Optional[int]) -> int:
     # Hard mins: compounds >=240, isolations >=180
-    if _is_compound(name):
+    if is_compound(name):
         return 240
     # isolations
     if rest_seconds is None:
@@ -117,73 +172,74 @@ def _movement_bucket(session_minutes: int) -> Tuple[int, int]:
 def _trim_or_pad_movements(day: DayPlan, req: GeneratePlanRequest) -> None:
     """
     Ensure movements (main + accessories) hit the bucket.
-    If too many: trim accessories first.
-    If too few: add from deterministic pools (respect prefs).
+    Deterministic + cap-safe:
+      - trim accessories first
+      - replace unknown exercises (curated universe)
+      - dedupe within the day
+      - enforce compound cap
+      - pad isolation-first (no duplicates), compounds only if under cap
     """
     lo, hi = _movement_bucket(req.session_minutes)
+
+    if len(day.main) >= 2 and len(day.accessories) >= 3:
+        # still enforce cap + dedupe and exit
+        _dedupe_day(day)
+        _enforce_compound_cap(day, req.session_minutes)
+        _dedupe_day(day)
+        return
 
     def total() -> int:
         return len(day.main) + len(day.accessories)
 
-    # trim extras
+    # 0) curated universe + dedupe early (so we don't count junk)
+    _replace_unknown_exercises(day)
+    _dedupe_day(day)
+
+    # 1) trim extras (accessories first)
     while total() > hi and day.accessories:
         day.accessories.pop()
 
-    # pad if too few
+    # 2) enforce compound cap after trimming
+    _enforce_compound_cap(day, req.session_minutes)
+    _dedupe_day(day)
+
+    # 3) if already meets minimum, stop
     if total() >= lo:
         return
 
-    pool = _exercise_pool_for_day(day, req)
-    existing_names = {_lc(e.name) for e in (day.main + day.accessories)}
-    for ex in pool:
-        if total() >= lo:
+    # 4) pad isolation-first (focus-matched), no duplicates
+    existing = {normalize_name(e.name) for e in (day.main + day.accessories)}
+
+    iso_pool = [n for n in get_isolations_for_focus(day.focus) if normalize_name(n) not in existing]
+    comp_pool = [n for n in get_compounds_for_focus(day.focus) if normalize_name(n) not in existing]
+
+    def can_add_compound() -> bool:
+        return _count_compounds(day) < _compound_cap(req.session_minutes, day.focus)
+
+    while total() < lo:
+        if iso_pool:
+            name = iso_pool.pop(0)
+        elif comp_pool and can_add_compound():
+            name = comp_pool.pop(0)
+        else:
             break
-        if _lc(ex.name) in existing_names:
-            continue
-        day.accessories.append(ex)
-        existing_names.add(_lc(ex.name))
 
-def _exercise_pool_for_day(day: DayPlan, req: GeneratePlanRequest) -> List[ExerciseItem]:
-    """
-    Deterministic "safe defaults" used only to pad movement count.
-    Keeps consistency + respects machine/barbell preference.
-    """
-    machines_only = _wants_machines(req)
-    wants_barbell = _wants_barbells(req) and req.equipment == "full_gym" and not machines_only
+        day.accessories.append(
+            ExerciseItem(
+                name=name,
+                sets=2,
+                reps=_normalize_reps(name, ""),                 # becomes 6-8 or 8-12
+                rest_seconds=_normalize_rest_seconds(name, None),
+                notes="",
+            )
+        )
+        existing.add(normalize_name(name))
 
-    f = _lc(day.focus)
-    is_lower = "lower" in f
+    # 5) final safety pass
+    _dedupe_day(day)
+    _enforce_compound_cap(day, req.session_minutes)
+    _dedupe_day(day)
 
-    # Note: sets are working sets (1–3); reps normalized later anyway
-    if is_lower:
-        base = [
-            ExerciseItem(name="Back Squat" if wants_barbell else "Leg Press", sets=2, reps="6-8", rest_seconds=240, notes="Alt: Hack Squat"),
-            ExerciseItem(name="Romanian Deadlift" if wants_barbell else "Dumbbell RDL", sets=2, reps="6-8", rest_seconds=240, notes="Alt: Hip Hinge Variation"),
-            ExerciseItem(name="Seated Leg Curl", sets=2, reps="8-12", rest_seconds=180, notes="Alt: Lying Leg Curl"),
-            ExerciseItem(name="Leg Extension", sets=2, reps="8-12", rest_seconds=180, notes="Alt: Split Squat"),
-            ExerciseItem(name="Calf Raise", sets=2, reps="8-12", rest_seconds=180, notes="Alt: Seated Calf Raise"),
-        ]
-    else:
-        base = [
-            ExerciseItem(name="Bench Press" if wants_barbell else "Machine Chest Press", sets=2, reps="6-8", rest_seconds=240, notes="Alt: Dumbbell Bench Press"),
-            ExerciseItem(name="Incline Bench Press" if wants_barbell else "Incline Dumbbell Press", sets=2, reps="6-8", rest_seconds=240, notes="Alt: Incline Machine Press"),
-            ExerciseItem(name="Lat Pulldown", sets=2, reps="6-8", rest_seconds=240, notes="Alt: Pull-Ups"),
-            ExerciseItem(name="Seated Cable Row", sets=2, reps="6-8", rest_seconds=240, notes="Alt: Chest-Supported Row"),
-            ExerciseItem(name="Lateral Raise", sets=2, reps="8-12", rest_seconds=180, notes="Alt: Cable Lateral Raise"),
-            ExerciseItem(name="Triceps Pushdown", sets=2, reps="8-12", rest_seconds=180, notes="Alt: Overhead Triceps Extension"),
-            ExerciseItem(name="Biceps Curl", sets=2, reps="8-12", rest_seconds=180, notes="Alt: Cable Curl"),
-        ]
-
-    # Machines-only constraint: strip barbells/smith
-    if machines_only:
-        filtered: List[ExerciseItem] = []
-        for ex in base:
-            if _is_barbell_like(ex.name) or _is_smith(ex.name):
-                continue
-            filtered.append(ex)
-        return filtered
-
-    return base
 
 def _enforce_barbell_priority(day: DayPlan, req: GeneratePlanRequest) -> None:
     """
@@ -202,15 +258,282 @@ def _enforce_barbell_priority(day: DayPlan, req: GeneratePlanRequest) -> None:
     is_lower = "lower" in f
 
     for i, ex in enumerate(day.main):
-        if _is_compound(ex.name):
+        if is_compound(ex.name):
             if is_lower:
-                ex.name = "Back Squat" if "squat" in _lc(ex.name) or "leg press" in _lc(ex.name) else "Romanian Deadlift"
+                ex.name = "Barbell Back Squat" if ("squat" in _lc(ex.name) or "leg press" in _lc(ex.name)) else "Romanian Deadlift"
                 ex.notes = (ex.notes + " ").strip() + "Alt: Leg Press"
             else:
-                ex.name = "Bench Press" if "press" in _lc(ex.name) else "Barbell Row"
+                ex.name = "Barbell Bench Press" if "press" in _lc(ex.name) else "Bent-Over Barbell Rows"
                 ex.notes = (ex.notes + " ").strip() + "Alt: Machine Variation"
             day.main[i] = ex
             break
+
+
+def _compound_cap(session_minutes: int, focus: str) -> int:
+    f = (focus or "").lower()
+
+    # Lower-body override: max 1–2 compounds regardless of time
+    if "lower" in f or "leg" in f:
+        return 2
+
+    # Upper-body caps scale with session length buckets
+    if session_minutes <= 45:
+        return 3  # deterministic: use upper bound of 2–3
+    if session_minutes <= 60:
+        return 4  # deterministic: use upper bound of 3–4
+    return 5      # 75–90: upper bound of 4–5
+
+
+def _count_compounds(day) -> int:
+    items = (getattr(day, "main", []) or []) + (getattr(day, "accessories", []) or [])
+    cnt = 0
+    for ex in items:
+        n = normalize_name(ex.name)
+        if not n:
+            continue
+        canon = _CANON.get(n.lower(), n)
+        if is_compound(canon):
+            cnt += 1
+    return cnt
+
+def _replace_unknown_exercises(day) -> None:
+    """
+    If the LLM outputs an exercise not in the curated catalog,
+    replace it with a valid isolation (focus-matched), avoiding duplicates.
+    """
+    items = (getattr(day, "main", []) or []) + (getattr(day, "accessories", []) or [])
+    used = {normalize_name(ex.name) for ex in items if ex.name}
+
+    focus = getattr(day, "focus", "")
+    iso_pool = [n for n in get_isolations_for_focus(focus) if normalize_name(n) not in used]
+    if not iso_pool:
+        iso_pool = [n for n in EXERCISES.keys() if is_isolation(n) and normalize_name(n) not in used]
+
+    for ex in items:
+        n = normalize_name(ex.name)
+        if not n:
+            continue
+
+        # 1) Case-insensitive canonical match
+        canon = _CANON.get(n.lower())
+        if canon:
+            ex.name = canon
+            used.add(normalize_name(canon))
+            continue
+
+        # 2) Truly unknown → replace with isolation
+        if n not in EXERCISES:
+            if iso_pool:
+                new_name = iso_pool.pop(0)
+                ex.name = new_name
+                used.add(normalize_name(new_name))
+
+
+def _dedupe_day(day) -> None:
+    items = (getattr(day, "main", []) or []) + (getattr(day, "accessories", []) or [])
+    seen = set()
+    out = []
+    for ex in items:
+        n = normalize_name(ex.name)
+        if not n:
+            continue
+        canon = _CANON.get(n.lower(), n)
+        nn = normalize_name(canon)
+        if nn and nn not in seen:
+            ex.name = canon  # normalize stored name too
+            out.append(ex)
+            seen.add(nn)
+
+    main_len = len(getattr(day, "main", []) or [])
+    day.main = out[:main_len]
+    day.accessories = out[main_len:]
+
+def _enforce_compound_cap(day, session_minutes: int) -> None:
+    cap = _compound_cap(session_minutes, getattr(day, "focus", ""))
+
+    items = (getattr(day, "main", []) or []) + (getattr(day, "accessories", []) or [])
+    used = {normalize_name(ex.name) for ex in items if ex.name}
+
+    iso_pool = [n for n in get_isolations_for_focus(getattr(day, "focus", "")) if normalize_name(n) not in used]
+    if not iso_pool:
+        iso_pool = [n for n in EXERCISES.keys() if is_isolation(n) and normalize_name(n) not in used]
+
+    compounds_seen = 0
+    for ex in items:
+        n = normalize_name(ex.name)
+        if not n:
+            continue
+        canon = _CANON.get(n.lower(), n)
+
+        if is_compound(canon):
+            compounds_seen += 1
+            if compounds_seen > cap and iso_pool:
+                new_name = iso_pool.pop(0)
+                ex.name = new_name
+                used.add(normalize_name(new_name))
+
+
+def _select_day_templates(days_per_week: int) -> list[str]:
+    # Your coaching split logic
+    if days_per_week <= 2:
+        return ["FB_A", "FB_B"][:days_per_week]
+
+    if days_per_week == 3:
+        return ["FB_A", "FB_B", "FB_C"]
+
+    if days_per_week == 4:
+        return ["UPPER_A", "LOWER_QUAD", "UPPER_B", "LOWER_HAM"]
+
+    if days_per_week == 5:
+        return ["UPPER_A", "LOWER_QUAD", "UPPER_B", "LOWER_HAM", "SHARMS"]
+
+    # 6+ (allowed but not recommended): default to PPLPPL
+    return ["PUSH", "PULL", "LEGS", "PUSH", "PULL", "LEGS"][:days_per_week]
+
+def _template_to_focus(template_key: str) -> str:
+    # This is the string your existing rules/pools can understand
+    t = template_key.upper()
+
+    if t.startswith("FB_"):
+        return "Full Body"
+
+    if t == "UPPER_A": return "Upper A"
+    if t == "UPPER_B": return "Upper B"
+
+    if t == "LOWER_QUAD":
+        return "Lower (quad)"
+    if t == "LOWER_HAM":
+        return "Lower (hamstring)"
+
+    if t == "SHARMS":
+        return "Upper (sharms)"
+
+    if t == "PUSH":
+        return "Upper (push)"
+    if t == "PULL":
+        return "Upper (pull)"
+    if t == "LEGS":
+        return "Lower"
+
+    return "Upper"
+
+def _canon_name(name: str) -> Optional[str]:
+    n = normalize_name(name)
+    if not n:
+        return None
+    # case-insensitive canonical mapping to EXERCISES key
+    canon = _CANON.get(n.lower())
+    if canon:
+        return canon
+    # if it's already an exact key
+    if n in EXERCISES:
+        return n
+    return None
+
+
+def _pick_first_valid(priority: List[str], banned: set[str]) -> Optional[str]:
+    for raw in priority:
+        cn = _canon_name(raw)
+        if not cn:
+            continue
+        nn = normalize_name(cn)
+        if nn in banned:
+            continue
+        if cn in EXERCISES:
+            return cn
+    return None
+
+
+def _template_slots(template_key: str) -> Tuple[List[List[str]], List[List[str]]]:
+    t = (template_key or "").upper()
+
+    if t == "UPPER_A":
+        main = [CHEST_COMPOUND, LAT_COMPOUND, CHEST_ISO]
+        acc  = [ROW_CLOSE, LATERAL, BICEPS]
+        return main, acc
+
+    if t == "UPPER_B":
+        main = [ROW_WIDE, CHEST_COMPOUND, LAT_COMPOUND]
+        acc  = [CHEST_ISO, REAR_DELT, BICEPS]
+        return main, acc
+
+    if t == "LOWER_QUAD":
+        main = [LEG_EXT, QUAD_COMPOUND]
+        acc  = [HAM_CURL, HIP_THRUST, CALVES, ABS]
+        return main, acc
+
+    if t == "LOWER_HAM":
+        main = [HAM_CURL, HINGE]
+        acc  = [LEG_EXT, HIP_THRUST, CALVES, ABS]
+        return main, acc
+
+    if t == "SHARMS":
+        main = [SHOULDER_PRESS]
+        acc  = [LATERAL, BICEPS, BICEPS]
+        return main, acc
+
+    # fallback: no template overwrite
+    return [], []
+
+def _triceps_slots_for_day(template_key: str, has_sharms: bool) -> list[list[str]]:
+    t = template_key.upper()
+
+    if t == "SHARMS":
+        return [TRI_SIDES, TRI_OVERHEAD]  # both
+
+    if t == "UPPER_A":
+        return [TRI_SIDES]  # sides only
+    if t == "UPPER_B":
+        return [TRI_OVERHEAD]  # overhead only
+
+    # For FB days, we can rotate based on day suffix
+    if t.startswith("FB_"):
+        if t.endswith("A"):
+            return [TRI_SIDES]
+        if t.endswith("B"):
+            return [TRI_OVERHEAD]
+        return [TRI_SIDES]  # FB_C default
+    return []
+
+def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, has_sharms: bool) -> None:
+    main_slots, acc_slots = _template_slots(template_key)
+    acc_slots = list(acc_slots)  # in case it's a tuple
+    acc_slots += _triceps_slots_for_day(template_key, has_sharms)
+    
+    if not main_slots and not acc_slots:
+        return
+
+    banned: set[str] = set()
+
+    def build_items(slots: List[List[str]]) -> List[ExerciseItem]:
+        items: List[ExerciseItem] = []
+        for slot in slots:
+            pick = _pick_first_valid(slot, banned=banned)
+            if not pick:
+                continue
+            banned.add(normalize_name(pick))
+            items.append(
+                ExerciseItem(
+                    name=pick,
+                    sets=2,  # your preferred default
+                    reps=_normalize_reps(pick, ""),
+                    rest_seconds=_normalize_rest_seconds(pick, None),
+                    notes="",
+                )
+            )
+        return items
+
+    new_main = build_items(main_slots)
+    new_acc = build_items(acc_slots)
+
+    # Hard rule: no shoulder press on upper days that include chest press work
+    if template_key.upper() in ("UPPER_A", "UPPER_B"):
+        new_main = [ex for ex in new_main if "shoulder press" not in _lc(ex.name)]
+        new_acc = [ex for ex in new_acc if "shoulder press" not in _lc(ex.name)]
+
+    day.main = new_main
+    day.accessories = new_acc
+
 
 
 # -----------------------------
@@ -226,8 +549,18 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
     if len(plan.weekly_split) > effective_days:
         plan.weekly_split = plan.weekly_split[:effective_days]
 
+    # ✅ NEW: decide your split/day templates deterministically
+    tpls = _select_day_templates(effective_days)
+    has_sharms = "SHARMS" in tpls
+
+
     # per-day enforcement
-    for day in plan.weekly_split:
+    for i, day in enumerate(plan.weekly_split):
+        template_key = tpls[i] if i < len(tpls) else tpls[-1]
+        day.focus = _template_to_focus(template_key)
+        _apply_template(day, req, template_key, has_sharms)
+
+
         # Warmup: clean + fallback defaults
         day.warmup = _clean_warmup_items(day.warmup)
         if len(day.warmup) < 3:
@@ -247,19 +580,20 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
             if "rpe" in nl:
                 ex.notes = ""
 
-            # Add a simple effort cue if notes are empty (optional, non-fluffy)
-            if not ex.notes.strip():
-                ex.notes = "Effort: close to failure on final set."
-
         # Enforce movement counts by time bucket
         _trim_or_pad_movements(day, req)
+        _dedupe_day(day)
+        _enforce_compound_cap(day, req.session_minutes)
+        _dedupe_day(day)
 
     # Notes (short, deterministic, matches your philosophy)
     if not plan.progression_notes:
         plan.progression_notes = [
-            "Stick with the same core lifts week to week and try to add a little weight or an extra rep when form stays clean.",
-            "Each exercise: do 1 warm-up set, then the listed 1–3 working sets."
-        ]
+            "**Warm-up sets:** 1 set @ ~50% for each lift.",
+            "**Working sets:** Take the final set close to failure (0–2 RIR).",
+            "",
+            "Stick with the same core lifts week to week and add weight or reps when form stays clean."
+]
     if not plan.safety_notes:
         plan.safety_notes = [
             "No cardio before lifting. If goal is fat loss, add optional cardio after the workout.",
