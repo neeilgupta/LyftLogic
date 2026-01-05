@@ -27,7 +27,6 @@ ROW_WIDE  = ["T-Bar Row (Wide Grip)", "Chest Supported Rows (Wide Grip)", "Seate
 
 QUAD_COMPOUND = ["Hack Squat", "Leg Press", "Bulgarian Split Squat"]            # :contentReference[oaicite:8]{index=8}
 HINGE = ["Romanian Dead Lifts", "Romanian Deadlift"]                           # :contentReference[oaicite:9]{index=9}
-HIP_THRUST = ["Hipthrust", "Hip Thrust"]                                        # :contentReference[oaicite:10]{index=10}
 
 CHEST_ISO = ["Pec Deck", "Cable Fly (low, mid, high)"]                          # :contentReference[oaicite:11]{index=11}
 LATERAL = ["Machine Lateral Raises", "Cable Lateral Raises", "Lateral Raises (DB)", "Lateral Raises"]  # :contentReference[oaicite:12]{index=12}
@@ -63,9 +62,16 @@ HAM_CURL = ["Seated Leg Curl", "Lying Leg Curl"]                                
 ABS = ["Machine Crunch", "Cable Crunch", "Hanging Leg Raises"]                        # :contentReference[oaicite:20]{index=20}
 
 SHOULDER_PRESS = ["Machine Shoulder Press", "Dumbell Shoulder Press", "Dumbbell Shoulder Press"]  # :contentReference[oaicite:21]{index=21}
+HIP_THRUST = ["Smith Machine Hip Thrust", "Machine Hip Thrust"]
+
+ADDUCTOR = ["Machine Hip Adduction", "Hip Adduction"]
+ABDUCTOR = ["Machine Hip Abduction", "Hip Abduction"]
+CABLE_CRUNCH = ["Cable Crunch"]
+FLAT_PRESS = ["Machine Chest Press", "Smith Machine Bench Press", "Chest Press"]
+UPPER_BACK_ROW = ["Chest Supported Row", "Machine Row", "Hammer Strength Row", "Seated Cable Row", "T-Bar Row"]
+
 
 _DB_PAT = re.compile(r"\bdumbbell(s)?\b|\bdb\b", re.I)
-_BB_PAT = re.compile(r"\bbarbell(s)?\b", re.I)
 
 # Minimal swap map: feel free to expand over time
 _SWAP = {
@@ -76,7 +82,8 @@ _SWAP = {
 
     # presses
     "dumbbell bench press": ["Machine Chest Press", "Smith Machine Bench Press", "Chest Press"],
-    "incline dumbbell press": ["Incline Machine Press", "Smith Machine Incline Press", "Incline Chest Press"],
+    "incline dumbbell press": ["Smith Machine Incline Press", "Incline Machine Press", "Incline Dumbbell Press"],
+    "incline bench press": ["Incline Machine Press", "Incline Dumbbell Press"],
 
     # rows
     "dumbbell row": ["Seated Cable Row", "Machine Row", "Chest Supported Row"],
@@ -85,8 +92,9 @@ _SWAP = {
     "back squat": ["Hack Squat", "Leg Press", "Smith Machine Squat"],
     "barbell squat": ["Hack Squat", "Leg Press", "Smith Machine Squat"],
     "barbell bench press": ["Smith Machine Bench Press", "Machine Chest Press", "Chest Press"],
-    "deadlift": ["Romanian Deadlift", "Back Extension", "Hamstring Curl"],  # careful if no dumbbells too
-}
+    "deadlift": ["Back Extension", "Seated Leg Curl", "Hamstring Curl"],
+    "hip thrust": ["Smith Machine Hip Thrust", "Machine Hip Thrust", "Dumbbell Hip Thrust"],
+    "romanian deadlift": ["Back Extension", "Seated Leg Curl", "Hamstring Curl"]}
 
 
 
@@ -105,21 +113,31 @@ def _wants_machines(req: GeneratePlanRequest) -> bool:
     return "prefer machines" in c or "machines only" in c or "machine" in c
 
 def _wants_barbells(req: GeneratePlanRequest) -> bool:
+    flags = _notes_flags(req)
+    if flags["no_barbells"]:
+        return False
     c = _lc(req.constraints)
-    return ("prefer barbell" in c) or ("barbell" in c and "avoid barbell" not in c)
-
+    return "prefer barbell" in c or "barbells preferred" in c
 
 def _is_barbell_like(name: str) -> bool:
     n = _lc(name)
-    return (
-        "barbell" in n
-        or "bench press" in n
-        or "back squat" in n
-        or "deadlift" in n
-        or "rdl" in n
-        or "bent-over barbell row" in n
-        or "bent-over barbell rows" in n
-    )
+    return any(k in n for k in (
+        "barbell",
+        "ez bar",
+        "back squat",
+        "front squat",
+        "deadlift",
+        "romanian deadlift",
+        "rdl",
+        "bent-over barbell row",
+        "barbell bench press",
+        "t-bar row",
+        "barbell overhead press",
+        "barbell row",
+        "incline bench press",
+        "hip thrust"
+    ))
+
 
 def _is_smith(name: str) -> bool:
     return "smith" in _lc(name)
@@ -313,7 +331,7 @@ def _enforce_barbell_priority(day: DayPlan, req: GeneratePlanRequest) -> None:
     """
     flags = _notes_flags(req)
     if flags["no_barbells"]:
-     return
+        return
     if not (_wants_barbells(req) and req.equipment == "full_gym" and not _wants_machines(req)):
         return
 
@@ -329,10 +347,10 @@ def _enforce_barbell_priority(day: DayPlan, req: GeneratePlanRequest) -> None:
         if is_compound(ex.name):
             if is_lower:
                 ex.name = "Barbell Back Squat" if ("squat" in _lc(ex.name) or "leg press" in _lc(ex.name)) else "Romanian Deadlift"
-                ex.notes = (ex.notes + " ").strip() + "Alt: Leg Press"
+                ex.notes = ""
             else:
                 ex.name = "Barbell Bench Press" if "press" in _lc(ex.name) else "Bent-Over Barbell Rows"
-                ex.notes = (ex.notes + " ").strip() + "Alt: Machine Variation"
+                ex.notes = ""
             day.main[i] = ex
             break
 
@@ -444,19 +462,23 @@ def _enforce_compound_cap(day, session_minutes: int) -> None:
 def _select_day_templates(days_per_week: int) -> list[str]:
     # Your coaching split logic
     if days_per_week <= 2:
-        return ["FB_A", "FB_B"][:days_per_week]
+        return ["FB_A", "REST", "REST", "FB_B", "REST", "REST", "REST"]
 
     if days_per_week == 3:
-        return ["FB_A", "FB_B", "FB_C"]
+        return ["FB_A","REST", "FB_B","REST", "FB_C", "REST","REST"]
 
     if days_per_week == 4:
-        return ["UPPER_A", "LOWER_QUAD", "UPPER_B", "LOWER_HAM"]
+        return ["UPPER_A", "LOWER_QUAD", "REST", "UPPER_B", "LOWER_HAM", "REST", "REST"]
 
     if days_per_week == 5:
-        return ["UPPER_A", "LOWER_QUAD", "UPPER_B", "LOWER_HAM", "SHARMS"]
+        return ["UPPER_A", "LOWER_QUAD", "REST", "UPPER_B", "LOWER_HAM", "SHARMS", "REST"]
 
     # 6+ (allowed but not recommended): default to PPLPPL
-    return ["PUSH", "PULL", "LEGS", "PUSH", "PULL", "LEGS"][:days_per_week]
+    if days_per_week == 6:
+        return ["PUSH", "PULL", "LOWER_QUAD", "CHEST_BACK", "SHARMS", "LOWER_HAM", "REST"]
+
+# 6+ fallback (if ever used)
+    return ["PUSH", "PULL", "LOWER_QUAD", "CHEST_BACK", "SHARMS", "LOWER_HAM", "REST"][:days_per_week]
 
 def _template_to_focus(template_key: str) -> str:
     # This is the string your existing rules/pools can understand
@@ -469,19 +491,24 @@ def _template_to_focus(template_key: str) -> str:
     if t == "UPPER_B": return "Upper B"
 
     if t == "LOWER_QUAD":
-        return "Lower (quad)"
+        return "Quad Focused Leg Day"
     if t == "LOWER_HAM":
-        return "Lower (hamstring)"
+        return "Hamstring Focused Leg Day"
 
     if t == "SHARMS":
-        return "Upper (sharms)"
+        return "Shoulder and Arms"
 
     if t == "PUSH":
-        return "Upper (push)"
+        return "Push Day(Chest, Shoulders, Triceps)"
     if t == "PULL":
-        return "Upper (pull)"
+        return "Pull Day(Back, Biceps)"
     if t == "LEGS":
         return "Lower"
+
+    if t == "CHEST_BACK":
+        return "Chest/Back"
+    if t == "REST":
+        return "Rest Day"
 
     return "Upper"
 
@@ -499,8 +526,22 @@ def _canon_name(name: str) -> Optional[str]:
     return None
 
 
-def _pick_first_valid(priority: List[str], banned: set[str]) -> Optional[str]:
-    for raw in priority:
+def _pick_first_valid(priority: List[str],banned: set[str],prefer_machines: bool = False) -> Optional[str]:
+    ordered = priority
+
+    if prefer_machines:
+        ordered = sorted(
+            priority,
+            key=lambda n: (
+                0 if "machine" in n.lower() else
+                1 if "smith" in n.lower() else
+                2 if "cable" in n.lower() else
+                3 if "dumbbell" in n.lower() else
+                4
+            )
+        )
+
+    for raw in ordered:
         cn = _canon_name(raw)
         if not cn:
             continue
@@ -509,21 +550,30 @@ def _pick_first_valid(priority: List[str], banned: set[str]) -> Optional[str]:
             continue
         if cn in EXERCISES:
             return cn
+
     return None
 
+
 def _row_pool(req: GeneratePlanRequest):
-        if "no barbells" in _lc(req.constraints):
-            return [
-                "Chest Supported Row",
-                "Machine Row",
-                "Hammer Strength Row",
-                "Seated Cable Row",
-            ]
+    if _wants_machines(req):
         return [
-            "T-Bar Row",
+            "Machine Row",
+            "Hammer Strength Row",
+            "Seated Cable Row",
             "Chest Supported Row",
+        ]
+    if "no barbells" in _lc(req.constraints):
+        return [
+            "Chest Supported Row",
+            "Machine Row",
+            "Hammer Strength Row",
             "Seated Cable Row",
         ]
+    return [
+        "Chest Supported Row",
+        "T-Bar Row",
+        "Seated Cable Row",
+    ]
 
 
 def _template_slots(template_key: str, req: GeneratePlanRequest) -> Tuple[List[List[str]], List[List[str]]]:
@@ -553,6 +603,99 @@ def _template_slots(template_key: str, req: GeneratePlanRequest) -> Tuple[List[L
         main = [SHOULDER_PRESS]
         acc  = [LATERAL, BICEPS, BICEPS]
         return main, acc
+    
+        # -----------------
+    # Full Body (FB) templates
+    # -----------------
+    if t == "FB_A":
+        main = [
+            CHEST_COMPOUND,      # incline press movement
+            LAT_COMPOUND,        # lat pulldown
+            UPPER_BACK_ROW,      # upper back row variant
+        ]
+        acc = [
+            LATERAL,
+            TRI_OVERHEAD,        # triceps extension
+            BICEPS,              # curl variation
+            QUAD_COMPOUND,       # squat pattern (hack squat)
+            LEG_EXT,
+            CALVES,
+            ABDUCTOR,
+            CABLE_CRUNCH,
+        ]
+        return main, acc
+
+    if t == "FB_B":
+        main = [
+            UPPER_BACK_ROW,      # upper back row variant
+            FLAT_PRESS,          # flat press
+            ROW_CLOSE,           # close grip row (lats)
+        ]
+        acc = [
+            TRI_SIDES,           # triceps (medial)
+            BICEPS,
+            HINGE,               # rdl
+            LEG_EXT,
+            CALVES,
+            ADDUCTOR,
+            LATERAL,
+        ]
+        return main, acc
+
+    if t == "FB_C":
+        main = [
+            LAT_COMPOUND,        # lat pulldown
+            UPPER_BACK_ROW,      # upper back row
+            CHEST_ISO,           # chest fly (pec deck/cable fly)
+        ]
+        acc = [
+            CHEST_COMPOUND,      # incline press
+            TRI_OVERHEAD,
+            BICEPS,
+            QUAD_COMPOUND,       # squat pattern
+            LEG_EXT,
+            HAM_CURL,
+            CALVES,
+            CABLE_CRUNCH,
+        ]
+        return main, acc
+
+    # -----------------
+    # 6-day split templates
+    # -----------------
+    if t == "PUSH":
+        main = [
+            CHEST_COMPOUND,  # chest press 1
+            CHEST_ISO,       # chest fly
+        ]
+        acc = [
+            SHOULDER_PRESS,  # shoulder movement 1
+            LATERAL,         # shoulder movement 2 (machine lateral raise exists)
+            TRI_SIDES,       # tricep 1
+            TRI_OVERHEAD,    # tricep 2
+        ]
+        return main, acc
+
+    if t == "PULL":
+        main = [
+            LAT_COMPOUND,    # back 1
+            _row_pool(req),  # back 2
+            UPPER_BACK_ROW,  # back 3
+        ]
+        acc = [
+            BICEPS,          # biceps 1
+            BICEPS,          # biceps 2 (forces variation via banned set)
+        ]
+        return main, acc
+
+    if t == "CHEST_BACK":
+        main = [CHEST_COMPOUND, LAT_COMPOUND]
+        acc  = [CHEST_ISO, UPPER_BACK_ROW]
+        return main, acc
+
+    if t == "REST":
+        return [], []
+
 
     # fallback: no template overwrite
     return [], []
@@ -590,14 +733,14 @@ def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, h
     def build_items(slots: List[List[str]]) -> List[ExerciseItem]:
         items: List[ExerciseItem] = []
         for slot in slots:
-            pick = _pick_first_valid(slot, banned=banned)
+            pick = _pick_first_valid(slot,banned=banned, prefer_machines=_wants_machines(req),)
             if not pick:
                 continue
             banned.add(normalize_name(pick))
             items.append(
                 ExerciseItem(
                     name=pick,
-                    sets=2,  # your preferred default
+                    sets=1 if template_key.upper().startswith("FB_") else 2,  # your preferred default
                     reps=_normalize_reps(pick, ""),
                     rest_seconds=_normalize_rest_seconds(pick, None),
                     notes="",
@@ -694,7 +837,7 @@ def _enforce_equipment_from_notes(day, req) -> None:
         n = (name or "").lower()
         if no_db and (_DB_PAT.search(n) or "dumbbell" in n):
             return True
-        if no_bb and ("barbell" in n or "back squat" in n or "front squat" in n):
+        if no_bb and _is_barbell_like(n):
             return True
         return False
 
@@ -731,21 +874,48 @@ def _enforce_equipment_from_notes(day, req) -> None:
 def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> GeneratePlanResponse:
     # clamp days (keep your existing behavior)
     effective_days = req.days_per_week
-    explicitly_requested_6 = (req.days_per_week == 6)
-    if effective_days > 5 and not (req.experience == "advanced" and explicitly_requested_6):
-        effective_days = 5
-    if len(plan.weekly_split) > effective_days:
-        plan.weekly_split = plan.weekly_split[:effective_days]
+    if effective_days > 6:
+        effective_days = 6
 
-    # ✅ NEW: decide your split/day templates deterministically
+    # Decide your split/day templates deterministically
     tpls = _select_day_templates(effective_days)
     has_sharms = "SHARMS" in tpls
 
+    # IMPORTANT: weekly_split must match the template length (tpls may include REST)
+    target_len = len(tpls)
+
+    # Trim or pad days to match target_len
+    if len(plan.weekly_split) > target_len:
+        plan.weekly_split = plan.weekly_split[:target_len]
+    elif len(plan.weekly_split) < target_len:
+        from copy import deepcopy
+
+        # ensure we have a "shape" to clone
+        if not plan.weekly_split:
+            # if the model returned zero days, we cannot safely pad without the DayPlan constructor
+            return plan
+
+        while len(plan.weekly_split) < target_len:
+            blank = deepcopy(plan.weekly_split[0])
+            blank.day = f"Day {len(plan.weekly_split) + 1}"
+            blank.focus = ""
+            blank.warmup = []
+            blank.main = []
+            blank.accessories = []
+            plan.weekly_split.append(blank)
+
+
 
     # per-day enforcement
-    for i, day in enumerate(plan.weekly_split):
-        template_key = tpls[i] if i < len(tpls) else tpls[-1]
+    for i in range(target_len):
+        day = plan.weekly_split[i]
+        template_key = tpls[i]
         day.focus = _template_to_focus(template_key)
+        if template_key == "REST":
+            day.warmup = []
+            day.main = []
+            day.accessories = []
+            continue
         _apply_template(day, req, template_key, has_sharms)
         _enforce_equipment_from_notes(day, req)
 
@@ -764,13 +934,11 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
                 ex.notes = ""
 
         # Enforce movement counts by time bucket
-        _trim_or_pad_movements(day, req)
-        _dedupe_day(day)
-        _enforce_compound_cap(day, req.session_minutes)
 
-        _enforce_time_cap(day, req.session_minutes)
-
-        _dedupe_day(day)    
+        if (not template_key.upper().startswith("FB_")) and (template_key != "CHEST_BACK"):
+            _trim_or_pad_movements(day, req)
+            _dedupe_day(day)
+            _enforce_compound_cap(day, req.session_minutes)   
 
         
 

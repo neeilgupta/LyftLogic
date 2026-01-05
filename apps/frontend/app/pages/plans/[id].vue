@@ -83,7 +83,7 @@
           :href="`#day-${i}`"
           style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 999px; text-decoration: none;"
         >
-          {{ day.day }}
+          {{ dayChipLabel(day) }}
         </a>
       </div>
 
@@ -94,11 +94,28 @@
         style="border: 1px solid #eee; border-radius: 12px; padding: 14px; margin-bottom: 14px;"
       >
         <h2 style="margin: 0 0 6px; font-weight: 600;">
-          {{ day.day }} — {{ day.focus }}
+          {{ day.day }} — {{ isRestDay(day) ? "Rest Day" : day.focus }}
+
         </h2>
 
-        <TableSection title="Main" :lifts="normalizeToLifts(day.main)" />
-        <TableSection title="Accessories" :lifts="normalizeToLifts(day.accessories)" />
+        
+
+        <!-- REST DAY -->
+        <div
+          v-if="isRestDay(day)"
+          style="margin-top: 10px; padding: 12px; border: 1px dashed #ddd; border-radius: 10px; opacity: 0.85;"
+        >
+          <strong>Rest Day</strong>
+          <div style="margin-top: 6px;">
+            No lifting today. Optional: light walking and mobility.
+          </div>
+        </div>
+
+        <!-- TRAINING DAY -->
+        <template v-else>
+          <TableSection title="Main" :lifts="normalizeToLifts(day.main)" />
+          <TableSection title="Accessories" :lifts="normalizeToLifts(day.accessories)" />
+        </template>
       </article>
     </section>
 
@@ -255,6 +272,38 @@ function normalizeToLifts(items: any[] | undefined): Lift[] {
           ? JSON.stringify(x)
           : String(x),
   }));
+}
+
+function isRestDay(day: Day) {
+  const focus = String(day.focus ?? "").toLowerCase();
+  const label = String(day.day ?? "").toLowerCase();
+
+  // Strong signals
+  if (focus.includes("rest")) return true;
+  if (label.includes("rest")) return true;
+
+  // Treat "no lifts" as rest
+  const hasAny = (arr: any[] | undefined) =>
+    Array.isArray(arr) && arr.some((x) => {
+      if (!x) return false;
+      if (typeof x === "string") return x.trim().length > 0;
+      if (typeof x === "object") {
+        // lift-like objects might exist with empty name
+        const n = (x as any).name;
+        return typeof n === "string" ? n.trim().length > 0 : true;
+      }
+      return true;
+    });
+
+  const hasWarmup = hasAny(day.warmup);
+  const hasMain = hasAny(day.main);
+  const hasAcc = hasAny(day.accessories);
+
+  return !(hasWarmup || hasMain || hasAcc);
+}
+
+function dayChipLabel(day: Day) {
+  return isRestDay(day) ? `${day.day} (Rest)` : day.day;
 }
 
 const ListSection = defineComponent({
