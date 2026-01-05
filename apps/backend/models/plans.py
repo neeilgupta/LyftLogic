@@ -12,8 +12,8 @@ class GeneratePlanRequest(BaseModel):
     days_per_week: Annotated[int, Field(ge=1, le=6)] = 4
     session_minutes: Annotated[int, Field(ge=20, le=120)] = 60
 
-    soreness_notes: str = Field(default="", description="Free-text soreness/recovery notes.")
     equipment: Literal["full_gym", "dumbbells", "bodyweight"] = "full_gym"
+    soreness_notes: Optional[str] = None
     constraints: Optional[str] = Field(default="", description="Any injuries, preferences, dislikes.")
 
 

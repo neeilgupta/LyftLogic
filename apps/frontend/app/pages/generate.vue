@@ -42,14 +42,19 @@
       </label>
 
       <label>
-        Soreness notes
-        <input v-model="form.soreness_notes" placeholder="Upper back tight" />
-      </label>
+  User Notes / Preferences
+  <textarea
+    v-model="form.constraints"
+    rows="4"
+    placeholder="Examples:
+- No dumbbells
+- No barbells
+- Prefer machines
+- Extra glute focus
+- Avoid shoulders (pain)"
+  />
+</label>
 
-      <label>
-        Constraints
-        <input v-model="form.constraints" placeholder="Prefer machines" />
-      </label>
 
       <button :disabled="loading" type="submit" style="padding: 10px 14px; width: fit-content;">
         {{ loading ? "Generating..." : "Generate plan" }}
@@ -80,8 +85,7 @@ const form = ref({
   days_per_week: 4,
   session_minutes: 60,
   equipment: "full_gym",
-  soreness_notes: "Upper back tight",
-  constraints: "Prefer machines",
+  constraints: "",
 });
 
 async function onSubmit() {

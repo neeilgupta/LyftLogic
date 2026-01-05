@@ -13,6 +13,9 @@ from routes.rules.exercise_catalog import (
     normalize_name,
 )
 
+import re
+
+
 _CANON = {k.lower(): k for k in EXERCISES.keys()}
 # -----------------------------
 # LyftLogic v2 priorities (minimal set for templates)
@@ -37,6 +40,8 @@ BICEPS = [
     "EZ Bar Preacher Curl",
     "Dumbbell Curl",
     "Cable Curl",
+    "Hammer Curl",
+
 ]
 
 TRI_SIDES = [
@@ -59,6 +64,29 @@ ABS = ["Machine Crunch", "Cable Crunch", "Hanging Leg Raises"]                  
 
 SHOULDER_PRESS = ["Machine Shoulder Press", "Dumbell Shoulder Press", "Dumbbell Shoulder Press"]  # :contentReference[oaicite:21]{index=21}
 
+_DB_PAT = re.compile(r"\bdumbbell(s)?\b|\bdb\b", re.I)
+_BB_PAT = re.compile(r"\bbarbell(s)?\b", re.I)
+
+# Minimal swap map: feel free to expand over time
+_SWAP = {
+    # curls
+    "incline dumbbell curl": ["Preacher Curl", "Cable Curl", "Machine Curl"],
+    "dumbbell curl": ["Cable Curl", "Preacher Curl", "Machine Curl"],
+    "hammer curl": ["Rope Hammer Curl", "Cable Curl", "Machine Curl"],
+
+    # presses
+    "dumbbell bench press": ["Machine Chest Press", "Smith Machine Bench Press", "Chest Press"],
+    "incline dumbbell press": ["Incline Machine Press", "Smith Machine Incline Press", "Incline Chest Press"],
+
+    # rows
+    "dumbbell row": ["Seated Cable Row", "Machine Row", "Chest Supported Row"],
+
+    # squats/hinges (barbell)
+    "back squat": ["Hack Squat", "Leg Press", "Smith Machine Squat"],
+    "barbell squat": ["Hack Squat", "Leg Press", "Smith Machine Squat"],
+    "barbell bench press": ["Smith Machine Bench Press", "Machine Chest Press", "Chest Press"],
+    "deadlift": ["Romanian Deadlift", "Back Extension", "Hamstring Curl"],  # careful if no dumbbells too
+}
 
 
 
@@ -210,8 +238,45 @@ def _trim_or_pad_movements(day: DayPlan, req: GeneratePlanRequest) -> None:
     # 4) pad isolation-first (focus-matched), no duplicates
     existing = {normalize_name(e.name) for e in (day.main + day.accessories)}
 
-    iso_pool = [n for n in get_isolations_for_focus(day.focus) if normalize_name(n) not in existing]
-    comp_pool = [n for n in get_compounds_for_focus(day.focus) if normalize_name(n) not in existing]
+    existing = {normalize_name(e.name) for e in (day.main + day.accessories)}
+
+    # ✅ SHARMS: only allow arm/shoulder isolations as fillers (no random lats/back)
+    if "sharms" in _lc(day.focus):
+        existing = {normalize_name(e.name) for e in (day.main + day.accessories)}
+
+        # ✅ allow only ONE lateral raise slot total on SHARMS day
+        has_lateral = any("lateral raise" in (e.name or "").lower() for e in (day.main + day.accessories))
+
+        sharms_iso = []
+
+        # 1) Prefer another biceps first (best filler)
+        for n in BICEPS:
+            if normalize_name(n) not in existing:
+                sharms_iso.append(n)
+
+        # 2) Then triceps variants (if missing)
+        for pool in (TRI_SIDES, TRI_OVERHEAD):
+            for n in pool:
+                if normalize_name(n) not in existing:
+                    sharms_iso.append(n)
+
+        # 3) Only add a lateral raise if we don't already have one
+        if not has_lateral:
+            for n in LATERAL:
+                if normalize_name(n) not in existing:
+                    sharms_iso.append(n)
+
+        # 4) Optional: abs as final filler (safe)
+        for n in ABS:
+            if normalize_name(n) not in existing:
+                sharms_iso.append(n)
+
+        iso_pool = sharms_iso
+        comp_pool = []
+
+    else:
+        iso_pool = [n for n in get_isolations_for_focus(day.focus) if normalize_name(n) not in existing]
+        comp_pool = [n for n in get_compounds_for_focus(day.focus) if normalize_name(n) not in existing]
 
     def can_add_compound() -> bool:
         return _count_compounds(day) < _compound_cap(req.session_minutes, day.focus)
@@ -246,6 +311,9 @@ def _enforce_barbell_priority(day: DayPlan, req: GeneratePlanRequest) -> None:
     If user prefers barbells and equipment allows, ensure main lifts are barbell-like.
     We do minimal swaps (only if clearly missing).
     """
+    flags = _notes_flags(req)
+    if flags["no_barbells"]:
+     return
     if not (_wants_barbells(req) and req.equipment == "full_gym" and not _wants_machines(req)):
         return
 
@@ -443,17 +511,31 @@ def _pick_first_valid(priority: List[str], banned: set[str]) -> Optional[str]:
             return cn
     return None
 
+def _row_pool(req: GeneratePlanRequest):
+        if "no barbells" in _lc(req.constraints):
+            return [
+                "Chest Supported Row",
+                "Machine Row",
+                "Hammer Strength Row",
+                "Seated Cable Row",
+            ]
+        return [
+            "T-Bar Row",
+            "Chest Supported Row",
+            "Seated Cable Row",
+        ]
 
-def _template_slots(template_key: str) -> Tuple[List[List[str]], List[List[str]]]:
+
+def _template_slots(template_key: str, req: GeneratePlanRequest) -> Tuple[List[List[str]], List[List[str]]]:
     t = (template_key or "").upper()
 
     if t == "UPPER_A":
         main = [CHEST_COMPOUND, LAT_COMPOUND, CHEST_ISO]
-        acc  = [ROW_CLOSE, LATERAL, BICEPS]
+        acc  = [_row_pool(req), LATERAL, BICEPS]
         return main, acc
 
     if t == "UPPER_B":
-        main = [ROW_WIDE, CHEST_COMPOUND, LAT_COMPOUND]
+        main = [_row_pool(req), CHEST_COMPOUND, LAT_COMPOUND]
         acc  = [CHEST_ISO, REAR_DELT, BICEPS]
         return main, acc
 
@@ -496,7 +578,7 @@ def _triceps_slots_for_day(template_key: str, has_sharms: bool) -> list[list[str
     return []
 
 def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, has_sharms: bool) -> None:
-    main_slots, acc_slots = _template_slots(template_key)
+    main_slots, acc_slots = _template_slots(template_key, req)
     acc_slots = list(acc_slots)  # in case it's a tuple
     acc_slots += _triceps_slots_for_day(template_key, has_sharms)
     
@@ -534,6 +616,112 @@ def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, h
     day.main = new_main
     day.accessories = new_acc
 
+def _max_total_exercises_for_minutes(session_minutes: int) -> int:
+    m = session_minutes or 60
+    if m <= 35: return 4   # 2 main + 2 accessories
+    if m <= 45: return 5   # 2 main + 3 accessories
+    if m <= 60: return 6   # 2 main + 4 accessories
+    if m <= 75: return 7   # 2 main + 5 accessories
+    return 8               # 2 main + 6 accessories (cap)
+
+def _enforce_time_cap(day, session_minutes: int) -> None:
+    max_total = _max_total_exercises_for_minutes(session_minutes)
+
+    # Always keep at least 2 mains (your rule)
+    if len(day.main) < 2:
+        # if main is short for any reason, don't "solve" here; let existing pad logic handle it
+        return
+
+    # If main got too big, trim it but keep 2
+    if len(day.main) > 3:
+        day.main = day.main[:3]  # optional: keep mains from exploding
+
+    # Now trim accessories to fit max_total
+    allowed_accessories = max_total - len(day.main)
+    if allowed_accessories < 0:
+        allowed_accessories = 0
+
+    if len(day.accessories) > allowed_accessories:
+        day.accessories = day.accessories[:allowed_accessories]
+
+def _notes_flags(req) -> dict:
+    text = (req.constraints or "").lower()
+    # if you later rename to user_notes, do: (req.user_notes or req.constraints or "")
+    return {
+        "no_dumbbells": bool(re.search(r"\bno\s+dumbbells?\b|\bavoid\s+dumbbells?\b", text)),
+        "no_barbells": bool(re.search(r"\bno\s+barbells?\b|\bavoid\s+barbells?\b", text)),
+        "prefer_machines": bool(re.search(r"\bprefer\s+machines?\b|\bmachines?\s+only\b", text)),
+    }
+
+def _pick_replacement(name: str, prefer_machines: bool, no_dumbbells: bool, no_barbells: bool) -> str | None:
+    key = (name or "").strip().lower()
+    cands = _SWAP.get(key)
+    if not cands:
+        return None
+
+    # filter out candidates that violate bans (string-level v1)
+    filtered = []
+    for c in cands:
+        lc = c.lower()
+        if no_dumbbells and (_DB_PAT.search(lc) or "dumbbell" in lc or " db " in f" {lc} "):
+            continue
+        if no_barbells and ("barbell" in lc):
+            continue
+        filtered.append(c)
+
+    if not filtered:
+        return None
+
+    if prefer_machines:
+        # prefer machine/cable/smith if present
+        for c in filtered:
+            lc = c.lower()
+            if "machine" in lc or "cable" in lc or "smith" in lc:
+                return c
+
+    return filtered[0]
+
+def _enforce_equipment_from_notes(day, req) -> None:
+    flags = _notes_flags(req)
+    no_db = flags["no_dumbbells"]
+    no_bb = flags["no_barbells"]
+    prefer_m = flags["prefer_machines"]
+
+    if not (no_db or no_bb or prefer_m):
+        return
+
+    def violates(name: str) -> bool:
+        n = (name or "").lower()
+        if no_db and (_DB_PAT.search(n) or "dumbbell" in n):
+            return True
+        if no_bb and ("barbell" in n or "back squat" in n or "front squat" in n):
+            return True
+        return False
+
+    def process_list(lst):
+        out = []
+        for ex in lst:
+            n = ex.name or ""
+            if violates(n):
+                repl = _pick_replacement(n, prefer_m, no_db, no_bb)
+                if repl:
+                    ex.name = repl
+                    # keep sets/reps/rest normalization later in pipeline
+                    out.append(ex)
+                else:
+                    # drop if no safe replacement
+                    continue
+            else:
+                # If prefer_machines, optionally "soft bias" by swapping obvious free-weight names
+                if prefer_m:
+                    repl = _pick_replacement(n, prefer_m, no_db, no_bb)
+                    if repl:
+                        ex.name = repl
+                out.append(ex)
+        return out
+
+    day.main = process_list(day.main)
+    day.accessories = process_list(day.accessories)
 
 
 # -----------------------------
@@ -559,7 +747,7 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
         template_key = tpls[i] if i < len(tpls) else tpls[-1]
         day.focus = _template_to_focus(template_key)
         _apply_template(day, req, template_key, has_sharms)
-
+        _enforce_equipment_from_notes(day, req)
 
         # Enforce barbell preference in main (minimal)
         _enforce_barbell_priority(day, req)
@@ -579,7 +767,10 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
         _trim_or_pad_movements(day, req)
         _dedupe_day(day)
         _enforce_compound_cap(day, req.session_minutes)
-        _dedupe_day(day)
+
+        _enforce_time_cap(day, req.session_minutes)
+
+        _dedupe_day(day)    
 
         
 
