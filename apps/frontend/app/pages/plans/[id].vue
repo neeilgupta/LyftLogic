@@ -117,6 +117,97 @@
           <TableSection title="Accessories" :lifts="normalizeToLifts(day.accessories)" />
         </template>
       </article>
+      <!-- ========================= -->
+      <!-- Phase 1: Editor Shell (stub) -->
+      <!-- ========================= -->
+      <section style="border: 1px solid #eee; border-radius: 12px; padding: 18px; margin-top: 22px;">
+  <!-- Header pill (matches day chip vibe) -->
+  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+    <span
+      style="
+        padding: 6px 10px;
+        border: 1px solid #ddd;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.02em;
+      "
+    >
+      Plan Editor (Phase 1)
+    </span>
+    <span style="opacity: 0.75; font-size: 13px;">
+      Adjust via chat — proposed patch shown below
+    </span>
+  </div>
+
+  <h2 style="margin: 0 0 10px; font-weight: 700;">Adjust this plan</h2>
+
+  <p style="margin: 0 0 12px; opacity: 0.8;">
+    Examples: “No barbells”, “Prefer dumbbells”, “Focus arms”.
+  </p>
+
+  <textarea
+    v-model="editMessage"
+    rows="6"
+    placeholder="Type an adjustment…"
+    style="
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.4;
+    "
+  />
+
+  <div style="display: flex; gap: 10px; margin-top: 12px; align-items: center;">
+    <button
+      :disabled="editPending || !editMessage.trim()"
+      @click="sendEdit()"
+      style="padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
+    >
+      {{ editPending ? "Sending…" : "Send" }}
+    </button>
+
+    <button
+      disabled
+      title="Apply is coming next (Phase 1)."
+      style="padding: 10px 12px; border-radius: 10px; border: 1px solid #eee; background: #f7f7f7; color: #999; cursor: not-allowed;"
+    >
+      Apply (disabled)
+    </button>
+
+    <span v-if="editError" style="color: #b00020; font-size: 13px;">
+      {{ editError }}
+    </span>
+  </div>
+
+  <div v-if="editResponse" style="margin-top: 16px;">
+    <h3 style="margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;">
+      Proposed changes (stub)
+    </h3>
+
+    <div
+      v-if="editResponse.errors?.length"
+      style="border: 1px solid #f2c6cc; background: #fff5f6; padding: 10px; border-radius: 10px; margin-bottom: 10px;"
+    >
+      <div style="font-weight: 700; margin-bottom: 6px;">Errors</div>
+      <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+        <li v-for="(e, i) in editResponse.errors" :key="`ee-${i}`">{{ e }}</li>
+      </ul>
+    </div>
+
+    <div style="border: 1px solid #eee; border-radius: 10px; padding: 10px;">
+      <div style="font-weight: 700; margin-bottom: 6px;">proposed_patch</div>
+      <pre style="margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5;">
+{{ JSON.stringify(editResponse.proposed_patch ?? {}, null, 2) }}
+      </pre>
+    </div>
+  </div>
+</section>
+
     </section>
 
     <p v-else>No plan data found.</p>
@@ -128,6 +219,8 @@ import { computed, defineComponent, h } from "vue";
 import type { PropType } from "vue";
 import { useRoute } from "vue-router";
 import { usePlans } from "../../../composables/usePlans";
+import { ref } from "vue";
+import { useRuntimeConfig } from "#imports";
 
 type Lift = {
   name: string;
@@ -411,4 +504,49 @@ const TableSection = defineComponent({
     };
   },
 });
+
+type EditPlanResponseT = {
+  can_apply: boolean;
+  proposed_patch: {
+    constraints_add: string[];
+    constraints_remove: string[];
+    preferences_add: string[];
+    preferences_remove: string[];
+    emphasis: string | null;
+    avoid: string[];
+    set_style: "low" | "standard" | "high" | null;
+    rep_style: "strength" | "hypertrophy" | "pump" | null;
+  };
+  change_summary: string[];
+  errors: string[];
+};
+
+const editMessage = ref("");
+const editPending = ref(false);
+const editError = ref<string | null>(null);
+const editResponse = ref<EditPlanResponseT | null>(null);
+
+const config = useRuntimeConfig();
+const apiBase = (config.public as any)?.apiBase ?? "http://127.0.0.1:8000";
+
+async function sendEdit() {
+  editError.value = null;
+  editResponse.value = null;
+
+  const msg = editMessage.value.trim();
+  if (!msg) return;
+
+  editPending.value = true;
+  try {
+    const res = await $fetch<EditPlanResponseT>(`${apiBase}/plans/${id.value}/edit`, {
+      method: "POST",
+      body: { message: msg },
+    });
+    editResponse.value = res;
+  } catch (e: any) {
+    editError.value = e?.data?.detail ?? e?.message ?? String(e);
+  } finally {
+    editPending.value = false;
+  }
+}
 </script>
