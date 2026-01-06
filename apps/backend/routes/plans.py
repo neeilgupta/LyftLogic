@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Literal, Optional
 from services.db import add_plan, list_plans, get_plan
 
 from fastapi import APIRouter, HTTPException, Query
-from models.plans import (GeneratePlanRequest,GeneratePlanResponse, EditPlanRequest, EditPlanResponse, PlanEditPatch)
+from models.plans import (
+    GeneratePlanRequest,
+    GeneratePlanResponse, 
+    EditPlanRequest, 
+    EditPlanResponse, 
+    PlanEditPatch)
+
 from .rules.engine import apply_rules_v1
 from openai import OpenAI
 
