@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 import os
 from typing import Literal, Optional
+from services.db import add_plan, list_plans, get_plan
 
 from fastapi import APIRouter, HTTPException, Query
-from models.plans import GeneratePlanRequest, GeneratePlanResponse
-from services.db import add_plan, list_plans, get_plan
+from models.plans import (GeneratePlanRequest,GeneratePlanResponse, EditPlanRequest, EditPlanResponse, PlanEditPatch)
 from .rules.engine import apply_rules_v1
 from openai import OpenAI
 
@@ -154,3 +154,19 @@ def get_saved_plan(plan_id: int):
         "input": json.loads(row["input_json"]),
         "output": json.loads(row["output_json"]),
     }
+
+@router.post("/{plan_id}/edit", summary="Propose an edit to a saved plan (stub)", response_model=EditPlanResponse)
+def edit_saved_plan(plan_id: int, body: EditPlanRequest) -> EditPlanResponse:
+    # Phase 1 stub: do not parse message, do not modify plans, do not call rules engine.
+    # This endpoint exists only to wire frontend -> backend contract.
+    row = get_plan(plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    return EditPlanResponse(
+        can_apply=False,
+        proposed_patch=PlanEditPatch(),
+        change_summary=[],
+        errors=["Not implemented"],
+    )
+

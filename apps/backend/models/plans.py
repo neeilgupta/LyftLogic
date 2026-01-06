@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional, Annotated
+from typing import List, Literal, Optional, Annotated, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 
 class GeneratePlanRequest(BaseModel):
@@ -58,3 +58,24 @@ class GeneratePlanResponse(BaseModel):
 
     progression_notes: list[str] = []
     safety_notes: list[str] = []
+
+class EditPlanRequest(BaseModel):
+    message: str
+
+
+class PlanEditPatch(BaseModel):
+    constraints_add: List[str] = []
+    constraints_remove: List[str] = []
+    preferences_add: List[str] = []
+    preferences_remove: List[str] = []
+    emphasis: Optional[str] = None
+    avoid: List[str] = []
+    set_style: Optional[Literal["low", "standard", "high"]] = None
+    rep_style: Optional[Literal["strength", "hypertrophy", "pump"]] = None
+
+
+class EditPlanResponse(BaseModel):
+    can_apply: bool = False
+    proposed_patch: PlanEditPatch = PlanEditPatch()
+    change_summary: List[str] = []
+    errors: List[str] = ["Not implemented"]
