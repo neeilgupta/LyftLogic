@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from services.db import add_plan, list_plans, get_plan, get_latest_plan_version
+from services.db import add_plan, list_plans, get_plan, get_latest_plan_version, list_plan_versions
 
 
 from fastapi import APIRouter, HTTPException, Query
@@ -202,5 +202,13 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
             "received_patch": patch.model_dump(),
         },
     )
+
+@router.get("/{plan_id}/versions", summary="List versions for a plan")
+def get_plan_versions(plan_id: int):
+    row = get_plan(plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    return {"plan_id": plan_id, "items": list_plan_versions(plan_id)}
 
 

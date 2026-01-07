@@ -225,3 +225,16 @@ def get_latest_plan_version(plan_id: int) -> Optional[Dict]:
             (plan_id,),
         ).fetchone()
         return dict(row) if row else None
+    
+def list_plan_versions(plan_id: int) -> List[Dict]:
+    with _conn() as conn:
+        cur = conn.execute(
+            """
+            SELECT id, plan_id, version, created_at
+            FROM plan_versions
+            WHERE plan_id = ?
+            ORDER BY version DESC
+            """,
+            (plan_id,),
+        )
+        return [dict(r) for r in cur.fetchall()]
