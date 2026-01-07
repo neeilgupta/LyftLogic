@@ -12,9 +12,16 @@ export function usePlans() {
     return await $fetch("/plans", { baseURL, method: "GET" });
   };
 
-  const getPlan = async (id: number | string) => {
-    return await $fetch(`/plans/${id}`, { baseURL, method: "GET" });
-  };
+  async function getPlan(id: string) {
+    const n = Number(id);
+    if (!Number.isFinite(n) || n <= 0) {
+      // prevent /plans/undefined (or any invalid id) from ever hitting backend
+    throw new Error(`Invalid plan id: ${String(id)}`);
+  }
+
+  return await $fetch(`/plans/${n}`, { baseURL, method: "GET" });
+}
+
 
   const generatePlan = async (payload: any) => {
     return await $fetch("/plans/generate", {
