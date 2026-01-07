@@ -1,8 +1,9 @@
 # apps/backend/services/db.py
 from __future__ import annotations
 import sqlite3
+import json
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any, Tuple
 from datetime import datetime, timedelta
 
 # .../apps/backend/services/db.py -> data/gymgpt.db
@@ -56,6 +57,7 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 plan_id INTEGER NOT NULL,
                 version INTEGER NOT NULL,
+                input_json TEXT NOT NULL,
                 output_json TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(plan_id) REFERENCES plans(id) ON DELETE CASCADE,
@@ -66,6 +68,7 @@ def init_db() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_plan_versions_plan_id ON plan_versions(plan_id);"
         )
+
 
 def add_log(
     name: str,
@@ -172,12 +175,13 @@ def add_plan(title: str, input_json: str, output_json: str) -> Dict:
             "INSERT INTO plans(title, input_json, output_json) VALUES (?,?,?)",
             (title, input_json, output_json),
         )
+        conn.commit()
         plan_id = cur.lastrowid
 
         # ✅ create v1 plan version
         conn.execute(
-            "INSERT INTO plan_versions(plan_id, version, output_json) VALUES (?,?,?)",
-            (plan_id, 1, output_json),
+            "INSERT INTO plan_versions(plan_id, version, input_json, output_json) VALUES (?,?,?,?)",
+            (plan_id, 1, input_json, output_json),
         )
 
         row = conn.execute(
@@ -212,11 +216,23 @@ def get_plan(plan_id: int) -> Optional[Dict]:
         ).fetchone()
         return dict(row) if row else None
 
-def get_latest_plan_version(plan_id: int) -> Optional[Dict]:
+
+def create_plan_version(plan_id: int, version: int, input_obj: Dict[str, Any], output_obj: Dict[str, Any]) -> None:
+    with _conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO plan_versions (plan_id, version, input_json, output_json)
+            VALUES (?, ?, ?, ?)
+            """,
+            (plan_id, version, json.dumps(input_obj), json.dumps(output_obj)),
+        )
+        conn.commit()
+
+def get_latest_plan_version(plan_id: int) -> Optional[Dict[str, Any]]:
     with _conn() as conn:
         row = conn.execute(
             """
-            SELECT id, plan_id, version, output_json, created_at
+            SELECT plan_id, version, input_json, output_json, created_at
             FROM plan_versions
             WHERE plan_id = ?
             ORDER BY version DESC
@@ -224,17 +240,29 @@ def get_latest_plan_version(plan_id: int) -> Optional[Dict]:
             """,
             (plan_id,),
         ).fetchone()
-        return dict(row) if row else None
-    
-def list_plan_versions(plan_id: int) -> List[Dict]:
+        if not row:
+            return None
+        # sqlite Row supports dict(row)
+        d = dict(row)
+        d["input"] = json.loads(d.pop("input_json"))
+        d["output"] = json.loads(d.pop("output_json"))
+        return d
+
+def list_plan_versions(plan_id: int) -> List[Dict[str, Any]]:
     with _conn() as conn:
         cur = conn.execute(
             """
-            SELECT id, plan_id, version, created_at
+            SELECT plan_id, version, input_json, output_json, created_at
             FROM plan_versions
             WHERE plan_id = ?
-            ORDER BY version DESC
+            ORDER BY version ASC
             """,
             (plan_id,),
         )
-        return [dict(r) for r in cur.fetchall()]
+        out = []
+        for row in cur.fetchall():
+            d = dict(row)
+            d["input"] = json.loads(d.pop("input_json"))
+            d["output"] = json.loads(d.pop("output_json"))
+            out.append(d)
+        return out

@@ -13,6 +13,9 @@
 
     <section v-else-if="output">
       <h1 style="margin: 0 0 8px;">{{ output.title }}</h1>
+      <div style="opacity: 0.7; font-size: 13px; margin: 6px 0 12px;">
+        Version {{ (plan as any)?.version ?? "?" }}
+      </div>
       <p style="margin: 0 0 18px; opacity: 0.85;">{{ output.summary }}</p>
 
       <!-- Global notes -->
@@ -54,18 +57,38 @@
         </div>
 
         <!-- Input / constraints / preferences (text only) -->
-        <div v-if="inputConstraints.length || preferenceLines.length" style="margin-top: 12px;">
+        <div
+          v-if="inputConstraints.length || preferenceLines.length || constraintTokens.length || preferenceTokens.length"
+          style="margin-top: 12px;"
+        >
           <h3 style="margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;">
             Preferences (informational)
           </h3>
 
+          <!-- ✅ Tokens from backend -->
+          <div v-if="constraintTokens.length" style="margin-bottom: 8px;">
+            <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Constraint Tokens</div>
+            <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+              <li v-for="(c, i) in constraintTokens" :key="`ct-${i}`">{{ c }}</li>
+            </ul>
+          </div>
+
+          <div v-if="preferenceTokens.length" style="margin-bottom: 8px;">
+            <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Preference Tokens</div>
+            <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+              <li v-for="(p, i) in preferenceTokens" :key="`pt-${i}`">{{ p }}</li>
+            </ul>
+          </div>
+
+          <!-- Existing: raw constraints text -->
           <div v-if="inputConstraints.length" style="margin-bottom: 8px;">
-            <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Constraints</div>
+            <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Constraints (raw)</div>
             <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
               <li v-for="(c, i) in inputConstraints" :key="`c-${i}`">{{ c }}</li>
             </ul>
           </div>
 
+          <!-- Existing: flags -->
           <div v-if="preferenceLines.length">
             <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Flags</div>
             <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
@@ -172,7 +195,7 @@
     </button>
 
     <button
-      :disabled="applyPending || !editResponse?.proposed_patch"
+      :disabled="applyPending || !hasRealPatch"
       @click="applyPatch()"
       style="padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
     >
@@ -188,7 +211,7 @@
     </span>
   </div>
 
-  <div v-if="editResponse" style="margin-top: 16px;">
+  <div v-if="editResponse && hasRealPatch" style="margin-top: 16px;">
     <h3 style="margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;">
       Proposed changes (stub)
     </h3>
@@ -217,6 +240,13 @@
       </pre>
     </div>
   </div>
+  <div
+  v-if="editResponse && !hasRealPatch"
+  style="margin-top: 12px; opacity: 0.75; font-size: 13px;"
+>
+  Edit parsing is not wired yet. This is a Phase 1 UI shell —
+  you can still test <code>/apply</code> with curl.
+</div>
 </section>
 
     </section>
@@ -271,7 +301,7 @@ const route = useRoute();
 const id = computed(() => String(route.params.id));
 const { getPlan } = usePlans();
 
-const { data: plan, pending, error } = await useAsyncData(
+const { data: plan, pending, error, refresh} = await useAsyncData(
   () => `plan-${id.value}`,
   () => getPlan(id.value)
 );
@@ -304,6 +334,17 @@ const input = computed<any>(() => {
   return p?.input ?? null;
 });
 
+const constraintTokens = computed<string[]>(() => {
+  const t = (plan.value as any)?.input?.constraints_tokens;
+  return Array.isArray(t) ? t.map(String).filter(Boolean) : [];
+});
+
+const preferenceTokens = computed<string[]>(() => {
+  const t = (plan.value as any)?.input?.preferences_tokens;
+  return Array.isArray(t) ? t.map(String).filter(Boolean) : [];
+});
+
+
 const inputConstraints = computed<string[]>(() => {
   const c = input.value?.constraints;
   if (!c) return [];
@@ -327,6 +368,8 @@ const preferenceLines = computed<string[]>(() => {
   if (i.barbell_avoidance !== undefined && i.barbell_avoidance !== null) {
     out.push(`barbell_avoidance: ${String(i.barbell_avoidance)}`);
   }
+
+
 
   return out;
 });
@@ -540,6 +583,23 @@ const applyPending = ref(false);
 const applyError = ref<string | null>(null);
 const applyResponse = ref<any>(null);
 
+const hasRealPatch = computed(() => {
+  const p = editResponse.value?.proposed_patch;
+  if (!p) return false;
+
+  return (
+    (p.constraints_add?.length ?? 0) > 0 ||
+    (p.constraints_remove?.length ?? 0) > 0 ||
+    (p.preferences_add?.length ?? 0) > 0 ||
+    (p.preferences_remove?.length ?? 0) > 0 ||
+    (p.avoid?.length ?? 0) > 0 ||
+    !!p.emphasis ||
+    !!p.set_style ||
+    !!p.rep_style
+  );
+});
+
+
 const config = useRuntimeConfig();
 const apiBase = (config.public as any)?.apiBase ?? "http://127.0.0.1:8000";
 
@@ -552,6 +612,10 @@ async function applyPatch() {
     applyError.value = "No proposed_patch to apply. Send an edit first.";
     return;
   }
+  if (!hasRealPatch.value) {
+    applyError.value = "No real changes to apply yet.";
+    return;
+}
 
   applyPending.value = true;
   try {
@@ -559,21 +623,34 @@ async function applyPatch() {
       method: "POST",
       body: patch,
     });
+
+    // show immediate response (optional)
     applyResponse.value = res;
+
+    // refresh the plan content (new version)
+    await refresh();
+
+    // ✅ clear editor UI so it doesn't show stale state
+    editMessage.value = "";
+    editResponse.value = null;
+    editError.value = null;
+    applyError.value = null;
   } catch (e: any) {
-    // For 501, FastAPI returns { detail: {...} } and $fetch throws.
     const d = e?.data?.detail;
     applyResponse.value = d ?? e?.data ?? null;
     applyError.value = e?.data?.detail?.message ?? e?.message ?? String(e);
   } finally {
     applyPending.value = false;
   }
-}  
+}
 
 
 async function sendEdit() {
   editError.value = null;
   editResponse.value = null;
+
+  applyResponse.value = null;
+  applyError.value = null;
 
   const msg = editMessage.value.trim();
   if (!msg) return;

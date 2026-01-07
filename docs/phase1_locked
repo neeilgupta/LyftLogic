@@ -1,0 +1,218 @@
+# Task 1 — Define Phase 1 Edit + Apply Semantics (LOCKED)
+
+## Goal
+Define the **exact contract** for how plans can be edited and applied in Phase 1, such that:
+
+- Plans are **editable, not regeneratable**
+- All edits are **deterministic**
+- Applying an edit **always creates a new version**
+- **No LLM calls** occur during Apply
+- Structural safety and realism are preserved
+
+> This task is **spec-only**. No code changes.
+
+---
+
+## Core Model (Phase 1)
+
+Phase 1 uses a strict **two-step model**.
+
+---
+
+## 1) `/edit` — Proposal (no persistence)
+
+**Input**
+- User intent (chat message or structured request)
+
+**Output**
+- `can_apply: boolean`
+- `patch: PlanEditPatchV1 | null`
+- `errors: string[]`
+
+**Behavior**
+- Convert user intent into a **canonical, structured patch**
+- Reject unsupported or unsafe requests
+- **No database writes**
+- **No plan mutation**
+
+---
+
+## 2) `/apply` — Commit (versioned)
+
+**Input**
+- `patch: PlanEditPatchV1`
+
+**Behavior**
+- Load latest plan version
+- Apply patch to the stored **input snapshot**
+- Re-run **deterministic rules engine only**
+- Save a **new plan version**
+- Return the new version output
+
+---
+
+## Canonical Patch Schema (PlanEditPatchV1)
+
+All Phase 1 edits **MUST** be expressed via this schema.  
+No full-plan rewrites. No free-text edits.
+
+```json
+{
+  "constraints_add": [],
+  "constraints_remove": [],
+  "preferences_add": [],
+  "preferences_remove": [],
+  "emphasis": null,
+  "avoid": [],
+  "set_style": null,
+  "rep_style": null
+}
+
+## Supported Edit Intents (v1)
+
+### 1) Hard constraints (bans)
+**Examples**
+- `no_barbells`
+- `no_dumbbells`
+- `machines_only`
+
+**Rules**
+- Constraints are **absolute**
+- If a constraint conflicts with a preference → **constraint wins**
+- If a token appears in both `add` and `remove` → **add wins** (safer)
+
+---
+
+### 2) Soft preferences
+**Examples**
+- `prefer_machines`
+- `prefer_dumbbells`
+- `prefer_cables`
+
+**Rules**
+- Preferences influence **selection priority only**
+- Preferences **never override constraints**
+
+---
+
+### 3) Avoid presets (pain / movement restrictions)
+**Examples**
+- `avoid_shoulders`
+- `avoid_overhead_press`
+- `avoid_deep_knee_flexion`
+
+**Rules**
+- Only **preset tokens** are supported
+- No medical interpretation
+- On apply: **merge + dedupe** with existing avoid list
+
+---
+
+### 4) Emphasis (single priority only)
+**Examples**
+- `arms`
+- `glutes`
+- `chest`
+
+**Rules**
+- Exactly **one emphasis** allowed in v1
+- Emphasis adjusts priority only
+- Must not break structure or safety caps
+
+---
+
+### 5) Global training style knobs
+Instead of per-exercise edits:
+
+- `set_style`: `low | standard | high`
+- `rep_style`: `strength | hypertrophy | pump`
+
+**Rules**
+- Implemented **only inside the rules engine**
+- Must respect all hard caps (volume, time, safety)
+
+---
+
+## Explicitly Unsupported (Hard NO-GO)
+
+Phase 1 **MUST reject** attempts to:
+
+- Regenerate a plan from scratch
+- Change number of training days
+- Change split type or plan identity
+- Reorder days or exercises
+- Swap specific exercises
+- Manually edit sets/reps/rest per exercise
+- Bypass safety constraints
+- Add progression / periodization logic
+- Add nutrition features
+- Interpret medical conditions beyond preset tokens
+
+**Handling**
+- `/edit` → `can_apply = false`, `errors[]` populated
+- `/apply` → **400 Bad Request** if such a patch is submitted
+
+---
+
+## Apply Execution Semantics (Deterministic)
+
+### Apply Algorithm
+1. Load latest plan version  
+   → `(base_input, base_output, base_version)`
+2. Validate patch keys and token values
+3. Create `new_input = base_input` with patch applied
+4. Compute:
+   ```text
+   new_output = apply_rules_v1(base_output, new_input)
+5. Persist new version:
+   - `version = base_version + 1`
+   - Store **both** `input_json` and `output_json`
+
+6. Return:
+   - `(version, new_output)`
+
+---
+
+## LLM Rules (Non-negotiable)
+
+- `/apply` **never** calls the LLM
+- `/apply` performs **deterministic transformations only**
+- Any accidental LLM call is a **bug**
+
+---
+
+## Versioning Invariants
+
+- Every successful apply creates **exactly one** new version
+- Previous versions are **immutable**
+- `GET /plans/{id}` returns **latest version**
+- `GET /plans/{id}/versions` returns **all versions**, sorted ascending
+
+---
+
+## Definition of Done (Task 1)
+
+You should be able to say:
+
+> “I have a locked, enforceable contract for how plans can be edited and applied deterministically, with versioning and zero LLM usage.”
+
+---
+
+**Task 1 Status:** ✅ **LOCKED**
+
+Next chat → **Task 2: Implement minimal `/apply` backend**  
+(using this document as the immutable contract)
+
+## Phase 1 — Day 1 (DONE)
+
+✅ Implemented deterministic `/plans/{id}/apply` (no LLM)
+- Loads latest plan version input/output
+- Applies `PlanEditPatch` deterministically (add/remove/merge rules; add wins)
+- Re-runs rules engine only (`apply_rules_v1`)
+- Persists `plan_versions` with `version = prev + 1` (stores both `input_json` + `output_json`)
+- Returns new version output
+
+✅ Verified versioning invariants
+- Repeated apply increments versions: v1 → v2 → v3
+- Previous versions remain immutable
+- `/plans/{id}/versions` returns full history (ascending)

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import os
-from services.db import add_plan, list_plans, get_plan, get_latest_plan_version, list_plan_versions
+import copy
+from services.db import add_plan, list_plans, get_plan, get_latest_plan_version, list_plan_versions, create_plan_version
 
 
 from fastapi import APIRouter, HTTPException, Query
@@ -127,12 +128,36 @@ def generate_plan(req: GeneratePlanRequest):
         plan = GeneratePlanResponse(**data)
         plan = apply_rules_v1(plan=plan, req=req)
 
+        # Build Phase 1 input_state (stored with version 1)
+        req_dict = req.model_dump()
+
+        input_state = {
+            **req_dict,
+
+            # Phase 1 editable state (canonical tokens)
+            "constraints_tokens": [],
+            "preferences_tokens": [],
+            "avoid": [],
+            "emphasis": None,
+            "set_style": None,
+            "rep_style": None,
+
+            # Preserve original user constraints text separately
+            "base_constraints_text": req_dict.get("constraints", "") or "",
+        }
+
+        # Effective constraints string that rules engine reads
+        input_state["constraints"] = input_state["base_constraints_text"]
 
         saved = add_plan(
             title=plan.title,
-            input_json=req.model_dump_json(),
+            input_json=json.dumps(input_state),
             output_json=plan.model_dump_json(),
         )
+
+        # Effective constraints string that rules engine reads
+        input_state["constraints"] = input_state["base_constraints_text"]
+
 
         return {"id": saved["id"], "created_at": saved["created_at"], **plan.model_dump()}
 
@@ -148,6 +173,7 @@ def list_saved_plans(
 
 
 @router.get("/{plan_id}", summary="Get a saved plan by id")
+@router.get("/{plan_id}", summary="Get a saved plan by id")
 def get_saved_plan(plan_id: int):
     row = get_plan(plan_id)
     if not row:
@@ -155,15 +181,24 @@ def get_saved_plan(plan_id: int):
 
     latest = get_latest_plan_version(plan_id)
 
-    # ✅ fallback for older plans created before versioning existed
-    output_json = latest["output_json"] if latest else row["output_json"]
+    # ✅ Prefer latest version for BOTH input + output
+    if latest:
+        input_obj = latest["input"]
+        output_obj = latest["output"]
+        version = latest["version"]
+    else:
+        # fallback for older plans created before versioning existed
+        input_obj = json.loads(row["input_json"])
+        output_obj = json.loads(row["output_json"])
+        version = 1
 
     return {
         "id": row["id"],
         "created_at": row["created_at"],
         "title": row["title"],
-        "input": json.loads(row["input_json"]),
-        "output": json.loads(output_json),
+        "version": version,
+        "input": input_obj,
+        "output": output_obj,
     }
 
 
@@ -182,26 +217,82 @@ def edit_saved_plan(plan_id: int, body: EditPlanRequest) -> EditPlanResponse:
         errors=["Not implemented"],
     )
 
-@router.post("/{plan_id}/apply", summary="Apply a proposed patch to a saved plan (stub)")
+@router.post("/{plan_id}/apply", summary="Apply a proposed patch to a saved plan (deterministic)")
 def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
-    # Phase 1 stub: validate plan exists + schema only.
     row = get_plan(plan_id)
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
 
-    # ❌ do not modify DB
-    # ❌ do not re-run rules
-    # ❌ do not create a new version
+    latest = get_latest_plan_version(plan_id)
+    if not latest:
+        raise HTTPException(status_code=404, detail="Plan has no versions")
 
-    raise HTTPException(
-        status_code=501,
-        detail={
-            "status": "not_implemented",
-            "message": "Apply patch not implemented yet (Phase 1 stub).",
-            "plan_id": plan_id,
-            "received_patch": patch.model_dump(),
-        },
-    )
+    base_input: dict = latest["input"]
+    base_output: dict = latest["output"]
+    base_version: int = latest["version"]
+
+    new_input = copy.deepcopy(base_input)
+
+    # Ensure Phase 1 keys exist (for safety)
+    new_input.setdefault("constraints_tokens", [])
+    new_input.setdefault("preferences_tokens", [])
+    new_input.setdefault("avoid", [])
+    new_input.setdefault("base_constraints_text", new_input.get("constraints", "") or "")
+    new_input.setdefault("emphasis", None)
+    new_input.setdefault("set_style", None)
+    new_input.setdefault("rep_style", None)
+
+    # Helper: add wins over remove
+    def apply_add_remove(field: str, add: list[str], remove: list[str]) -> None:
+        cur = set(new_input.get(field, []) or [])
+        cur = (cur - set(remove)) | set(add)
+        new_input[field] = sorted(cur)
+
+    apply_add_remove("constraints_tokens", patch.constraints_add, patch.constraints_remove)
+    apply_add_remove("preferences_tokens", patch.preferences_add, patch.preferences_remove)
+
+    # avoid: merge + dedupe
+    if patch.avoid:
+        new_input["avoid"] = sorted(set(new_input.get("avoid", []) or []).union(set(patch.avoid)))
+
+    # overwrite knobs
+    if patch.emphasis is not None:
+        new_input["emphasis"] = patch.emphasis
+    if patch.set_style is not None:
+        new_input["set_style"] = patch.set_style
+    if patch.rep_style is not None:
+        new_input["rep_style"] = patch.rep_style
+
+    # Rebuild effective constraints string (what rules engine reads)
+    def render_constraints() -> str:
+        parts = []
+        base_text = (new_input.get("base_constraints_text") or "").strip()
+        if base_text:
+            parts.append(base_text)
+        if new_input["constraints_tokens"]:
+            parts.append("BANS: " + ", ".join(new_input["constraints_tokens"]))
+        if new_input["preferences_tokens"]:
+            parts.append("PREFER: " + ", ".join(new_input["preferences_tokens"]))
+        if new_input["avoid"]:
+            parts.append("AVOID: " + ", ".join(new_input["avoid"]))
+        if new_input.get("emphasis"):
+            parts.append("EMPHASIS: " + str(new_input["emphasis"]))
+        return "\n".join(parts).strip()
+
+    new_input["constraints"] = render_constraints()
+
+    # Re-run deterministic rules ONLY (no LLM)
+    req_obj = GeneratePlanRequest(**{k: new_input[k] for k in GeneratePlanRequest.model_fields.keys()})
+    plan_obj = GeneratePlanResponse(**base_output)
+    new_plan_obj = apply_rules_v1(plan=new_plan_obj if False else plan_obj, req=req_obj)  # keeps signature explicit
+
+    new_output = new_plan_obj.model_dump()
+
+    # Save new version
+    new_version = base_version + 1
+    create_plan_version(plan_id, new_version, new_input, new_output)
+
+    return {"plan_id": plan_id, "version": new_version, "output": new_output}
 
 @router.get("/{plan_id}/versions", summary="List versions for a plan")
 def get_plan_versions(plan_id: int):
@@ -211,4 +302,79 @@ def get_plan_versions(plan_id: int):
 
     return {"plan_id": plan_id, "items": list_plan_versions(plan_id)}
 
+@router.post("/{plan_id}/apply", summary="Apply a proposed patch to a saved plan (deterministic)")
+def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
+    row = get_plan(plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Plan not found")
 
+    latest = get_latest_plan_version(plan_id)
+    if not latest:
+        # fallback: plan exists but no versions (shouldn’t happen if add_plan creates v1)
+        base_input = json.loads(row["input_json"])
+        base_output = json.loads(row["output_json"])
+        base_version = 1
+    else:
+        base_input = latest["input"]
+        base_output = latest["output"]
+        base_version = latest["version"]
+
+    new_input = copy.deepcopy(base_input)
+
+    # ensure Phase 1 keys exist (for older plans)
+    new_input.setdefault("constraints_tokens", [])
+    new_input.setdefault("preferences_tokens", [])
+    new_input.setdefault("avoid", [])
+    new_input.setdefault("base_constraints_text", new_input.get("constraints", "") or "")
+    new_input.setdefault("emphasis", None)
+    new_input.setdefault("set_style", None)
+    new_input.setdefault("rep_style", None)
+
+    def apply_add_remove(field: str, add: list[str], remove: list[str]) -> None:
+        cur = set(new_input.get(field, []) or [])
+        cur = (cur - set(remove)) | set(add)  # add wins
+        new_input[field] = sorted(cur)
+
+    apply_add_remove("constraints_tokens", patch.constraints_add, patch.constraints_remove)
+    apply_add_remove("preferences_tokens", patch.preferences_add, patch.preferences_remove)
+
+    if patch.avoid:
+        new_input["avoid"] = sorted(set(new_input.get("avoid", []) or []).union(set(patch.avoid)))
+
+    if patch.emphasis is not None:
+        new_input["emphasis"] = patch.emphasis
+    if patch.set_style is not None:
+        new_input["set_style"] = patch.set_style
+    if patch.rep_style is not None:
+        new_input["rep_style"] = patch.rep_style
+
+    # rebuild effective constraints string for rules engine
+    def render_constraints_text() -> str:
+        parts = []
+        base_text = (new_input.get("base_constraints_text") or "").strip()
+        if base_text:
+            parts.append(base_text)
+        if new_input["constraints_tokens"]:
+            parts.append("BANS: " + ", ".join(new_input["constraints_tokens"]))
+        if new_input["preferences_tokens"]:
+            parts.append("PREFER: " + ", ".join(new_input["preferences_tokens"]))
+        if new_input["avoid"]:
+            parts.append("AVOID: " + ", ".join(new_input["avoid"]))
+        if new_input.get("emphasis"):
+            parts.append("EMPHASIS: " + str(new_input["emphasis"]))
+        return "\n".join(parts).strip()
+
+    new_input["constraints"] = render_constraints_text()
+
+    # Re-run deterministic rules ONLY
+    # Your rules signature is apply_rules_v1(plan=GeneratePlanResponse, req=GeneratePlanRequest)
+    req_obj = GeneratePlanRequest(**{k: new_input[k] for k in GeneratePlanRequest.model_fields.keys()})
+    plan_obj = GeneratePlanResponse(**base_output)
+    new_plan_obj = apply_rules_v1(plan=plan_obj, req=req_obj)
+
+    new_output = new_plan_obj.model_dump()
+
+    new_version = base_version + 1
+    create_plan_version(plan_id, new_version, new_input, new_output)
+
+    return {"plan_id": plan_id, "version": new_version, "output": new_output}
