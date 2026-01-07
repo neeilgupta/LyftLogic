@@ -182,3 +182,25 @@ def edit_saved_plan(plan_id: int, body: EditPlanRequest) -> EditPlanResponse:
         errors=["Not implemented"],
     )
 
+@router.post("/{plan_id}/apply", summary="Apply a proposed patch to a saved plan (stub)")
+def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
+    # Phase 1 stub: validate plan exists + schema only.
+    row = get_plan(plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    # ❌ do not modify DB
+    # ❌ do not re-run rules
+    # ❌ do not create a new version
+
+    raise HTTPException(
+        status_code=501,
+        detail={
+            "status": "not_implemented",
+            "message": "Apply patch not implemented yet (Phase 1 stub).",
+            "plan_id": plan_id,
+            "received_patch": patch.model_dump(),
+        },
+    )
+
+
