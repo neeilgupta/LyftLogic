@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import os
-from services.db import add_plan, list_plans, get_plan
+from services.db import add_plan, list_plans, get_plan, get_latest_plan_version
+
 
 from fastapi import APIRouter, HTTPException, Query
 from models.plans import (
@@ -152,13 +153,19 @@ def get_saved_plan(plan_id: int):
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
 
+    latest = get_latest_plan_version(plan_id)
+
+    # ✅ fallback for older plans created before versioning existed
+    output_json = latest["output_json"] if latest else row["output_json"]
+
     return {
         "id": row["id"],
         "created_at": row["created_at"],
         "title": row["title"],
         "input": json.loads(row["input_json"]),
-        "output": json.loads(row["output_json"]),
+        "output": json.loads(output_json),
     }
+
 
 @router.post("/{plan_id}/edit", summary="Propose an edit to a saved plan (stub)", response_model=EditPlanResponse)
 def edit_saved_plan(plan_id: int, body: EditPlanRequest) -> EditPlanResponse:

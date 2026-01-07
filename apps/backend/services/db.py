@@ -50,6 +50,22 @@ def init_db() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_plans_created_at ON plans(created_at);"
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS plan_versions(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plan_id INTEGER NOT NULL,
+                version INTEGER NOT NULL,
+                output_json TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(plan_id) REFERENCES plans(id) ON DELETE CASCADE,
+                UNIQUE(plan_id, version)
+            );
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_plan_versions_plan_id ON plan_versions(plan_id);"
+        )
 
 def add_log(
     name: str,
@@ -149,6 +165,7 @@ def get_latest_by_exercise(limit_per_exercise: int = 3) -> Dict[str, List[Dict]]
                     }
                 )
         return tmp
+    
 def add_plan(title: str, input_json: str, output_json: str) -> Dict:
     with _conn() as conn:
         cur = conn.execute(
@@ -156,11 +173,19 @@ def add_plan(title: str, input_json: str, output_json: str) -> Dict:
             (title, input_json, output_json),
         )
         plan_id = cur.lastrowid
+
+        # ✅ create v1 plan version
+        conn.execute(
+            "INSERT INTO plan_versions(plan_id, version, output_json) VALUES (?,?,?)",
+            (plan_id, 1, output_json),
+        )
+
         row = conn.execute(
             "SELECT id, created_at, title, input_json, output_json FROM plans WHERE id = ?",
             (plan_id,),
         ).fetchone()
         return dict(row)
+
 
 def list_plans(limit: int = 20, offset: int = 0) -> List[Dict]:
     with _conn() as conn:
@@ -187,3 +212,16 @@ def get_plan(plan_id: int) -> Optional[Dict]:
         ).fetchone()
         return dict(row) if row else None
 
+def get_latest_plan_version(plan_id: int) -> Optional[Dict]:
+    with _conn() as conn:
+        row = conn.execute(
+            """
+            SELECT id, plan_id, version, output_json, created_at
+            FROM plan_versions
+            WHERE plan_id = ?
+            ORDER BY version DESC
+            LIMIT 1
+            """,
+            (plan_id,),
+        ).fetchone()
+        return dict(row) if row else None
