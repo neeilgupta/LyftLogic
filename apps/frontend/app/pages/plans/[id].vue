@@ -172,15 +172,19 @@
     </button>
 
     <button
-      disabled
-      title="Apply is coming next (Phase 1)."
-      style="padding: 10px 12px; border-radius: 10px; border: 1px solid #eee; background: #f7f7f7; color: #999; cursor: not-allowed;"
+      :disabled="applyPending || !editResponse?.proposed_patch"
+      @click="applyPatch()"
+      style="padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
     >
-      Apply (disabled)
+      {{ applyPending ? "Applying…" : "Apply" }}
     </button>
+
 
     <span v-if="editError" style="color: #b00020; font-size: 13px;">
       {{ editError }}
+    </span>
+    <span v-if="applyError" style="color: #b00020; font-size: 13px;">
+      {{ applyError }}
     </span>
   </div>
 
@@ -188,6 +192,13 @@
     <h3 style="margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;">
       Proposed changes (stub)
     </h3>
+  
+  <div v-if="applyResponse" style="margin-top: 12px; border: 1px solid #eee; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: 700; margin-bottom: 6px;">apply response</div>
+    <pre style="margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5;">
+{{ JSON.stringify(applyResponse ?? {}, null, 2) }}
+    </pre>
+  </div>
 
     <div
       v-if="editResponse.errors?.length"
@@ -525,9 +536,40 @@ const editMessage = ref("");
 const editPending = ref(false);
 const editError = ref<string | null>(null);
 const editResponse = ref<EditPlanResponseT | null>(null);
+const applyPending = ref(false);
+const applyError = ref<string | null>(null);
+const applyResponse = ref<any>(null);
 
 const config = useRuntimeConfig();
 const apiBase = (config.public as any)?.apiBase ?? "http://127.0.0.1:8000";
+
+async function applyPatch() {
+  applyError.value = null;
+  applyResponse.value = null;
+
+  const patch = editResponse.value?.proposed_patch;
+  if (!patch) {
+    applyError.value = "No proposed_patch to apply. Send an edit first.";
+    return;
+  }
+
+  applyPending.value = true;
+  try {
+    const res = await $fetch(`${apiBase}/plans/${id.value}/apply`, {
+      method: "POST",
+      body: patch,
+    });
+    applyResponse.value = res;
+  } catch (e: any) {
+    // For 501, FastAPI returns { detail: {...} } and $fetch throws.
+    const d = e?.data?.detail;
+    applyResponse.value = d ?? e?.data ?? null;
+    applyError.value = e?.data?.detail?.message ?? e?.message ?? String(e);
+  } finally {
+    applyPending.value = false;
+  }
+}  
+
 
 async function sendEdit() {
   editError.value = null;
