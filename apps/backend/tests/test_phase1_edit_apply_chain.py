@@ -83,6 +83,19 @@ def test_edit_apply_chain_three_times():
     final = r_final.json()
 
     inp = final.get("input", {})
+    chat = inp.get("chat_history") or []
+    assert isinstance(chat, list), chat
+    assert len(chat) >= 3, len(chat)
+
+    last = chat[-1]
+    assert "message" in last and "patch" in last and "created_at" in last, last
+
+    msgs = [c.get("message") for c in chat if isinstance(c, dict)]
+    assert any(m and "no barbells" in m.lower() for m in msgs), msgs
+    assert any(m and "prefer cables" in m.lower() for m in msgs), msgs
+    assert any(m and "avoid shoulders" in m.lower() for m in msgs), msgs
+
+
     constraints_tokens = inp.get("constraints_tokens") or []
     preferences_tokens = inp.get("preferences_tokens") or []
     avoid = inp.get("avoid") or []

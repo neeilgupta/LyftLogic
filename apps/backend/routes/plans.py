@@ -17,6 +17,10 @@ from models.plans import (
 
 from .rules.engine import apply_rules_v1
 from openai import OpenAI
+from datetime import datetime, timezone
+
+
+_PENDING_EDIT_MESSAGE: dict[int, str] = {}
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -145,6 +149,7 @@ def generate_plan(req: GeneratePlanRequest):
 
             # Preserve original user constraints text separately
             "base_constraints_text": req_dict.get("constraints", "") or "",
+            "chat_history": [],
         }
 
         # Effective constraints string that rules engine reads
@@ -211,6 +216,8 @@ def edit_saved_plan(plan_id: int, body: EditPlanRequest) -> EditPlanResponse:
         raise HTTPException(status_code=404, detail="Plan not found")
 
     msg = (body.message or "").strip().lower()
+    _PENDING_EDIT_MESSAGE[plan_id] = (body.message or "").strip()
+
 
     patch = PlanEditPatch(
         constraints_add=[],
@@ -314,6 +321,8 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
     new_input.setdefault("emphasis", None)
     new_input.setdefault("set_style", None)
     new_input.setdefault("rep_style", None)
+    new_input.setdefault("chat_history", [])
+
 
     def apply_add_remove(field: str, add: list[str], remove: list[str]) -> None:
         cur = set(new_input.get(field, []) or [])
@@ -360,6 +369,14 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
     new_output = new_plan_obj.model_dump()
 
     new_version = base_version + 1
+    msg = _PENDING_EDIT_MESSAGE.pop(plan_id, None)
+
+    new_input["chat_history"] = list(new_input.get("chat_history") or [])
+    new_input["chat_history"].append({
+        "message": msg,
+        "patch": patch.model_dump(),
+        "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+    })
     create_plan_version(plan_id, new_version, new_input, new_output)
 
     return {"plan_id": plan_id, "version": new_version, "output": new_output}
