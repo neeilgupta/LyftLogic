@@ -39,6 +39,12 @@ def _maybe_generate_plan_id() -> int:
 def test_edit_apply_chain_three_times():
     plan_id = _maybe_generate_plan_id()
 
+    # Baseline version
+    r0 = client.get(f"/plans/{plan_id}")
+    assert r0.status_code == 200, r0.text
+    v0 = r0.json().get("version")
+    assert isinstance(v0, int), v0
+
     messages = ["no barbells", "prefer cables", "avoid shoulders"]
     last_version = None
 
@@ -82,10 +88,13 @@ def test_edit_apply_chain_three_times():
     assert r_final.status_code == 200, r_final.text
     final = r_final.json()
 
+    # Version delta check (exactly +3 overall)
+    assert final["version"] == v0 + 3, (final["version"], v0)
+
     inp = final.get("input", {})
     chat = inp.get("chat_history") or []
     assert isinstance(chat, list), chat
-    assert len(chat) >= 3, len(chat)
+    assert len(chat) == 3, len(chat)
 
     last = chat[-1]
     assert "message" in last and "patch" in last and "created_at" in last, last
@@ -95,7 +104,6 @@ def test_edit_apply_chain_three_times():
     assert any(m and "prefer cables" in m.lower() for m in msgs), msgs
     assert any(m and "avoid shoulders" in m.lower() for m in msgs), msgs
 
-
     constraints_tokens = inp.get("constraints_tokens") or []
     preferences_tokens = inp.get("preferences_tokens") or []
     avoid = inp.get("avoid") or []
@@ -103,22 +111,18 @@ def test_edit_apply_chain_three_times():
     # CUMULATIVE persistence checks
     assert "no_barbells" in constraints_tokens, constraints_tokens
     assert "prefer_cables" in preferences_tokens, preferences_tokens
+    assert "shoulders" in avoid, avoid
 
-    # Pick whichever representation your parser uses
-    assert ("avoid_shoulders" in avoid) or ("shoulders" in avoid), avoid
-    # Enable these only if your parser supports them today
-    # assert "prefer_cables" in preferences_tokens, preferences_tokens
-    # assert "avoid_shoulders" in avoid or "shoulders" in avoid, avoid
-
-    # Leakage smoke test (tune strings to your naming conventions)
+    # Leakage smoke test
     names = [n.lower() for n in _all_exercise_names(final.get("output", {}))]
     assert not any("barbell" in n for n in names), names
 
 def _all_exercise_names(plan_output: dict) -> list[str]:
-    names = []
+    names: list[str] = []
     if not isinstance(plan_output, dict):
         return names
-    days = plan_output.get("days") or []
+
+    days = plan_output.get("weekly_split") or []
     for d in days:
         for ex in (d.get("main") or []):
             if isinstance(ex, dict) and ex.get("name"):

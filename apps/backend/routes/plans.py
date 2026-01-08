@@ -293,6 +293,10 @@ def get_plan_versions(plan_id: int):
         raise HTTPException(status_code=404, detail="Plan not found")
 
     return {"plan_id": plan_id, "items": list_plan_versions(plan_id)}
+# Phase 1 note:
+# - constraints_tokens are enforced immediately in the rules engine
+# - avoid / emphasis are stored only in input
+# - enforcement of avoid / emphasis happens in Phase 2
 
 @router.post("/{plan_id}/apply", summary="Apply a proposed patch to a saved plan (deterministic)")
 def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
