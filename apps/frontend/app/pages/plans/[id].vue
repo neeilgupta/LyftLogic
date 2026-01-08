@@ -157,10 +157,10 @@
         letter-spacing: 0.02em;
       "
     >
-      Plan Editor (Phase 1)
+      Plan Editor
     </span>
     <span style="opacity: 0.75; font-size: 13px;">
-      Adjust via chat — proposed patch shown below
+      Adjust via chat — preview changes before applying
     </span>
   </div>
 
