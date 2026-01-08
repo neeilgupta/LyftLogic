@@ -4,7 +4,7 @@ import sqlite3
 import json
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # .../apps/backend/services/db.py -> data/gymgpt.db
 DB_DIR = (Path(__file__).resolve().parent / ".." / ".." / "data").resolve()
@@ -116,7 +116,7 @@ def get_recent_sets_map(days: int = 14) -> Dict[str, List[Dict]]:
     Returns: { exercise_name: [ {reps, weight_kg, rir, timestamp}, ... ] }
     Only entries within last `days`.
     """
-    since = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
     out: Dict[str, List[Dict]] = {}
     with _conn() as conn:
         cur = conn.execute(
