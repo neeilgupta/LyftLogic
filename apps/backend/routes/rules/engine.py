@@ -526,20 +526,29 @@ def _canon_name(name: str) -> Optional[str]:
     return None
 
 
-def _pick_first_valid(priority: List[str],banned: set[str],prefer_machines: bool = False) -> Optional[str]:
+def _pick_first_valid(priority: List[str], banned: set[str], prefer_machines: bool = False, prefer_cables: bool = False) -> Optional[str]:
     ordered = priority
+    if prefer_machines or prefer_cables:
+        def score(n: str) -> int:
+            nl = n.lower()
 
-    if prefer_machines:
-        ordered = sorted(
-            priority,
-            key=lambda n: (
-                0 if "machine" in n.lower() else
-                1 if "smith" in n.lower() else
-                2 if "cable" in n.lower() else
-                3 if "dumbbell" in n.lower() else
-                4
-            )
-        )
+            # prefer_machines wins over prefer_cables if both present
+            if prefer_machines:
+                if "machine" in nl: return 0
+                if "smith" in nl: return 1
+                if "cable" in nl: return 2
+                if "dumbbell" in nl: return 3
+                return 4
+
+            # prefer_cables mode
+            if "cable" in nl: return 0
+            if "machine" in nl: return 1
+            if "smith" in nl: return 2
+            if "dumbbell" in nl: return 3
+            return 4
+
+        ordered = sorted(priority, key=score)
+
 
     for raw in ordered:
         cn = _canon_name(raw)
@@ -733,7 +742,13 @@ def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, h
     def build_items(slots: List[List[str]]) -> List[ExerciseItem]:
         items: List[ExerciseItem] = []
         for slot in slots:
-            pick = _pick_first_valid(slot,banned=banned, prefer_machines=_wants_machines(req),)
+            flags = _notes_flags(req)
+            pick = _pick_first_valid(
+                slot,
+                banned=banned,
+                prefer_machines=flags["prefer_machines"],
+                prefer_cables=flags.get("prefer_cables", False),
+            )
             if not pick:
                 continue
             banned.add(normalize_name(pick))
@@ -809,11 +824,18 @@ def _notes_flags(req) -> dict:
         or bool(re.search(r"\bprefer\s+machines?\b|\bmachines?\s+only\b", text))
         or ("prefer_machines" in text)
     )
+    prefer_cables = (
+        ("prefer_cables" in tokens)
+        or bool(re.search(r"\bprefer\s+cables?\b|\bcables?\s+only\b", text))
+        or ("prefer_cables" in text)
+    )
+
 
     return {
         "no_dumbbells": no_dumbbells,
         "no_barbells": no_barbells,
         "prefer_machines": prefer_machines,
+        "prefer_cables": prefer_cables,
     }
 
 
