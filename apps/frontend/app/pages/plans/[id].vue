@@ -1,5 +1,5 @@
 <template>
-  <main style="padding: 20px; font-family: system-ui; max-width: 900px; margin: 0 auto;">
+  <main style="padding: 20px; font-family: system-ui; max-width: 1200px; margin: 0 auto;">
     <nav style="margin-bottom: 16px;">
       <NuxtLink to="/" style="text-decoration: underline;">← Back to home</NuxtLink>
       <span style="margin: 0 10px;">·</span>
@@ -12,6 +12,9 @@
     <p v-else-if="errorMsg" style="color: red;">{{ errorMsg }}</p>
 
     <section v-else-if="output">
+      <div style="display: flex; gap: 14px; align-items: flex-start;">
+        <!-- LEFT -->
+        <div style="flex: 1; min-width: 0;">
       <h1 style="margin: 0 0 8px;">{{ output.title }}</h1>
       <div style="opacity: 0.7; font-size: 13px; margin: 6px 0 12px;">
         Version {{ (plan as any)?.version ?? "?" }}
@@ -140,160 +143,94 @@
           <TableSection title="Accessories" :lifts="normalizeToLifts(day.accessories)" />
         </template>
       </article>
+    </div>
+
+    <!-- RIGHT -->
+    <div style="display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap;">
       <!-- ========================= -->
-      <!-- Phase 1: Editor Shell (stub) -->
+      <!-- Phase 1: Chat Panel -->
       <!-- ========================= -->
-      <section style="border: 1px solid #eee; border-radius: 12px; padding: 18px; margin-top: 22px;">
-  <!-- Header pill (matches day chip vibe) -->
-  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-    <span
-      style="
-        padding: 6px 10px;
-        border: 1px solid #ddd;
-        border-radius: 999px;
-        text-decoration: none;
-        font-weight: 700;
-        font-size: 13px;
-        letter-spacing: 0.02em;
-      "
-    >
-      Plan Editor
-    </span>
-    <span style="opacity: 0.75; font-size: 13px;">
-      Adjust via chat — preview changes before applying
-    </span>
+      <section style="border: 1px solid #eee; border-radius: 12px; padding: 14px; height: calc(100vh - 140px); display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;">
+          <div>
+            <div style="font-weight: 800;">Chat</div>
+            <div style="opacity: 0.7; font-size: 13px;">
+              Adjust the plan. Example: <code>no barbells</code>, <code>prefer cables</code>, <code>avoid shoulders</code>
+            </div>
+          </div>
+          <div style="opacity: 0.7; font-size: 13px;">
+            v{{ (plan as any)?.version ?? "?" }}
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div ref="chatScrollEl" style="flex: 1; overflow: auto; border: 1px solid #eee; border-radius: 12px; padding: 10px; background: #fafafa;">
+          <div v-if="!chatHistory.length" style="opacity: 0.7; font-size: 13px; padding: 10px;">
+            No edits yet — send a message to start.
+          </div>
+
+          <div v-for="(m, i) in chatHistory" :key="`ch-${i}`" style="margin-bottom: 10px;">
+            <div style="display: flex; justify-content: flex-end;">
+              <div style="max-width: 85%; background: white; border: 1px solid #e6e6e6; border-radius: 12px; padding: 10px;">
+                <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px;">You</div>
+                <div style="white-space: pre-wrap; word-break: break-word;">{{ m.message }}</div>
+                <div style="opacity: 0.6; font-size: 12px; margin-top: 6px;">
+                  {{ formatChatTime(m.created_at) }}
+                </div>
+
+                <!-- Optional: patch preview -->
+                <details style="margin-top: 8px;">
+                  <summary style="cursor: pointer; opacity: 0.75; font-size: 12px;">patch</summary>
+                  <pre style="margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 12px;">
+      {{ JSON.stringify(m.patch, null, 2) }}
+                  </pre>
+                </details>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Composer -->
+        <div style="margin-top: 10px;">
+          <textarea
+            v-model="editMessage"
+            rows="3"
+            placeholder="Type an adjustment…"
+            style="
+              width: 100%;
+              padding: 10px;
+              border: 1px solid #ddd;
+              border-radius: 10px;
+              font-family: inherit;
+              font-size: 14px;
+              line-height: 1.4;
+            "
+          />
+          <div style="display: flex; gap: 10px; margin-top: 8px; align-items: center;">
+            <button
+              :disabled="editPending || applyPending || !editMessage.trim()"
+              @click="sendEditAndApply()"
+              style="padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
+            >
+              {{ (editPending || applyPending) ? "Working…" : "Send" }}
+            </button>
+
+            <span v-if="appliedOk" style="color: #137333; font-size: 13px;">Applied ✓</span>
+            <span v-if="editError" style="color: #b00020; font-size: 13px;">{{ editError }}</span>
+            <span v-if="applyError" style="color: #b00020; font-size: 13px;">{{ applyError }}</span>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
-
-  <h2 style="margin: 0 0 10px; font-weight: 700;">Adjust this plan</h2>
-
-  <p style="margin: 0 0 12px; opacity: 0.8;">
-    Examples: “No barbells”, “Prefer dumbbells”, “Focus arms”.
-  </p>
-
-  <textarea
-    v-model="editMessage"
-    rows="6"
-    placeholder="Type an adjustment…"
-    style="
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      font-family: inherit;
-      font-size: 14px;
-      line-height: 1.4;
-    "
-  />
-
-  <div style="display: flex; gap: 10px; margin-top: 12px; align-items: center;">
-    <button
-      :disabled="editPending || !editMessage.trim()"
-      @click="sendEdit()"
-      style="padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
-    >
-      {{ editPending ? "Sending…" : "Send" }}
-    </button>
-
-    <button
-      :disabled="applyPending || !hasRealPatch"
-      @click="applyPatch()"
-      style="padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
-    >
-      {{ applyPending ? "Applying…" : "Apply" }}
-    </button>
-    
-    <span v-if="appliedOk" style="color: #137333; font-size: 13px;">
-      Applied ✓
-    </span>
-
-    <span v-if="editError" style="color: #b00020; font-size: 13px;">
-      {{ editError }}
-    </span>
-    <span v-if="applyError" style="color: #b00020; font-size: 13px;">
-      {{ applyError }}
-    </span>
-  </div>
-
-  <div v-if="editResponse && hasRealPatch" style="margin-top: 16px;">
-  <h3
-    style="
-      margin: 0 0 6px;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      opacity: 0.7;
-    "
-  >
-    Proposed changes
-  </h3>
-
-  <!-- Change summary -->
-  <div
-    v-if="editResponse.change_summary?.length"
-    style="border: 1px solid #eee; border-radius: 10px; padding: 10px; margin-bottom: 10px;"
-  >
-    <div style="font-weight: 700; margin-bottom: 6px;">change_summary</div>
-    <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-      <li
-        v-for="(s, i) in editResponse.change_summary"
-        :key="`cs-${i}`"
-      >
-        {{ s }}
-      </li>
-    </ul>
-  </div>
-
-  <!-- Errors (if any) -->
-  <div
-    v-if="editResponse.errors?.length"
-    style="border: 1px solid #f2c6cc; background: #fff5f6; padding: 10px; border-radius: 10px; margin-bottom: 10px;"
-  >
-    <div style="font-weight: 700; margin-bottom: 6px;">Errors</div>
-    <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-      <li
-        v-for="(e, i) in editResponse.errors"
-        :key="`ee-${i}`"
-      >
-        {{ e }}
-      </li>
-    </ul>
-  </div>
-
-  <!-- Raw patch JSON (debug) -->
-  <div style="border: 1px solid #eee; border-radius: 10px; padding: 10px;">
-    <div style="font-weight: 700; margin-bottom: 6px;">proposed_patch</div>
-    <pre
-      style="
-        margin: 0;
-        white-space: pre-wrap;
-        word-break: break-word;
-        font-size: 13px;
-        line-height: 1.5;
-      "
-    >
-{{ JSON.stringify(editResponse.proposed_patch, null, 2) }}
-    </pre>
-  </div>
-</div>
-
-  <div
-    v-if="editResponse && !hasRealPatch"
-    style="margin-top: 12px; opacity: 0.75; font-size: 13px;"
-  >
-    No actionable changes detected. Try: <code>no barbells</code>, <code>no dumbbells</code>,
-    <code>prefer cables</code>, <code>focus arms</code>.
-</div>
-
 </section>
-
-    </section>
 
     <p v-else>No plan data found.</p>
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, ref } from "vue";
+import { computed, defineComponent, h, ref, nextTick, watch } from "vue";
 import type { PropType } from "vue";
 import { useRoute } from "vue-router";
 import { usePlans } from "../../../composables/usePlans";
@@ -371,6 +308,38 @@ const input = computed<any>(() => {
   const p: any = plan.value;
   return p?.input ?? null;
 });
+
+const chatHistory = computed<any[]>(() => {
+  const h = (plan.value as any)?.input?.chat_history;
+  return Array.isArray(h) ? h : [];
+});
+
+const chatScrollEl = ref<HTMLElement | null>(null);
+
+function scrollChatToBottom() {
+  const el = chatScrollEl.value;
+  if (!el) return;
+  el.scrollTop = el.scrollHeight;
+}
+
+watch(
+  () => chatHistory.value.length,
+  async () => {
+    await nextTick();
+    scrollChatToBottom();
+  }
+);
+
+function formatChatTime(iso: any) {
+  if (!iso) return ""
+  try {
+    const d = new Date(String(iso))
+    return d.toLocaleString()
+  } catch {
+    return String(iso)
+  }
+}
+
 
 const constraintTokens = computed<string[]>(() => {
   const t = (plan.value as any)?.input?.constraints_tokens;
@@ -715,4 +684,61 @@ async function sendEdit() {
     editPending.value = false;
   }
 }
+
+async function sendEditAndApply() {
+  editError.value = null;
+  applyError.value = null;
+
+  const msg = editMessage.value.trim();
+  if (!msg) return;
+
+  editPending.value = true;
+  applyPending.value = true;
+
+  try {
+    // 1) EDIT
+    const res = await $fetch<EditPlanResponseT>(`${apiBase}/plans/${id.value}/edit`, {
+      method: "POST",
+      body: { message: msg },
+    });
+
+    editResponse.value = res;
+
+    if (!res?.can_apply) {
+      editError.value = (res?.errors?.[0] ?? "No actionable changes detected.");
+      return;
+    }
+
+    const patch = res.proposed_patch;
+    if (!patch) {
+      editError.value = "No proposed_patch returned.";
+      return;
+    }
+
+    // 2) APPLY (same request shape you already use)
+    await $fetch(`${apiBase}/plans/${id.value}/apply`, {
+      method: "POST",
+      body: patch,
+    });
+
+    // 3) Refresh plan (pulls updated output + chat_history)
+    await refresh();
+
+    appliedOk.value = true;
+    setTimeout(() => (appliedOk.value = false), 1500);
+
+    // clear composer
+    editMessage.value = "";
+    editResponse.value = null;
+  } catch (e: any) {
+    const msg = e?.data?.detail ?? e?.message ?? String(e);
+    // decide whether it was edit vs apply by which part has a response
+    if (!editResponse.value) editError.value = msg;
+    else applyError.value = msg;
+  } finally {
+    editPending.value = false;
+    applyPending.value = false;
+  }
+}
+
 </script>
