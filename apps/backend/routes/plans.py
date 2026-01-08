@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import copy
 from services.db import add_plan, list_plans, get_plan, get_latest_plan_version, list_plan_versions, create_plan_version
 
@@ -173,7 +174,6 @@ def list_saved_plans(
 
 
 @router.get("/{plan_id}", summary="Get a saved plan by id")
-@router.get("/{plan_id}", summary="Get a saved plan by id")
 def get_saved_plan(plan_id: int):
     row = get_plan(plan_id)
     if not row:
@@ -202,97 +202,82 @@ def get_saved_plan(plan_id: int):
     }
 
 
-@router.post("/{plan_id}/edit", summary="Propose an edit to a saved plan (stub)", response_model=EditPlanResponse)
+
+
+@router.post("/{plan_id}/edit", summary="Propose an edit to a saved plan", response_model=EditPlanResponse)
 def edit_saved_plan(plan_id: int, body: EditPlanRequest) -> EditPlanResponse:
-    # Phase 1 stub: do not parse message, do not modify plans, do not call rules engine.
-    # This endpoint exists only to wire frontend -> backend contract.
     row = get_plan(plan_id)
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
 
-    return EditPlanResponse(
-        can_apply=False,
-        proposed_patch=PlanEditPatch(),
-        change_summary=[],
-        errors=["Not implemented"],
+    msg = (body.message or "").strip().lower()
+
+    patch = PlanEditPatch(
+        constraints_add=[],
+        constraints_remove=[],
+        preferences_add=[],
+        preferences_remove=[],
+        emphasis=None,
+        avoid=[],
+        set_style=None,
+        rep_style=None,
+    )
+    change_summary: list[str] = []
+    errors: list[str] = []
+
+    constraints_map = {
+        "no dumbbells": "no_dumbbells",
+        "no barbells": "no_barbells",
+        "no machines": "no_machines",
+        "no cables": "no_cables",
+    }
+    preferences_map = {
+        "prefer cables": "prefer_cables",
+        "prefer machines": "prefer_machines",
+    }
+
+    for phrase, tok in constraints_map.items():
+        if phrase in msg and tok not in patch.constraints_add:
+            patch.constraints_add.append(tok)
+            change_summary.append(f"Add constraint: {tok}")
+
+    for phrase, tok in preferences_map.items():
+        if phrase in msg and tok not in patch.preferences_add:
+            patch.preferences_add.append(tok)
+            change_summary.append(f"Add preference: {tok}")
+
+    m_focus = re.search(r"\bfocus\s+(arms|chest|back|legs|shoulders)\b", msg)
+    if m_focus:
+        patch.emphasis = m_focus.group(1)
+        change_summary.append(f"Set emphasis: {patch.emphasis}")
+
+    m_avoid = re.search(r"\bavoid\s+(shoulders|knees|lower back)\b", msg)
+    if m_avoid:
+        avoid_val = m_avoid.group(1).replace(" ", "_")  # lower back -> lower_back
+        if avoid_val not in patch.avoid:
+            patch.avoid.append(avoid_val)
+            change_summary.append(f"Avoid: {avoid_val}")
+
+    can_apply = bool(
+        patch.constraints_add
+        or patch.constraints_remove
+        or patch.preferences_add
+        or patch.preferences_remove
+        or patch.emphasis
+        or patch.avoid
+        or patch.set_style
+        or patch.rep_style
     )
 
-@router.post("/{plan_id}/apply", summary="Apply a proposed patch to a saved plan (deterministic)")
-def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
-    row = get_plan(plan_id)
-    if not row:
-        raise HTTPException(status_code=404, detail="Plan not found")
+    if not can_apply:
+        errors.append("No recognized edits in message")
 
-    latest = get_latest_plan_version(plan_id)
-    if not latest:
-        raise HTTPException(status_code=404, detail="Plan has no versions")
-
-    base_input: dict = latest["input"]
-    base_output: dict = latest["output"]
-    base_version: int = latest["version"]
-
-    new_input = copy.deepcopy(base_input)
-
-    # Ensure Phase 1 keys exist (for safety)
-    new_input.setdefault("constraints_tokens", [])
-    new_input.setdefault("preferences_tokens", [])
-    new_input.setdefault("avoid", [])
-    new_input.setdefault("base_constraints_text", new_input.get("constraints", "") or "")
-    new_input.setdefault("emphasis", None)
-    new_input.setdefault("set_style", None)
-    new_input.setdefault("rep_style", None)
-
-    # Helper: add wins over remove
-    def apply_add_remove(field: str, add: list[str], remove: list[str]) -> None:
-        cur = set(new_input.get(field, []) or [])
-        cur = (cur - set(remove)) | set(add)
-        new_input[field] = sorted(cur)
-
-    apply_add_remove("constraints_tokens", patch.constraints_add, patch.constraints_remove)
-    apply_add_remove("preferences_tokens", patch.preferences_add, patch.preferences_remove)
-
-    # avoid: merge + dedupe
-    if patch.avoid:
-        new_input["avoid"] = sorted(set(new_input.get("avoid", []) or []).union(set(patch.avoid)))
-
-    # overwrite knobs
-    if patch.emphasis is not None:
-        new_input["emphasis"] = patch.emphasis
-    if patch.set_style is not None:
-        new_input["set_style"] = patch.set_style
-    if patch.rep_style is not None:
-        new_input["rep_style"] = patch.rep_style
-
-    # Rebuild effective constraints string (what rules engine reads)
-    def render_constraints() -> str:
-        parts = []
-        base_text = (new_input.get("base_constraints_text") or "").strip()
-        if base_text:
-            parts.append(base_text)
-        if new_input["constraints_tokens"]:
-            parts.append("BANS: " + ", ".join(new_input["constraints_tokens"]))
-        if new_input["preferences_tokens"]:
-            parts.append("PREFER: " + ", ".join(new_input["preferences_tokens"]))
-        if new_input["avoid"]:
-            parts.append("AVOID: " + ", ".join(new_input["avoid"]))
-        if new_input.get("emphasis"):
-            parts.append("EMPHASIS: " + str(new_input["emphasis"]))
-        return "\n".join(parts).strip()
-
-    new_input["constraints"] = render_constraints()
-
-    # Re-run deterministic rules ONLY (no LLM)
-    req_obj = GeneratePlanRequest(**{k: new_input[k] for k in GeneratePlanRequest.model_fields.keys()})
-    plan_obj = GeneratePlanResponse(**base_output)
-    new_plan_obj = apply_rules_v1(plan=new_plan_obj if False else plan_obj, req=req_obj)  # keeps signature explicit
-
-    new_output = new_plan_obj.model_dump()
-
-    # Save new version
-    new_version = base_version + 1
-    create_plan_version(plan_id, new_version, new_input, new_output)
-
-    return {"plan_id": plan_id, "version": new_version, "output": new_output}
+    return EditPlanResponse(
+        can_apply=can_apply,
+        proposed_patch=patch,
+        change_summary=change_summary,
+        errors=errors,
+    )
 
 @router.get("/{plan_id}/versions", summary="List versions for a plan")
 def get_plan_versions(plan_id: int):
@@ -325,7 +310,7 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
     new_input.setdefault("constraints_tokens", [])
     new_input.setdefault("preferences_tokens", [])
     new_input.setdefault("avoid", [])
-    new_input.setdefault("base_constraints_text", new_input.get("constraints", "") or "")
+    new_input.setdefault("base_constraints_text", (base_input.get("base_constraints_text") or "").strip())
     new_input.setdefault("emphasis", None)
     new_input.setdefault("set_style", None)
     new_input.setdefault("rep_style", None)

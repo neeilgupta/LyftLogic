@@ -38,44 +38,38 @@ class ExerciseItem(BaseModel):
 
 class DayPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     day: str = Field(description='e.g. "Day 1"')
     focus: str = Field(description='e.g. "Upper (push emphasis)"')
-
-    # Warmup must be simple bullets; no time/sets/reps, no cardio
-    warmup: list[str] = []
-
+    warmup: list[str] = Field(default_factory=list)
     main: list[ExerciseItem]
-    accessories: list[ExerciseItem] = []
+    accessories: list[ExerciseItem] = Field(default_factory=list)
 
 
 class GeneratePlanResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     title: str
     summary: str
     weekly_split: list[DayPlan]
-
-    progression_notes: list[str] = []
-    safety_notes: list[str] = []
+    progression_notes: list[str] = Field(default_factory=list)
+    safety_notes: list[str] = Field(default_factory=list)
 
 class EditPlanRequest(BaseModel):
     message: str
 
 
 class PlanEditPatch(BaseModel):
-    constraints_add: List[str] = []
-    constraints_remove: List[str] = []
-    preferences_add: List[str] = []
-    preferences_remove: List[str] = []
+    constraints_add: List[str] = Field(default_factory=list)
+    constraints_remove: List[str] = Field(default_factory=list)
+    preferences_add: List[str] = Field(default_factory=list)
+    preferences_remove: List[str] = Field(default_factory=list)
     emphasis: Optional[str] = None
-    avoid: List[str] = []
+    avoid: List[str] = Field(default_factory=list)
     set_style: Optional[Literal["low", "standard", "high"]] = None
     rep_style: Optional[Literal["strength", "hypertrophy", "pump"]] = None
 
 
 class EditPlanResponse(BaseModel):
     can_apply: bool = False
-    proposed_patch: PlanEditPatch = PlanEditPatch()
-    change_summary: List[str] = []
-    errors: List[str] = ["Not implemented"]
+    proposed_patch: PlanEditPatch = Field(default_factory=PlanEditPatch)
+    change_summary: List[str] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)

@@ -789,12 +789,33 @@ def _enforce_time_cap(day, session_minutes: int) -> None:
 
 def _notes_flags(req) -> dict:
     text = (req.constraints or "").lower()
-    # if you later rename to user_notes, do: (req.user_notes or req.constraints or "")
+
+    # Phase 1 canonical tokens (preferred)
+    tokens = set((getattr(req, "constraints_tokens", None) or []) + (getattr(req, "preferences_tokens", None) or []))
+
+    # Support both old natural language ("no barbells") and new token format ("BANS: no_barbells")
+    no_dumbbells = (
+        ("no_dumbbells" in tokens)
+        or bool(re.search(r"\bno\s+dumbbells?\b|\bavoid\s+dumbbells?\b", text))
+        or ("no_dumbbells" in text)
+    )
+    no_barbells = (
+        ("no_barbells" in tokens)
+        or bool(re.search(r"\bno\s+barbells?\b|\bavoid\s+barbells?\b", text))
+        or ("no_barbells" in text)
+    )
+    prefer_machines = (
+        ("prefer_machines" in tokens)
+        or bool(re.search(r"\bprefer\s+machines?\b|\bmachines?\s+only\b", text))
+        or ("prefer_machines" in text)
+    )
+
     return {
-        "no_dumbbells": bool(re.search(r"\bno\s+dumbbells?\b|\bavoid\s+dumbbells?\b", text)),
-        "no_barbells": bool(re.search(r"\bno\s+barbells?\b|\bavoid\s+barbells?\b", text)),
-        "prefer_machines": bool(re.search(r"\bprefer\s+machines?\b|\bmachines?\s+only\b", text)),
+        "no_dumbbells": no_dumbbells,
+        "no_barbells": no_barbells,
+        "prefer_machines": prefer_machines,
     }
+
 
 def _pick_replacement(name: str, prefer_machines: bool, no_dumbbells: bool, no_barbells: bool) -> str | None:
     key = (name or "").strip().lower()
@@ -808,7 +829,7 @@ def _pick_replacement(name: str, prefer_machines: bool, no_dumbbells: bool, no_b
         lc = c.lower()
         if no_dumbbells and (_DB_PAT.search(lc) or "dumbbell" in lc or " db " in f" {lc} "):
             continue
-        if no_barbells and ("barbell" in lc):
+        if no_barbells and _is_barbell_like(c):
             continue
         filtered.append(c)
 

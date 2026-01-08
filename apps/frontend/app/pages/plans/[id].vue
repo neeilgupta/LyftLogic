@@ -201,7 +201,10 @@
     >
       {{ applyPending ? "Applying…" : "Apply" }}
     </button>
-
+    
+    <span v-if="appliedOk" style="color: #137333; font-size: 13px;">
+      Applied ✓
+    </span>
 
     <span v-if="editError" style="color: #b00020; font-size: 13px;">
       {{ editError }}
@@ -212,41 +215,75 @@
   </div>
 
   <div v-if="editResponse && hasRealPatch" style="margin-top: 16px;">
-    <h3 style="margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;">
-      Proposed changes (stub)
-    </h3>
-  
-  <div v-if="applyResponse" style="margin-top: 12px; border: 1px solid #eee; border-radius: 10px; padding: 10px;">
-    <div style="font-weight: 700; margin-bottom: 6px;">apply response</div>
-    <pre style="margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5;">
-{{ JSON.stringify(applyResponse ?? {}, null, 2) }}
+  <h3
+    style="
+      margin: 0 0 6px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      opacity: 0.7;
+    "
+  >
+    Proposed changes
+  </h3>
+
+  <!-- Change summary -->
+  <div
+    v-if="editResponse.change_summary?.length"
+    style="border: 1px solid #eee; border-radius: 10px; padding: 10px; margin-bottom: 10px;"
+  >
+    <div style="font-weight: 700; margin-bottom: 6px;">change_summary</div>
+    <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+      <li
+        v-for="(s, i) in editResponse.change_summary"
+        :key="`cs-${i}`"
+      >
+        {{ s }}
+      </li>
+    </ul>
+  </div>
+
+  <!-- Errors (if any) -->
+  <div
+    v-if="editResponse.errors?.length"
+    style="border: 1px solid #f2c6cc; background: #fff5f6; padding: 10px; border-radius: 10px; margin-bottom: 10px;"
+  >
+    <div style="font-weight: 700; margin-bottom: 6px;">Errors</div>
+    <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+      <li
+        v-for="(e, i) in editResponse.errors"
+        :key="`ee-${i}`"
+      >
+        {{ e }}
+      </li>
+    </ul>
+  </div>
+
+  <!-- Raw patch JSON (debug) -->
+  <div style="border: 1px solid #eee; border-radius: 10px; padding: 10px;">
+    <div style="font-weight: 700; margin-bottom: 6px;">proposed_patch</div>
+    <pre
+      style="
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 13px;
+        line-height: 1.5;
+      "
+    >
+{{ JSON.stringify(editResponse.proposed_patch, null, 2) }}
     </pre>
   </div>
-
-    <div
-      v-if="editResponse.errors?.length"
-      style="border: 1px solid #f2c6cc; background: #fff5f6; padding: 10px; border-radius: 10px; margin-bottom: 10px;"
-    >
-      <div style="font-weight: 700; margin-bottom: 6px;">Errors</div>
-      <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-        <li v-for="(e, i) in editResponse.errors" :key="`ee-${i}`">{{ e }}</li>
-      </ul>
-    </div>
-
-    <div style="border: 1px solid #eee; border-radius: 10px; padding: 10px;">
-      <div style="font-weight: 700; margin-bottom: 6px;">proposed_patch</div>
-      <pre style="margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.5;">
-{{ JSON.stringify(editResponse.proposed_patch ?? {}, null, 2) }}
-      </pre>
-    </div>
-  </div>
-  <div
-  v-if="editResponse && !hasRealPatch"
-  style="margin-top: 12px; opacity: 0.75; font-size: 13px;"
->
-  Edit parsing is not wired yet. This is a Phase 1 UI shell —
-  you can still test <code>/apply</code> with curl.
 </div>
+
+  <div
+    v-if="editResponse && !hasRealPatch"
+    style="margin-top: 12px; opacity: 0.75; font-size: 13px;"
+  >
+    No actionable changes detected. Try: <code>no barbells</code>, <code>no dumbbells</code>,
+    <code>prefer cables</code>, <code>focus arms</code>.
+</div>
+
 </section>
 
     </section>
@@ -256,12 +293,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h } from "vue";
+import { computed, defineComponent, h, ref } from "vue";
 import type { PropType } from "vue";
 import { useRoute } from "vue-router";
 import { usePlans } from "../../../composables/usePlans";
-import { ref } from "vue";
 import { useRuntimeConfig } from "#imports";
+
+
 
 type Lift = {
   name: string;
@@ -346,12 +384,18 @@ const preferenceTokens = computed<string[]>(() => {
 
 
 const inputConstraints = computed<string[]>(() => {
-  const c = input.value?.constraints;
-  if (!c) return [];
-  if (Array.isArray(c)) return c.map(String).filter(Boolean);
-  if (typeof c === "string") return c.split("\n").map(s => s.trim()).filter(Boolean);
-  return [String(c)];
-});
+  const i = input.value
+  if (!i) return []
+
+  // ✅ Prefer raw base text if present
+  const raw = i.base_constraints_text ?? null
+  const c = raw && String(raw).trim().length ? raw : i.constraints
+
+  if (!c) return []
+  if (Array.isArray(c)) return c.map(String).filter(Boolean)
+  if (typeof c === "string") return c.split("\n").map(s => s.trim()).filter(Boolean)
+  return [String(c)]
+})
 
 const preferenceLines = computed<string[]>(() => {
   const i = input.value;
@@ -577,6 +621,7 @@ type EditPlanResponseT = {
 
 const editMessage = ref("");
 const editPending = ref(false);
+const appliedOk = ref(false)
 const editError = ref<string | null>(null);
 const editResponse = ref<EditPlanResponseT | null>(null);
 const applyPending = ref(false);
@@ -629,6 +674,8 @@ async function applyPatch() {
 
     // refresh the plan content (new version)
     await refresh();
+    appliedOk.value = true;
+    setTimeout(() => (appliedOk.value = false), 1500);
 
     // ✅ clear editor UI so it doesn't show stale state
     editMessage.value = "";
@@ -638,7 +685,7 @@ async function applyPatch() {
   } catch (e: any) {
     const d = e?.data?.detail;
     applyResponse.value = d ?? e?.data ?? null;
-    applyError.value = e?.data?.detail?.message ?? e?.message ?? String(e);
+    applyError.value = e?.data?.detail ?? e?.message ?? String(e);
   } finally {
     applyPending.value = false;
   }

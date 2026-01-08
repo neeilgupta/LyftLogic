@@ -17,54 +17,62 @@ client = TestClient(app)
 def test_health():
     resp = client.get("/health")
     assert resp.status_code == 200
-    assert resp.json() == {"ok": True}
+    assert resp.json() == {"status": "ok"}
 
 
-def test_generate_workout_basic():
+
+def test_generate_plan_basic():
     payload = {
-        "focus": "upper",
-        "equipment": "gym",
-        "soreness_text": "no soreness anywhere",
-        "use_db_logs": False,
+        "goal": "hypertrophy",
+        "experience": "intermediate",
+        "days_per_week": 4,
+        "session_minutes": 60,
+        "equipment": "full_gym",
+        "soreness_notes": "no soreness",
+        "constraints": "",
     }
-    resp = client.post("/plans/workout", json=payload)
-    data = resp.json()
-
+    resp = client.post("/plans/generate", json=payload)
     assert resp.status_code == 200
-    assert data["focus"] == "upper"
-    assert data["equipment"] == "gym"
-    assert isinstance(data["exercises"], list)
-    assert len(data["exercises"]) > 0
-    # explanation should be a non-empty string now
-    assert isinstance(data["explanation"], str)
-    assert data["explanation"].strip() != ""
+
+    data = resp.json()
+    assert "id" in data
+    assert "title" in data
+    assert "weekly_split" in data
+    assert isinstance(data["weekly_split"], list)
 
 
-def test_log_and_use_db():
-    # 1) log a set
-    log_payload = {
-        "name": "Barbell Bench Press",
-        "reps": 8,
-        "weight_kg": 70,
-        "rir": 1,
-        "focus": "upper",
+def test_edit_and_apply_patch_increments_version():
+    # 1) generate a plan
+    payload = {
+        "goal": "hypertrophy",
+        "experience": "intermediate",
+        "days_per_week": 4,
+        "session_minutes": 60,
+        "equipment": "full_gym",
+        "soreness_notes": "no soreness",
+        "constraints": "",
     }
-    resp_log = client.post("/logs/", json=log_payload)
-    assert resp_log.status_code == 200
-    added = resp_log.json()["added"]
-    assert added["name"] == "Barbell Bench Press"
+    resp = client.post("/plans/generate", json=payload)
+    assert resp.status_code == 200
+    plan = resp.json()
+    plan_id = plan["id"]
 
-    # 2) generate a plan that can (optionally) use DB logs
-    workout_payload = {
-        "focus": "upper",
-        "equipment": "gym",
-        "soreness_text": "no soreness",
-        "use_db_logs": True,
-    }
-    resp_plan = client.post("/plans/workout", json=workout_payload)
-    data = resp_plan.json()
+    # 2) edit -> proposed_patch
+    resp_edit = client.post(f"/plans/{plan_id}/edit", json={"message": "no barbells"})
+    assert resp_edit.status_code == 200
+    edit = resp_edit.json()
+    assert edit["can_apply"] is True
+    assert "no_barbells" in edit["proposed_patch"]["constraints_add"]
 
-    assert resp_plan.status_code == 200
-    assert data["focus"] == "upper"
-    assert isinstance(data["exercises"], list)
-    assert len(data["exercises"]) > 0
+    # 3) apply patch
+    resp_apply = client.post(f"/plans/{plan_id}/apply", json=edit["proposed_patch"])
+    assert resp_apply.status_code == 200
+    applied = resp_apply.json()
+    assert applied["plan_id"] == plan_id
+
+    # 4) GET plan should show version increment + token stored
+    resp_get = client.get(f"/plans/{plan_id}")
+    assert resp_get.status_code == 200
+    got = resp_get.json()
+    assert got["version"] >= 2
+    assert "no_barbells" in (got["input"].get("constraints_tokens") or [])
