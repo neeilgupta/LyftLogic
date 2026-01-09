@@ -100,6 +100,54 @@
           </div>
         </div>
       </div>
+      <!-- ========================= -->
+      <!-- What changed (diff) -->
+      <!-- ========================= -->
+      <div
+        v-if="
+          lastDiff &&
+          ((lastDiff.replaced_exercises?.length ?? 0) +
+          (lastDiff.added_exercises?.length ?? 0) +
+          (lastDiff.removed_exercises?.length ?? 0)) > 0
+        "
+        style="
+          margin-bottom: 14px;
+          border: 1px solid #eee;
+          border-radius: 12px;
+          padding: 12px;
+          background: #fff;
+        "
+      >
+        <div style="font-weight: 800; margin-bottom: 6px;">What changed</div>
+
+        <div v-if="lastDiff.replaced_exercises?.length">
+          <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">
+            Replaced
+          </div>
+          <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+            <li
+              v-for="(r, i) in lastDiff.replaced_exercises"
+              :key="`rep-${i}`"
+            >
+              Day {{ (r.day ?? 0) + 1 }}
+              ({{ r.block }} #{{ (r.slot ?? 0) + 1 }}):
+              <code>{{ r.from }}</code> → <code>{{ r.to }}</code>
+            </li>
+          </ul>
+        </div>
+
+        <div
+          v-if="
+            !lastDiff.replaced_exercises?.length &&
+            !lastDiff.removed_exercises?.length &&
+            !lastDiff.added_exercises?.length
+          "
+          style="opacity: 0.7; font-size: 13px;"
+        >
+          No changes detected.
+        </div>
+      </div>
+
 
       <!-- simple day nav -->
       <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
@@ -323,12 +371,17 @@ function scrollChatToBottom() {
 }
 
 watch(
-  () => chatHistory.value.length,
-  async () => {
-    await nextTick();
-    scrollChatToBottom();
+  () => id.value,
+  () => {
+    lastDiff.value = null;
+    applyResponse.value = null;
+    applyError.value = null;
+    editResponse.value = null;
+    editError.value = null;
+    editMessage.value = "";
   }
 );
+
 
 function formatChatTime(iso: any) {
   if (!iso) return ""
@@ -596,6 +649,8 @@ const editResponse = ref<EditPlanResponseT | null>(null);
 const applyPending = ref(false);
 const applyError = ref<string | null>(null);
 const applyResponse = ref<any>(null);
+const lastDiff = ref<any | null>(null)
+
 
 const hasRealPatch = computed(() => {
   const p = editResponse.value?.proposed_patch;
@@ -640,6 +695,8 @@ async function applyPatch() {
 
     // show immediate response (optional)
     applyResponse.value = res;
+    lastDiff.value = (res as any)?.diff ?? null;
+
 
     // refresh the plan content (new version)
     await refresh();
@@ -716,10 +773,15 @@ async function sendEditAndApply() {
     }
 
     // 2) APPLY (same request shape you already use)
-    await $fetch(`${apiBase}/plans/${id.value}/apply`, {
-      method: "POST",
-      body: patch,
-    });
+    // 2) APPLY
+const applyRes = await $fetch(`${apiBase}/plans/${id.value}/apply`, {
+  method: "POST",
+  body: patch,
+});
+
+applyResponse.value = applyRes;
+lastDiff.value = (applyRes as any)?.diff ?? null;
+
 
     // 3) Refresh plan (pulls updated output + chat_history)
     await refresh();
