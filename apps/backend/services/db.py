@@ -255,7 +255,7 @@ def list_plan_versions(plan_id: int) -> List[Dict[str, Any]]:
             SELECT plan_id, version, input_json, output_json, created_at
             FROM plan_versions
             WHERE plan_id = ?
-            ORDER BY version ASC
+            ORDER BY version DESC
             """,
             (plan_id,),
         )
