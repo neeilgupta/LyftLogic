@@ -18,6 +18,8 @@ from models.plans import (
 from .rules.engine import apply_rules_v1
 from openai import OpenAI
 from datetime import datetime, timezone
+from services.plan_diff import compute_plan_diff
+
 
 
 _PENDING_EDIT_MESSAGE: dict[int, str] = {}
@@ -315,7 +317,19 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
         base_output = latest["output"]
         base_version = latest["version"]
 
-    new_input = copy.deepcopy(base_input)
+    # NOTE: older versions may have extra keys like "_diff" stored in output_json.
+    # Make sure base_output is a dict and strip those keys before Pydantic validation.
+    if isinstance(base_output, str):
+        base_output = json.loads(base_output)
+
+    if isinstance(base_output, dict):
+        base_output.pop("_diff", None)
+        # also strip any other private keys just in case
+        for k in list(base_output.keys()):
+            if str(k).startswith("_"):
+                base_output.pop(k, None)
+
+        new_input = copy.deepcopy(base_input)
 
     # ensure Phase 1 keys exist (for older plans)
     new_input.setdefault("constraints_tokens", [])
@@ -371,6 +385,8 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
     new_plan_obj = apply_rules_v1(plan=plan_obj, req=req_obj)
 
     new_output = new_plan_obj.model_dump()
+    diff = compute_plan_diff(base_output, new_output)
+
 
     new_version = base_version + 1
     msg = _PENDING_EDIT_MESSAGE.pop(plan_id, None)
@@ -382,5 +398,4 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     })
     create_plan_version(plan_id, new_version, new_input, new_output)
-
-    return {"plan_id": plan_id, "version": new_version, "output": new_output}
+    return {"plan_id": plan_id, "version": new_version, "output": new_output, "diff": diff}

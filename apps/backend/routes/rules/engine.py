@@ -108,6 +108,21 @@ WARMUP_BAD_TOKENS = ("minute", "minutes", "sec", "seconds", "set", "sets", "rep"
 def _lc(s: Optional[str]) -> str:
     return (s or "").strip().lower()
 
+def _canon_like(name: str) -> Optional[str]:
+    n = normalize_name(name)          # your normalize_name
+    if not n:
+        return None
+    # try exact canonical
+    canon = _CANON.get(n.lower())
+    if canon:
+        return canon
+    # fallback: substring contains match (handles punctuation / parenthesis diffs)
+    for k in EXERCISES.keys():
+        if normalize_name(k) == n:
+            return k
+    return None
+
+
 def _wants_machines(req: GeneratePlanRequest) -> bool:
     c = _lc(req.constraints)
     return "prefer machines" in c or "machines only" in c or "machine" in c
@@ -137,6 +152,58 @@ def _is_barbell_like(name: str) -> bool:
         "incline bench press",
         "hip thrust"
     ))
+
+# Phase 2: prefer_cables deterministic swaps (only when token is set)
+_PREFER_CABLES_SWAP = {
+    "pec deck": "Cable Fly",
+    "reverse pec deck": "Face Pull",
+    "machine lateral raises": "Cable Lateral Raises",
+    "machine crunch": "Cable Crunch",
+    "preacher curl": "Cable Curl",
+    "dumbbell curl": "Cable Curl",
+    "incline dumbbell curl": "Cable Curl",
+    "overhead triceps extension": "Cable Overhead Triceps Extension",
+}
+
+
+
+def _enforce_prefer_cables(day, req) -> None:
+    flags = _notes_flags(req)
+    if not flags.get("prefer_cables", False):
+        return
+
+    # machines preference overrides cables preference
+    if flags.get("prefer_machines", False):
+        return
+
+    no_db = flags.get("no_dumbbells", False)
+    no_bb = flags.get("no_barbells", False)
+
+    def violates(name: str) -> bool:
+        n = (name or "").lower()
+        if no_db and (_DB_PAT.search(n) or "dumbbell" in n):
+            return True
+        if no_bb and _is_barbell_like(n):
+            return True
+        return False
+
+    for ex in (day.main + day.accessories):
+        key = (ex.name or "").strip().lower()
+        target = _PREFER_CABLES_SWAP.get(key)
+        if not target:
+            continue
+
+        cn = _canon_like(target)
+        if not cn:
+            continue
+
+        # don't swap into something banned
+        if violates(cn):
+            continue
+
+        ex.name = cn
+
+
 
 
 def _is_smith(name: str) -> bool:
@@ -961,6 +1028,8 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
             continue
         _apply_template(day, req, template_key, has_sharms)
         _enforce_equipment_from_notes(day, req)
+        _enforce_prefer_cables(day, req)
+
 
         # Enforce barbell preference in main (minimal)
         _enforce_barbell_priority(day, req)
