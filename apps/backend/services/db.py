@@ -59,6 +59,7 @@ def init_db() -> None:
                 version INTEGER NOT NULL,
                 input_json TEXT NOT NULL,
                 output_json TEXT NOT NULL,
+                diff_json TEXT, 
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(plan_id) REFERENCES plans(id) ON DELETE CASCADE,
                 UNIQUE(plan_id, version)
@@ -68,6 +69,17 @@ def init_db() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_plan_versions_plan_id ON plan_versions(plan_id);"
         )
+    migrate_add_diff_json()
+
+def migrate_add_diff_json() -> None:
+    """
+    One-time safe migration to add diff_json to plan_versions
+    """
+    with _conn() as conn:
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(plan_versions);")]
+        if "diff_json" not in cols:
+            conn.execute("ALTER TABLE plan_versions ADD COLUMN diff_json TEXT;")
+
 
 
 def add_log(
@@ -217,14 +229,14 @@ def get_plan(plan_id: int) -> Optional[Dict]:
         return dict(row) if row else None
 
 
-def create_plan_version(plan_id: int, version: int, input_obj: Dict[str, Any], output_obj: Dict[str, Any]) -> None:
+def create_plan_version(plan_id: int, version: int, input_obj: Dict[str, Any], output_obj: Dict[str, Any],  diff: Optional[Dict[str, Any]] = None,) -> None:
     with _conn() as conn:
         conn.execute(
             """
-            INSERT INTO plan_versions (plan_id, version, input_json, output_json)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO plan_versions (plan_id, version, input_json, output_json, diff_json)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (plan_id, version, json.dumps(input_obj), json.dumps(output_obj)),
+            (plan_id, version, json.dumps(input_obj), json.dumps(output_obj), json.dumps(diff) if diff is not None else None),
         )
         conn.commit()
 
@@ -232,7 +244,7 @@ def get_latest_plan_version(plan_id: int) -> Optional[Dict[str, Any]]:
     with _conn() as conn:
         row = conn.execute(
             """
-            SELECT plan_id, version, input_json, output_json, created_at
+            SELECT plan_id, version, input_json, output_json, diff_json, created_at
             FROM plan_versions
             WHERE plan_id = ?
             ORDER BY version DESC
@@ -242,27 +254,34 @@ def get_latest_plan_version(plan_id: int) -> Optional[Dict[str, Any]]:
         ).fetchone()
         if not row:
             return None
-        # sqlite Row supports dict(row)
+
         d = dict(row)
         d["input"] = json.loads(d.pop("input_json"))
         d["output"] = json.loads(d.pop("output_json"))
+        d["diff"] = json.loads(d["diff_json"]) if d.get("diff_json") else None
+        d.pop("diff_json", None)
         return d
+
 
 def list_plan_versions(plan_id: int) -> List[Dict[str, Any]]:
     with _conn() as conn:
         cur = conn.execute(
             """
-            SELECT plan_id, version, input_json, output_json, created_at
+            SELECT plan_id, version, input_json, output_json, diff_json, created_at
             FROM plan_versions
             WHERE plan_id = ?
             ORDER BY version DESC
             """,
             (plan_id,),
         )
+
         out = []
         for row in cur.fetchall():
             d = dict(row)
             d["input"] = json.loads(d.pop("input_json"))
             d["output"] = json.loads(d.pop("output_json"))
+            d["diff"] = json.loads(d["diff_json"]) if d.get("diff_json") else None
+            d.pop("diff_json", None)
             out.append(d)
+
         return out

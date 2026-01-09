@@ -165,10 +165,107 @@ _PREFER_CABLES_SWAP = {
     "overhead triceps extension": "Cable Overhead Triceps Extension",
 }
 
+_SHOULDER_BLOCKLIST_SUBSTR = (
+    "shoulder press",
+    "overhead press",
+    "military press",
+    "arnold press",
+    "lateral raise",
+    "lateral raises",
+    "upright row",
+    "rear delt",
+    "reverse pec deck",
+    "face pull",
+)
+
+# safe, non-shoulder fillers (very conservative)
+_AVOID_SHOULDERS_SAFE_ISO = [
+    "Cable Curl",
+    "Preacher Curl",
+    "Triceps Pushdown",
+    "Rope Triceps Pushdown",
+    "Cable Overhead Triceps Extension",  # keep if you allow overhead triceps even when avoiding shoulders
+    "Machine Crunch",
+    "Cable Crunch",
+    "Seated Leg Curl",
+    "Leg Extension (machine)",
+    "Seated Calf Raise",
+]
+
+def _is_shoulder_dominant(name: str) -> bool:
+    n = _lc(name)
+    return any(tok in n for tok in _SHOULDER_BLOCKLIST_SUBSTR)
+
+def _first_safe_filler(banned: set[str], req: GeneratePlanRequest) -> Optional[str]:
+    """
+    Pick a deterministic safe filler that doesn't violate equipment bans.
+    """
+    flags = _notes_flags(req)
+    no_db = flags["no_dumbbells"]
+    no_bb = flags["no_barbells"]
+
+    def violates(name: str) -> bool:
+        n = (name or "").lower()
+        if no_db and (_DB_PAT.search(n) or "dumbbell" in n):
+            return True
+        if no_bb and _is_barbell_like(n):
+            return True
+        return False
+
+    for cand in _AVOID_SHOULDERS_SAFE_ISO:
+        cn = _canon_name(cand) or cand
+        if normalize_name(cn) in banned:
+            continue
+        if violates(cn):
+            continue
+        # ensure catalog knows it (optional, but safer)
+        if _canon_name(cn) is None and cn not in EXERCISES:
+            continue
+        return _canon_name(cn) or cn
+
+    return None
+
+def _enforce_avoid_shoulders(day: DayPlan, req: GeneratePlanRequest) -> None:
+    flags = _notes_flags(req)
+    # REMOVE AFTER TEST: debug print to confirm flags and req.avoid
+    # print(f"REMOVE AFTER TEST: avoid_shoulders={flags.get('avoid_shoulders')} req.avoid={getattr(req, 'avoid', None)}")
+    if not flags.get("avoid_shoulders", False):
+        return
+
+    # If the day is explicitly SHARMS/Shoulder day, we still must produce a valid day
+    # but shoulder movements themselves should be removed.
+    banned = {normalize_name(e.name) for e in (day.main + day.accessories) if e.name}
+
+    def replace_or_drop(ex: ExerciseItem) -> Optional[ExerciseItem]:
+        if not _is_shoulder_dominant(ex.name or ""):
+            return ex
+        repl = _first_safe_filler(banned, req)
+        if not repl:
+            return None
+        ex.name = repl
+        ex.notes = ""
+        banned.add(normalize_name(repl))
+        return ex
+
+    new_main: list[ExerciseItem] = []
+    for ex in (day.main or []):
+        r = replace_or_drop(ex)
+        if r:
+            new_main.append(r)
+
+    new_acc: list[ExerciseItem] = []
+    for ex in (day.accessories or []):
+        r = replace_or_drop(ex)
+        if r:
+            new_acc.append(r)
+
+    day.main = new_main
+    day.accessories = new_acc
 
 
 def _enforce_prefer_cables(day, req) -> None:
     flags = _notes_flags(req)
+    avoid_shoulders = flags.get("avoid_shoulders", False)
     if not flags.get("prefer_cables", False):
         return
 
@@ -195,6 +292,8 @@ def _enforce_prefer_cables(day, req) -> None:
 
         cn = _canon_like(target)
         if not cn:
+            continue
+        if avoid_shoulders and _is_shoulder_dominant(cn):  
             continue
 
         # don't swap into something banned
@@ -346,22 +445,24 @@ def _trim_or_pad_movements(day: DayPlan, req: GeneratePlanRequest) -> None:
                     sharms_iso.append(n)
 
         # 3) Only add a lateral raise if we don't already have one
-        if not has_lateral:
+        flags = _notes_flags(req)
+        if (not has_lateral) and (not flags.get("avoid_shoulders", False)):
             for n in LATERAL:
                 if normalize_name(n) not in existing:
                     sharms_iso.append(n)
-
-        # 4) Optional: abs as final filler (safe)
-        for n in ABS:
-            if normalize_name(n) not in existing:
-                sharms_iso.append(n)
 
         iso_pool = sharms_iso
         comp_pool = []
 
     else:
+        flags = _notes_flags(req)
         iso_pool = [n for n in get_isolations_for_focus(day.focus) if normalize_name(n) not in existing]
         comp_pool = [n for n in get_compounds_for_focus(day.focus) if normalize_name(n) not in existing]
+
+        # If avoiding shoulders, filter out shoulder-dominant movements from filler pools
+        if flags.get("avoid_shoulders", False):
+            iso_pool = [n for n in iso_pool if not _is_shoulder_dominant(n)]
+            comp_pool = [n for n in comp_pool if not _is_shoulder_dominant(n)]
 
     def can_add_compound() -> bool:
         return _count_compounds(day) < _compound_cap(req.session_minutes, day.focus)
@@ -654,15 +755,25 @@ def _row_pool(req: GeneratePlanRequest):
 
 def _template_slots(template_key: str, req: GeneratePlanRequest) -> Tuple[List[List[str]], List[List[str]]]:
     t = (template_key or "").upper()
+    flags = _notes_flags(req)
+    avoid_shoulders = flags.get("avoid_shoulders", False)
 
     if t == "UPPER_A":
         main = [CHEST_COMPOUND, LAT_COMPOUND, CHEST_ISO]
-        acc  = [_row_pool(req), LATERAL, BICEPS]
+        if avoid_shoulders:
+            # replace lateral slot with triceps/abs filler to avoid shoulders
+            acc = [_row_pool(req), TRI_SIDES, BICEPS]
+        else:
+            acc = [_row_pool(req), LATERAL, BICEPS]
         return main, acc
 
     if t == "UPPER_B":
         main = [_row_pool(req), CHEST_COMPOUND, LAT_COMPOUND]
-        acc  = [CHEST_ISO, REAR_DELT, BICEPS]
+        if avoid_shoulders:
+            # replace rear delt slot with triceps overhead or abs
+            acc = [CHEST_ISO, TRI_OVERHEAD, BICEPS]
+        else:
+            acc  = [CHEST_ISO, REAR_DELT, BICEPS]
         return main, acc
 
     if t == "LOWER_QUAD":
@@ -676,8 +787,13 @@ def _template_slots(template_key: str, req: GeneratePlanRequest) -> Tuple[List[L
         return main, acc
 
     if t == "SHARMS":
-        main = [SHOULDER_PRESS]
-        acc  = [LATERAL, BICEPS, BICEPS]
+        if avoid_shoulders:
+            # Do not include shoulder presses or laterals; use chest/press + arms + abs
+            main = [FLAT_PRESS]
+            acc  = [BICEPS, TRI_SIDES, ABS]
+        else:
+            main = [SHOULDER_PRESS]
+            acc  = [LATERAL, BICEPS, BICEPS]
         return main, acc
     
         # -----------------
@@ -699,6 +815,9 @@ def _template_slots(template_key: str, req: GeneratePlanRequest) -> Tuple[List[L
             ABDUCTOR,
             CABLE_CRUNCH,
         ]
+        # If avoiding shoulders, remove lateral raises from accessory pool
+        if avoid_shoulders:
+            acc = [slot for slot in acc if slot != LATERAL]
         return main, acc
 
     if t == "FB_B":
@@ -716,6 +835,8 @@ def _template_slots(template_key: str, req: GeneratePlanRequest) -> Tuple[List[L
             ADDUCTOR,
             LATERAL,
         ]
+        if avoid_shoulders:
+            acc = [slot for slot in acc if slot is not LATERAL]
         return main, acc
 
     if t == "FB_C":
@@ -744,12 +865,16 @@ def _template_slots(template_key: str, req: GeneratePlanRequest) -> Tuple[List[L
             CHEST_COMPOUND,  # chest press 1
             CHEST_ISO,       # chest fly
         ]
-        acc = [
-            SHOULDER_PRESS,  # shoulder movement 1
-            LATERAL,         # shoulder movement 2 (machine lateral raise exists)
-            TRI_SIDES,       # tricep 1
-            TRI_OVERHEAD,    # tricep 2
-        ]
+        if avoid_shoulders:
+            # remove shoulder slots and replace with triceps/biceps/abs fillers
+            acc = [TRI_SIDES, TRI_OVERHEAD, BICEPS, ABS]
+        else:
+            acc = [
+                SHOULDER_PRESS,  # shoulder movement 1
+                LATERAL,         # shoulder movement 2 (machine lateral raise exists)
+                TRI_SIDES,       # tricep 1
+                TRI_OVERHEAD,    # tricep 2
+            ]
         return main, acc
 
     if t == "PULL":
@@ -818,6 +943,21 @@ def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, h
             )
             if not pick:
                 continue
+
+            # If user asked to avoid shoulders, ensure we don't pick shoulder-dominant moves
+            if flags.get("avoid_shoulders", False) and _is_shoulder_dominant(pick):
+                alternative = None
+                for raw in slot:
+                    cand = _pick_first_valid([raw], banned=banned, prefer_machines=flags["prefer_machines"], prefer_cables=flags.get("prefer_cables", False))
+                    if cand and not _is_shoulder_dominant(cand):
+                        alternative = cand
+                        break
+                if alternative:
+                    pick = alternative
+                else:
+                    # no safe pick found in this slot
+                    continue
+
             banned.add(normalize_name(pick))
             items.append(
                 ExerciseItem(
@@ -871,7 +1011,7 @@ def _enforce_time_cap(day, session_minutes: int) -> None:
 
 def _notes_flags(req) -> dict:
     text = (req.constraints or "").lower()
-
+    avoid_tokens = {str(x).strip().lower() for x in (getattr(req, "avoid", None) or [])}
     # Phase 1 canonical tokens (preferred)
     tokens = set((getattr(req, "constraints_tokens", None) or []) + (getattr(req, "preferences_tokens", None) or []))
 
@@ -896,6 +1036,14 @@ def _notes_flags(req) -> dict:
         or bool(re.search(r"\bprefer\s+cables?\b|\bcables?\s+only\b", text))
         or ("prefer_cables" in text)
     )
+    # Prefer req.avoid tokens (explicit avoidance list) but fall back to parsing constraints text
+    avoid_shoulders = (
+        ("shoulders" in avoid_tokens)
+        or ("avoid_shoulders" in avoid_tokens)
+        or ("avoid: shoulders" in text)
+        or ("avoid_shoulders" in text)
+        or bool(re.search(r"\bavoid\s+shoulders?\b", text))
+    )
 
 
     return {
@@ -903,6 +1051,7 @@ def _notes_flags(req) -> dict:
         "no_barbells": no_barbells,
         "prefer_machines": prefer_machines,
         "prefer_cables": prefer_cables,
+        "avoid_shoulders": avoid_shoulders,
     }
 
 
@@ -958,6 +1107,10 @@ def _enforce_equipment_from_notes(day, req) -> None:
             if violates(n):
                 repl = _pick_replacement(n, prefer_m, no_db, no_bb)
                 if repl:
+                    # If avoiding shoulders, don't swap into shoulder-dominant replacements
+                    if flags.get("avoid_shoulders", False) and _is_shoulder_dominant(repl):
+                        # drop if the only safe replacement is a shoulder movement
+                        continue
                     ex.name = repl
                     # keep sets/reps/rest normalization later in pipeline
                     out.append(ex)
@@ -969,7 +1122,11 @@ def _enforce_equipment_from_notes(day, req) -> None:
                 if prefer_m:
                     repl = _pick_replacement(n, prefer_m, no_db, no_bb)
                     if repl:
-                        ex.name = repl
+                        # avoid swapping into shoulder-dominant moves if user avoids shoulders
+                        if flags.get("avoid_shoulders", False) and _is_shoulder_dominant(repl):
+                            pass
+                        else:
+                            ex.name = repl
                 out.append(ex)
         return out
 
@@ -1050,7 +1207,11 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
         if (not template_key.upper().startswith("FB_")) and (template_key != "CHEST_BACK"):
             _trim_or_pad_movements(day, req)
             _dedupe_day(day)
-            _enforce_compound_cap(day, req.session_minutes)   
+            _enforce_compound_cap(day, req.session_minutes) 
+        
+        _enforce_avoid_shoulders(day, req)
+        _dedupe_day(day)
+  
 
         
 

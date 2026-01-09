@@ -25,7 +25,14 @@ from services.plan_diff import compute_plan_diff
 _PENDING_EDIT_MESSAGE: dict[int, str] = {}
 
 router = APIRouter(prefix="/plans", tags=["plans"])
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = None
+
+def get_openai_client():
+    global client
+    if client is None:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return client
+
 
 
 # ---------- Prompting ----------
@@ -88,8 +95,6 @@ Output requirements:
 @router.post("/generate")
 def generate_plan(req: GeneratePlanRequest):
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    if not os.getenv("OPENAI_API_KEY"):
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
 
     # Use JSON schema guidance via response_format with strict JSON
     schema = GeneratePlanResponse.model_json_schema()
@@ -109,11 +114,16 @@ def generate_plan(req: GeneratePlanRequest):
 
     normalize_openai_json_schema(schema)
 
-    
+    # ensure an OpenAI client is available when we actually need it
+    if not os.getenv("OPENAI_API_KEY"):
+        # Keep server bootable without an API key — fail only at call-time
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
 
+    # ensure an OpenAI client is available when we actually need it
+    client_local = get_openai_client()
 
     try:
-        resp = client.chat.completions.create(
+        resp = client_local.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
@@ -319,6 +329,7 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
 
     # NOTE: older versions may have extra keys like "_diff" stored in output_json.
     # Make sure base_output is a dict and strip those keys before Pydantic validation.
+    new_input = copy.deepcopy(base_input)
     if isinstance(base_output, str):
         base_output = json.loads(base_output)
 
@@ -328,8 +339,6 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
         for k in list(base_output.keys()):
             if str(k).startswith("_"):
                 base_output.pop(k, None)
-
-        new_input = copy.deepcopy(base_input)
 
     # ensure Phase 1 keys exist (for older plans)
     new_input.setdefault("constraints_tokens", [])
@@ -380,7 +389,12 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
 
     # Re-run deterministic rules ONLY
     # Your rules signature is apply_rules_v1(plan=GeneratePlanResponse, req=GeneratePlanRequest)
-    req_obj = GeneratePlanRequest(**{k: new_input[k] for k in GeneratePlanRequest.model_fields.keys()})
+    # Build a lightweight request-like object that includes explicit 'avoid' tokens
+    # GeneratePlanRequest is strict (forbids extra fields) so we use a SimpleNamespace
+    from types import SimpleNamespace
+
+    req_fields = {k: new_input.get(k) for k in GeneratePlanRequest.model_fields.keys()}
+    req_obj = SimpleNamespace(**req_fields, avoid=new_input.get("avoid", []))
     plan_obj = GeneratePlanResponse(**base_output)
     new_plan_obj = apply_rules_v1(plan=plan_obj, req=req_obj)
 
@@ -397,5 +411,5 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
         "patch": patch.model_dump(),
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     })
-    create_plan_version(plan_id, new_version, new_input, new_output)
+    create_plan_version(plan_id, new_version, new_input, new_output, diff=diff)
     return {"plan_id": plan_id, "version": new_version, "output": new_output, "diff": diff}
