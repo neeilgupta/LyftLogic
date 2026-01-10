@@ -228,7 +228,6 @@ def _first_safe_filler(banned: set[str], req: GeneratePlanRequest) -> Optional[s
 def _enforce_avoid_shoulders(day: DayPlan, req: GeneratePlanRequest) -> None:
     flags = _notes_flags(req)
     # REMOVE AFTER TEST: debug print to confirm flags and req.avoid
-    # print(f"REMOVE AFTER TEST: avoid_shoulders={flags.get('avoid_shoulders')} req.avoid={getattr(req, 'avoid', None)}")
     if not flags.get("avoid_shoulders", False):
         return
 
@@ -1172,6 +1171,13 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
             plan.weekly_split.append(blank)
 
 
+    # Enforcement order matters:
+    # 1) Template selection / base split shaping
+    # 2) Equipment constraints (no_dumbbells/no_barbells/etc.)
+    # 3) Preference swaps (prefer_cables/prefer_machines)
+    # 4) HARD avoids (avoid_shoulders, etc.)
+    # 5) Dedupe + caps + normalization
+    # NOTE: If you change this order, you can re-introduce rule leakage.
 
     # per-day enforcement
     for i in range(target_len):
