@@ -315,7 +315,27 @@ def get_plan_versions(plan_id: int):
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
 
-    return {"plan_id": plan_id, "items": list_plan_versions(plan_id)}
+    items = list_plan_versions(plan_id)
+
+    # Add restore metadata (additive, backward-compatible)
+    for it in items:
+        diff = it.get("diff")
+        restored_from = None
+        is_restored = False
+
+        if isinstance(diff, dict) and "restored_from" in diff:
+            try:
+                restored_from = int(diff["restored_from"])
+                is_restored = True
+            except Exception:
+                restored_from = None
+                is_restored = False
+
+        it["is_restored"] = is_restored
+        it["restored_from"] = restored_from
+
+    return {"plan_id": plan_id, "items": items}
+
 # Phase 1 note:
 # - constraints_tokens are enforced immediately in the rules engine
 # - avoid / emphasis are stored only in input

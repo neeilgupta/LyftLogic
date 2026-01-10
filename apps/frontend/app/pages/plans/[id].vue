@@ -11,19 +11,54 @@
     <p v-if="pending">Loading plan…</p>
     <p v-else-if="errorMsg" style="color: red;">{{ errorMsg }}</p>
 
-    <section v-else-if="output">
+    <section v-else-if="selectedOutput">
       <div style="display: flex; gap: 14px; align-items: flex-start;">
         <!-- LEFT -->
         <div style="flex: 1; min-width: 0;">
-      <h1 style="margin: 0 0 8px;">{{ output.title }}</h1>
+      <h1 style="margin: 0 0 8px;">{{ selectedOutput.title }}</h1>
       <div style="opacity: 0.7; font-size: 13px; margin: 6px 0 12px;">
-        Version {{ (plan as any)?.version ?? "?" }}
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div>
+            Viewing v{{ selectedVersionNumber ?? ((plan as any)?.version ?? "?") }}
+            <span v-if="selectedVersion?.is_restored && selectedVersion?.restored_from">
+              (restored from v{{ selectedVersion.restored_from }})
+            </span>
+            <span v-else-if="selectedVersionNumber === latestVersionNumber">
+              (latest)
+            </span>
+          </div>
+
+          <div v-if="versions.length" style="display:flex; gap:8px; align-items:center;">
+            <label style="opacity:0.85;">Version:</label>
+            <select v-model.number="selectedVersionNumber">
+              <option v-for="v in versions" :key="v.version" :value="v.version">
+                v{{ v.version }}
+                <template v-if="v.is_restored && v.restored_from">
+                  (restored from v{{ v.restored_from }})
+                </template>
+                <template v-else-if="v.version === latestVersionNumber">
+                  (latest)
+                </template>
+              </option>
+            </select>
+
+            <button
+              v-if="selectedVersionNumber !== latestVersionNumber"
+              :disabled="restoring"
+              @click="restoreSelected"
+              style="padding: 6px 10px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
+            >
+              {{ restoring ? "Restoring…" : "Restore this version" }}
+            </button>
+          </div>
+        </div>
       </div>
-      <p style="margin: 0 0 18px; opacity: 0.85;">{{ output.summary }}</p>
+
+      <p style="margin: 0 0 18px; opacity: 0.85;">{{ selectedOutput.summary }}</p>
 
       <!-- Global notes -->
       <div style="border: 1px solid #eee; border-radius: 12px; padding: 14px; margin-bottom: 14px;">
-        <div v-if="output.progression_notes?.length" style="margin-bottom: 10px;">
+        <div v-if="selectedOutput.progression_notes?.length" style="margin-bottom: 10px;">
           <h3
   style="
     margin: 0 0 6px;
@@ -37,11 +72,11 @@
   Training Notes
 </h3>
           <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-            <li v-for="(n, i) in output.progression_notes" :key="`pn-${i}`">{{ n }}</li>
+            <li v-for="(n, i) in selectedOutput.progression_notes" :key="`pn-${i}`">{{ n }}</li>
           </ul>
         </div>
 
-        <div v-if="output.safety_notes?.length">
+        <div v-if="selectedOutput.safety_notes?.length">
           <h3
   style="
     margin: 0 0 6px;
@@ -55,7 +90,7 @@
             Safety Notes
           </h3>
           <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-            <li v-for="(n, i) in output.safety_notes" :key="`sn-${i}`">{{ n }}</li>
+            <li v-for="(n, i) in selectedOutput.safety_notes" :key="`sn-${i}`">{{ n }}</li>
           </ul>
         </div>
 
@@ -104,12 +139,8 @@
       <!-- What changed (diff) -->
       <!-- ========================= -->
       <div
-        v-if="
-          lastDiff &&
-          ((lastDiff.replaced_exercises?.length ?? 0) +
-          (lastDiff.added_exercises?.length ?? 0) +
-          (lastDiff.removed_exercises?.length ?? 0)) > 0
-        "
+        v-if="displayDiff"
+
         style="
           margin-bottom: 14px;
           border: 1px solid #eee;
@@ -120,13 +151,13 @@
       >
         <div style="font-weight: 800; margin-bottom: 6px;">What changed</div>
 
-        <div v-if="lastDiff.replaced_exercises?.length">
+        <div v-if="displayDiff.replaced_exercises?.length">
           <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">
             Replaced
           </div>
           <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
             <li
-              v-for="(r, i) in lastDiff.replaced_exercises"
+              v-for="(r, i) in displayDiff.replaced_exercises"
               :key="`rep-${i}`"
             >
               Day {{ (r.day ?? 0) + 1 }}
@@ -138,9 +169,9 @@
 
         <div
           v-if="
-            !lastDiff.replaced_exercises?.length &&
-            !lastDiff.removed_exercises?.length &&
-            !lastDiff.added_exercises?.length
+            !displayDiff.replaced_exercises?.length &&
+            !displayDiff.removed_exercises?.length &&
+            !displayDiff.added_exercises?.length
           "
           style="opacity: 0.7; font-size: 13px;"
         >
@@ -152,7 +183,7 @@
       <!-- simple day nav -->
       <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
         <a
-          v-for="(day, i) in output.weekly_split"
+          v-for="(day, i) in selectedOutput.weekly_split"
           :key="i"
           :href="`#day-${i}`"
           style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 999px; text-decoration: none;"
@@ -162,7 +193,7 @@
       </div>
 
       <article
-        v-for="(day, i) in output.weekly_split"
+        v-for="(day, i) in selectedOutput.weekly_split"
         :key="i"
         :id="`day-${i}`"
         style="border: 1px solid #eee; border-radius: 12px; padding: 14px; margin-bottom: 14px;"
@@ -320,6 +351,16 @@ type PlanDetail = {
   title?: string;
 };
 
+type VersionItem = {
+  version: number;
+  created_at?: string;
+  input: any;
+  output: any;
+  diff?: any;
+  is_restored?: boolean;
+  restored_from?: number | null;
+};
+
 const route = useRoute();
 const id = computed(() => String(route.params.id));
 const { getPlan } = usePlans();
@@ -328,6 +369,7 @@ const { data: plan, pending, error, refresh} = await useAsyncData(
   () => `plan-${id.value}`,
   () => getPlan(id.value)
 );
+
 
 const errorMsg = computed(() => {
   const e: any = error.value;
@@ -379,6 +421,8 @@ watch(
     editResponse.value = null;
     editError.value = null;
     editMessage.value = "";
+    versions.value = [];
+    selectedVersionNumber.value = null;
   }
 );
 
@@ -395,18 +439,18 @@ function formatChatTime(iso: any) {
 
 
 const constraintTokens = computed<string[]>(() => {
-  const t = (plan.value as any)?.input?.constraints_tokens;
+  const t = (selectedInput.value as any)?.constraints_tokens;
   return Array.isArray(t) ? t.map(String).filter(Boolean) : [];
 });
 
 const preferenceTokens = computed<string[]>(() => {
-  const t = (plan.value as any)?.input?.preferences_tokens;
+  const t = (selectedInput.value as any)?.preferences_tokens;
   return Array.isArray(t) ? t.map(String).filter(Boolean) : [];
 });
 
 
 const inputConstraints = computed<string[]>(() => {
-  const i = input.value
+  const i = selectedInput.value
   if (!i) return []
 
   // ✅ Prefer raw base text if present
@@ -420,7 +464,8 @@ const inputConstraints = computed<string[]>(() => {
 })
 
 const preferenceLines = computed<string[]>(() => {
-  const i = input.value;
+  const i = selectedInput.value;
+
   if (!i) return [];
 
   const out: string[] = [];
@@ -671,6 +716,84 @@ const hasRealPatch = computed(() => {
 
 const config = useRuntimeConfig();
 const apiBase = (config.public as any)?.apiBase ?? "http://127.0.0.1:8000";
+const versions = ref<VersionItem[]>([]);
+const selectedVersionNumber = ref<number | null>(null);
+const restoring = ref(false);
+
+const latestVersionNumber = computed(() => {
+  if (!versions.value.length) return (plan.value as any)?.version ?? null;
+  return Math.max(...versions.value.map(v => v.version));
+});
+
+const selectedVersion = computed<VersionItem | null>(() => {
+  if (selectedVersionNumber.value == null) return null;
+  return versions.value.find(v => v.version === selectedVersionNumber.value) ?? null;
+});
+
+const selectedOutput = computed<PlanOutput | null>(() => {
+  // Prefer selected snapshot if available
+  const sv = selectedVersion.value;
+  if (sv?.output?.weekly_split) return sv.output as PlanOutput;
+
+  // Fallback to latest plan output (existing behavior)
+  return output.value;
+});
+
+const selectedInput = computed<any>(() => {
+  const sv = selectedVersion.value;
+  if (sv?.input) return sv.input;
+  return input.value;
+});
+
+// Diff to show in UI:
+// - if viewing a snapshot, show its stored diff
+// - otherwise show the last apply diff (immediate feedback)
+const displayDiff = computed<any | null>(() => {
+  if (selectedVersion.value?.diff) return selectedVersion.value.diff;
+  return lastDiff.value;
+});
+
+async function fetchVersions() {
+  const res: any = await $fetch(`${apiBase}/plans/${id.value}/versions`);
+  const items: VersionItem[] = res.items ?? res;
+
+  versions.value = [...items].sort((a, b) => b.version - a.version);
+
+  // default selection = latest
+  if (selectedVersionNumber.value == null) {
+    const first = versions.value[0];
+  if (first) selectedVersionNumber.value = first.version;
+}
+}
+await fetchVersions();
+
+
+async function restoreSelected() {
+  if (!selectedVersion.value) return;
+  const v = selectedVersion.value.version;
+  if (v === latestVersionNumber.value) return;
+
+  restoring.value = true;
+  try {
+    await $fetch(`${apiBase}/plans/${id.value}/restore`, {
+      method: "POST",
+      body: { version: v },
+    });
+
+    // refresh versions + plan
+    await fetchVersions();
+    // select newest
+    const first = versions.value[0];
+    selectedVersionNumber.value = first ? first.version : null;
+    await refresh();
+
+    // clear lastDiff so snapshot diff is the truth
+    lastDiff.value = null;
+  } finally {
+    restoring.value = false;
+  }
+}
+
 
 async function applyPatch() {
   applyError.value = null;
