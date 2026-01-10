@@ -8,6 +8,71 @@
       <NuxtLink to="/plans" style="text-decoration: underline;">All plans</NuxtLink>
     </nav>
 
+    <!-- ========================= -->
+    <!-- Phase 2: Version Bar (Always Visible) -->
+    <!-- ========================= -->
+    <div
+      style="
+        margin-bottom: 14px;
+        border: 1px solid #eee;
+        border-radius: 12px;
+        padding: 12px;
+        background: #fff;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      "
+    >
+      <div style="font-weight: 800;">
+        Version
+        <span style="opacity: 0.7; font-weight: 600;">
+          — viewing v{{ selectedVersionNumber ?? ((plan as any)?.version ?? "?") }}
+          <template v-if="selectedVersion?.is_restored && selectedVersion?.restored_from">
+            (restored from v{{ selectedVersion.restored_from }})
+          </template>
+          <template v-else-if="selectedVersionNumber != null && selectedVersionNumber === latestVersionNumber">
+            (latest)
+          </template>
+        </span>
+      </div>
+
+      <div style="display:flex; gap:8px; align-items:center;">
+        <select
+          v-model.number="selectedVersionNumber"
+          :disabled="versionsPending"
+          style="padding: 6px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+        >
+          <option v-if="versionsPending" :value="null">Loading versions…</option>
+          <option v-else-if="!versions.length" :value="null">No versions</option>
+
+          <option v-for="v in versions" :key="v.version" :value="v.version">
+            v{{ v.version }}
+            <template v-if="v.is_restored && v.restored_from">
+              (restored from v{{ v.restored_from }})
+            </template>
+            <template v-else-if="v.version === latestVersionNumber">
+              (latest)
+            </template>
+          </option>
+        </select>
+
+        <button
+          v-if="selectedVersionNumber != null && selectedVersionNumber !== latestVersionNumber"
+          :disabled="restoring || versionsPending"
+          @click="restoreSelected"
+          style="padding: 6px 10px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
+        >
+          {{ restoring ? "Restoring…" : "Restore this version" }}
+        </button>
+
+        <span v-if="versionsError" style="color:#b00020; font-size: 13px;">
+          {{ versionsError }}
+        </span>
+      </div>
+    </div>
+
+
     <p v-if="pending">Loading plan…</p>
     <p v-else-if="errorMsg" style="color: red;">{{ errorMsg }}</p>
 
@@ -16,43 +81,7 @@
         <!-- LEFT -->
         <div style="flex: 1; min-width: 0;">
       <h1 style="margin: 0 0 8px;">{{ selectedOutput.title }}</h1>
-      <div style="opacity: 0.7; font-size: 13px; margin: 6px 0 12px;">
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <div>
-            Viewing v{{ selectedVersionNumber ?? ((plan as any)?.version ?? "?") }}
-            <span v-if="selectedVersion?.is_restored && selectedVersion?.restored_from">
-              (restored from v{{ selectedVersion.restored_from }})
-            </span>
-            <span v-else-if="selectedVersionNumber === latestVersionNumber">
-              (latest)
-            </span>
-          </div>
 
-          <div v-if="versions.length" style="display:flex; gap:8px; align-items:center;">
-            <label style="opacity:0.85;">Version:</label>
-            <select v-model.number="selectedVersionNumber">
-              <option v-for="v in versions" :key="v.version" :value="v.version">
-                v{{ v.version }}
-                <template v-if="v.is_restored && v.restored_from">
-                  (restored from v{{ v.restored_from }})
-                </template>
-                <template v-else-if="v.version === latestVersionNumber">
-                  (latest)
-                </template>
-              </option>
-            </select>
-
-            <button
-              v-if="selectedVersionNumber !== latestVersionNumber"
-              :disabled="restoring"
-              @click="restoreSelected"
-              style="padding: 6px 10px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
-            >
-              {{ restoring ? "Restoring…" : "Restore this version" }}
-            </button>
-          </div>
-        </div>
-      </div>
 
       <p style="margin: 0 0 18px; opacity: 0.85;">{{ selectedOutput.summary }}</p>
 
@@ -139,7 +168,7 @@
       <!-- What changed (diff) -->
       <!-- ========================= -->
       <div
-        v-if="displayDiff"
+        v-if="displayDiff !== null"
 
         style="
           margin-bottom: 14px;
@@ -163,6 +192,30 @@
               Day {{ (r.day ?? 0) + 1 }}
               ({{ r.block }} #{{ (r.slot ?? 0) + 1 }}):
               <code>{{ r.from }}</code> → <code>{{ r.to }}</code>
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="displayDiff.added_exercises?.length">
+          <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">
+            Added
+          </div>
+          <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+            <li v-for="(a, i) in displayDiff.added_exercises" :key="`add-${i}`">
+              Day {{ (a.day ?? 0) + 1 }} ({{ a.block }} #{{ (a.slot ?? 0) + 1 }}):
+              <code>{{ a.name }}</code>
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="displayDiff.removed_exercises?.length">
+          <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">
+            Removed
+          </div>
+          <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+            <li v-for="(r, i) in displayDiff.removed_exercises" :key="`rem-${i}`">
+              Day {{ (r.day ?? 0) + 1 }} ({{ r.block }} #{{ (r.slot ?? 0) + 1 }}):
+              <code>{{ r.name }}</code>
             </li>
           </ul>
         </div>
@@ -225,11 +278,11 @@
     </div>
 
     <!-- RIGHT -->
-    <div style="display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap;">
+    <div style="width: 380px; min-width: 320px;">
       <!-- ========================= -->
       <!-- Phase 1: Chat Panel -->
       <!-- ========================= -->
-      <section style="border: 1px solid #eee; border-radius: 12px; padding: 14px; height: calc(100vh - 140px); display: flex; flex-direction: column;">
+      <section style="position: sticky; top: 14px; border: 1px solid #eee; border-radius: 12px; padding: 14px; height: calc(100vh - 140px); display: flex; flex-direction: column;">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;">
           <div>
             <div style="font-weight: 800;">Chat</div>
@@ -238,7 +291,7 @@
             </div>
           </div>
           <div style="opacity: 0.7; font-size: 13px;">
-            v{{ (plan as any)?.version ?? "?" }}
+            v{{ selectedVersionNumber ?? ((plan as any)?.version ?? "?") }}
           </div>
         </div>
 
@@ -309,7 +362,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, ref, nextTick, watch } from "vue";
+import { computed, defineComponent, h, ref, watch } from "vue";
 import type { PropType } from "vue";
 import { useRoute } from "vue-router";
 import { usePlans } from "../../../composables/usePlans";
@@ -423,6 +476,7 @@ watch(
     editMessage.value = "";
     versions.value = [];
     selectedVersionNumber.value = null;
+    fetchVersions();
   }
 );
 
@@ -695,6 +749,7 @@ const applyPending = ref(false);
 const applyError = ref<string | null>(null);
 const applyResponse = ref<any>(null);
 const lastDiff = ref<any | null>(null)
+  
 
 
 const hasRealPatch = computed(() => {
@@ -719,6 +774,9 @@ const apiBase = (config.public as any)?.apiBase ?? "http://127.0.0.1:8000";
 const versions = ref<VersionItem[]>([]);
 const selectedVersionNumber = ref<number | null>(null);
 const restoring = ref(false);
+const versionsPending = ref(false);
+const versionsError = ref<string | null>(null);
+const versionsReqToken = ref(0);
 
 const latestVersionNumber = computed(() => {
   if (!versions.value.length) return (plan.value as any)?.version ?? null;
@@ -748,28 +806,63 @@ const selectedInput = computed<any>(() => {
 // Diff to show in UI:
 // - if viewing a snapshot, show its stored diff
 // - otherwise show the last apply diff (immediate feedback)
+// Diff rules:
+// - If user has selected a specific version: show THAT version's persisted diff (even if null).
+// - Only fall back to lastDiff for *latest* when selected version has no diff yet (immediate feedback).
 const displayDiff = computed<any | null>(() => {
-  if (selectedVersion.value?.diff) return selectedVersion.value.diff;
+  const sv = selectedVersion.value;
+  const selNum = selectedVersionNumber.value;
+
+  if (selNum != null && sv) {
+    // snapshot mode: never leak lastDiff from a different selection
+    if (sv.diff !== undefined) return sv.diff ?? null;
+    return null;
+  }
+
   return lastDiff.value;
 });
 
-async function fetchVersions() {
-  const res: any = await $fetch(`${apiBase}/plans/${id.value}/versions`);
-  const items: VersionItem[] = res.items ?? res;
 
-  versions.value = [...items].sort((a, b) => b.version - a.version);
+async function fetchVersions(opts?: { keepSelection?: boolean }) {
+  const keepSelection = opts?.keepSelection ?? false;
 
-  // default selection = latest
-  if (selectedVersionNumber.value == null) {
-    const first = versions.value[0];
-  if (first) selectedVersionNumber.value = first.version;
+  versionsPending.value = true;
+  versionsError.value = null;
+
+  const token = ++versionsReqToken.value;
+
+  try {
+    const res: any = await $fetch(`${apiBase}/plans/${id.value}/versions`);
+    if (token !== versionsReqToken.value) return; // ignore stale response
+
+    const items: VersionItem[] = res.items ?? res ?? [];
+    versions.value = [...items].sort((a, b) => b.version - a.version);
+
+    const latest = versions.value[0]?.version ?? null;
+
+    // Default selection = latest (unless explicitly keeping selection and it still exists)
+    if (keepSelection && selectedVersionNumber.value != null) {
+      const stillExists = versions.value.some(v => v.version === selectedVersionNumber.value);
+      if (!stillExists) selectedVersionNumber.value = latest;
+    } else {
+      selectedVersionNumber.value = latest;
+    }
+  } catch (e: any) {
+    if (token !== versionsReqToken.value) return;
+    versionsError.value = e?.data?.detail ?? e?.message ?? String(e);
+    versions.value = [];
+    selectedVersionNumber.value = null;
+  } finally {
+    if (token === versionsReqToken.value) versionsPending.value = false;
+  }
 }
-}
+
 await fetchVersions();
 
 
 async function restoreSelected() {
   if (!selectedVersion.value) return;
+
   const v = selectedVersion.value.version;
   if (v === latestVersionNumber.value) return;
 
@@ -780,15 +873,16 @@ async function restoreSelected() {
       body: { version: v },
     });
 
-    // refresh versions + plan
-    await fetchVersions();
-    // select newest
-    const first = versions.value[0];
-    selectedVersionNumber.value = first ? first.version : null;
+    // 1) pull newest versions first (so we can select latest deterministically)
+    await fetchVersions({ keepSelection: false });
+
+    // 2) refresh plan detail (latest output / chat_history)
     await refresh();
 
-    // clear lastDiff so snapshot diff is the truth
+    // 3) avoid leaking prior apply diff into snapshot mode
     lastDiff.value = null;
+  } catch (e: any) {
+    versionsError.value = e?.data?.detail ?? e?.message ?? String(e);
   } finally {
     restoring.value = false;
   }
@@ -823,6 +917,8 @@ async function applyPatch() {
 
     // refresh the plan content (new version)
     await refresh();
+    await fetchVersions({ keepSelection: false });
+    lastDiff.value = null;
     appliedOk.value = true;
     setTimeout(() => (appliedOk.value = false), 1500);
 
@@ -908,6 +1004,8 @@ lastDiff.value = (applyRes as any)?.diff ?? null;
 
     // 3) Refresh plan (pulls updated output + chat_history)
     await refresh();
+    await fetchVersions({ keepSelection: false });
+    lastDiff.value = null;
 
     appliedOk.value = true;
     setTimeout(() => (appliedOk.value = false), 1500);
