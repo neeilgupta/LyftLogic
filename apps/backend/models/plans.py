@@ -73,3 +73,7 @@ class EditPlanResponse(BaseModel):
     proposed_patch: PlanEditPatch = Field(default_factory=PlanEditPatch)
     change_summary: List[str] = Field(default_factory=list)
     errors: List[str] = Field(default_factory=list)
+
+class RestorePlanRequest(BaseModel):
+    version: Annotated[int, Field(ge=1)]
+

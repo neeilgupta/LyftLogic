@@ -4,16 +4,27 @@ import json
 import os
 import re
 import copy
-from services.db import add_plan, list_plans, get_plan, get_latest_plan_version, list_plan_versions, create_plan_version
+from services.db import (
+    add_plan,
+    list_plans,
+    get_plan,
+    get_latest_plan_version,
+    list_plan_versions,
+    create_plan_version,
+    get_plan_version,
+)
 
 
 from fastapi import APIRouter, HTTPException, Query
 from models.plans import (
     GeneratePlanRequest,
-    GeneratePlanResponse, 
-    EditPlanRequest, 
-    EditPlanResponse, 
-    PlanEditPatch)
+    GeneratePlanResponse,
+    EditPlanRequest,
+    EditPlanResponse,
+    PlanEditPatch,
+    RestorePlanRequest,
+)
+
 
 from .rules.engine import apply_rules_v1
 from openai import OpenAI
@@ -399,7 +410,15 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
     new_plan_obj = apply_rules_v1(plan=plan_obj, req=req_obj)
 
     new_output = new_plan_obj.model_dump()
-    diff = compute_plan_diff(base_output, new_output)
+        # Reason hint for explainable diffs (deterministic; derived only from patch)
+    reason_hint = None
+    if patch.avoid and any(str(x).strip().lower() == "shoulders" for x in patch.avoid):
+        reason_hint = "avoid_shoulders"
+    elif patch.preferences_add and "prefer_cables" in (patch.preferences_add or []):
+        reason_hint = "prefer_cables"
+
+    diff = compute_plan_diff(base_output, new_output, reason=reason_hint)
+
 
 
     new_version = base_version + 1
@@ -413,3 +432,32 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
     })
     create_plan_version(plan_id, new_version, new_input, new_output, diff=diff)
     return {"plan_id": plan_id, "version": new_version, "output": new_output, "diff": diff}
+
+@router.post("/{plan_id}/restore", summary="Restore a previous version by creating a new version snapshot")
+def restore_plan_version(plan_id: int, body: RestorePlanRequest):
+    row = get_plan(plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    target = get_plan_version(plan_id, body.version)
+    if not target:
+        raise HTTPException(status_code=404, detail="Target version not found")
+
+    latest = get_latest_plan_version(plan_id)
+    base_version = latest["version"] if latest else 1
+    new_version = base_version + 1
+
+    # Copy EXACTLY (no edits, no recompute)
+    restored_input = target["input"]
+    restored_output = target["output"]
+
+    diff = {"restored_from": body.version}
+
+    create_plan_version(plan_id, new_version, restored_input, restored_output, diff=diff)
+
+    return {
+        "plan_id": plan_id,
+        "version": new_version,
+        "output": restored_output,
+        "diff": diff,
+    }

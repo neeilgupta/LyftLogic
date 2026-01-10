@@ -52,6 +52,11 @@ def test_apply_avoid_shoulders_produces_diff_and_no_leak(client):
     # 3) diff exists (contract)
     assert "diff" in applied and applied["diff"] is not None
     diff = applied["diff"]
+    if base_has_shoulders:
+        # If a change happened, every emitted diff entry should include the reason hint.
+        for k in ("replaced_exercises", "removed_exercises", "added_exercises"):
+            for entry in diff.get(k, []):
+                assert entry.get("reason") == "avoid_shoulders", f"Missing/incorrect reason on {k}: {entry}"
 
     # If the base plan had shoulder moves, we MUST see a change.
     # If it didn't, diff is allowed to be empty.
@@ -95,8 +100,9 @@ def test_diff_is_deterministic_unit_level(client):
     out1 = apply_rules_v1(plan=plan_obj_1, req=req_obj).model_dump()
     out2 = apply_rules_v1(plan=plan_obj_2, req=req_obj).model_dump()
 
-    diff1 = compute_plan_diff(base_output, out1)
-    diff2 = compute_plan_diff(base_output, out2)
+    diff1 = compute_plan_diff(base_output, out1, reason="avoid_shoulders")
+    diff2 = compute_plan_diff(base_output, out2, reason="avoid_shoulders")
+
 
     assert json.dumps(out1, sort_keys=True) == json.dumps(out2, sort_keys=True)
     assert json.dumps(diff1, sort_keys=True) == json.dumps(diff2, sort_keys=True)

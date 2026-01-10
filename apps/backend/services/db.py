@@ -285,3 +285,26 @@ def list_plan_versions(plan_id: int) -> List[Dict[str, Any]]:
             out.append(d)
 
         return out
+
+def get_plan_version(plan_id: int, version: int) -> Optional[Dict[str, Any]]:
+    with _conn() as conn:
+        row = conn.execute(
+            """
+            SELECT plan_id, version, input_json, output_json, diff_json, created_at
+            FROM plan_versions
+            WHERE plan_id = ? AND version = ?
+            LIMIT 1
+            """,
+            (plan_id, version),
+        ).fetchone()
+
+        if not row:
+            return None
+
+        d = dict(row)
+        d["input"] = json.loads(d.pop("input_json"))
+        d["output"] = json.loads(d.pop("output_json"))
+        d["diff"] = json.loads(d["diff_json"]) if d.get("diff_json") else None
+        d.pop("diff_json", None)
+        return d
+
