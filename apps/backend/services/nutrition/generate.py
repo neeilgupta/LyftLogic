@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 from services.nutrition.allergens import build_allergen_set, meal_is_safe
+from services.nutrition.contracts import Meal
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,7 @@ def required_diet_tags_for_user(diet: Optional[str]) -> set[str]:
 # LLM function signature:
 # returns a list of meal dicts, each with:
 #  { name: str, ingredients: [ {name, contains, diet_tags, is_compound}, ... ] }
-LLMGenerator = Callable[[GenerationRequest, int], list[dict]]
+LLMGenerator = Callable[[GenerationRequest, int], list[Meal]]
 
 
 def generate_safe_meals(

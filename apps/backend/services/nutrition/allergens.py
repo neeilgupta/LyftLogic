@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 from typing import Iterable
+from services.nutrition.contracts import Meal
+
 
 
 _PUNCT_RE = re.compile(r"[^a-z0-9\s]+")
@@ -71,7 +73,7 @@ def _diet_tags_list_is_valid(diet_tags: object) -> bool:
     return True
 
 
-def meal_is_safe(meal: dict, allergen_set: set[str], required_diet_tags: set[str] | None = None) -> bool:
+def meal_is_safe(meal: Meal, allergen_set: set[str], required_diet_tags: set[str] | None = None) -> bool:
     """
     FAIL-CLOSED enforcement for BOTH:
       - allergens (must-not-contain)
