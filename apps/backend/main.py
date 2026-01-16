@@ -31,4 +31,7 @@ def health():
 
 # routers
 from routes.plans import router as plans_router
+from routes.nutrition import router as nutrition_router
 app.include_router(plans_router)
+app.include_router(nutrition_router)
+
