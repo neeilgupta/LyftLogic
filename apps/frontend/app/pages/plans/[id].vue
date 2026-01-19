@@ -232,6 +232,48 @@
         </div>
       </div>
 
+      <!-- ========================= -->
+      <!-- Nutrition Panel -->
+      <!-- ========================= -->
+      <div
+        style="
+          margin-bottom: 14px;
+          border: 1px solid #eee;
+          border-radius: 12px;
+          padding: 12px;
+          background: #fff;
+        "
+      >
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px;">
+          <div style="font-weight: 800;">Nutrition</div>
+          <div v-if="nutritionSnapshot" style="opacity: 0.7; font-size: 13px;">v{{ nutritionSnapshot.version }}</div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+          <button
+            :disabled="nutritionLoading"
+            @click="onNutritionGenerate"
+            style="padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
+          >
+            {{ nutritionLoading ? "Working…" : "Generate nutrition" }}
+          </button>
+          <button
+            :disabled="!nutritionSnapshot || nutritionLoading"
+            @click="onNutritionRegenerate"
+            style="padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
+          >
+            {{ nutritionLoading ? "Working…" : "Regenerate (diff)" }}
+          </button>
+        </div>
+
+        <div v-if="nutritionError" style="color: #b00020; font-size: 13px; margin-bottom: 10px;">
+          {{ nutritionError }}
+        </div>
+
+        <NutritionDiff :explanations="nutritionExplanations" :version="nutritionSnapshot?.version ?? null" />
+      </div>
+
+      
 
       <!-- simple day nav -->
       <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
@@ -367,6 +409,8 @@ import type { PropType } from "vue";
 import { useRoute } from "vue-router";
 import { usePlans } from "../../../composables/usePlans";
 import { useRuntimeConfig } from "#imports";
+import NutritionDiff from "../../components/NutritionDiff.vue";
+import { useNutritionApi, type NutritionTargets } from "../../../services/nutrition";
 
 
 
@@ -771,6 +815,30 @@ const hasRealPatch = computed(() => {
 
 const config = useRuntimeConfig();
 const apiBase = (config.public as any)?.apiBase ?? "http://127.0.0.1:8000";
+
+const { generateNutrition, regenerateNutrition } = useNutritionApi();
+const nutritionLoading = ref(false);
+const nutritionError = ref<string | null>(null);
+const nutritionSnapshot = ref<any | null>(null);
+const nutritionExplanations = ref<string[] | null>(null);
+
+const defaultNutritionTargets: NutritionTargets = {
+  maintenance: 2600,
+  cut: { "0.5": 2400, "1": 2200, "2": 2000 },
+  bulk: { "0.5": 2800, "1": 3000, "2": 3200 },
+};
+
+function buildNutritionBaseRequest() {
+  return {
+    targets: defaultNutritionTargets,
+    diet: null,
+    allergies: [],
+    meals_needed: 4,
+    max_attempts: 10,
+    batch_size: 6,
+  };
+}
+
 const versions = ref<VersionItem[]>([]);
 const selectedVersionNumber = ref<number | null>(null);
 const restoring = ref(false);
@@ -822,6 +890,46 @@ const displayDiff = computed<any | null>(() => {
   return lastDiff.value;
 });
 
+
+async function onNutritionGenerate() {
+  nutritionLoading.value = true;
+  nutritionError.value = null;
+
+  try {
+    const base = buildNutritionBaseRequest();
+    const res = await generateNutrition(base);
+    nutritionSnapshot.value = res.version_snapshot;
+    nutritionExplanations.value = [];
+  } catch (e: any) {
+    nutritionError.value = e?.data?.detail ?? e?.message ?? String(e);
+  } finally {
+    nutritionLoading.value = false;
+  }
+}
+
+async function onNutritionRegenerate() {
+  if (!nutritionSnapshot.value) {
+    nutritionError.value = "No snapshot available for regeneration.";
+    return;
+  }
+
+  nutritionLoading.value = true;
+  nutritionError.value = null;
+
+  try {
+    const base = buildNutritionBaseRequest();
+    const res = await regenerateNutrition({
+      ...base,
+      prev_snapshot: nutritionSnapshot.value,
+    });
+    nutritionSnapshot.value = res.version_snapshot;
+    nutritionExplanations.value = res.explanations || [];
+  } catch (e: any) {
+    nutritionError.value = e?.data?.detail ?? e?.message ?? String(e);
+  } finally {
+    nutritionLoading.value = false;
+  }
+}
 
 async function fetchVersions(opts?: { keepSelection?: boolean }) {
   const keepSelection = opts?.keepSelection ?? false;
