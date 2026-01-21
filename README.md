@@ -1,111 +1,170 @@
 # LyftLogic
 
-LyftLogic is a full-stack **strength training planning system** that generates **structured, realistic workout programs** using a hybrid approach:  
-**LLM generation + a deterministic rules engine**.
+LyftLogic is a full-stack **training and nutrition planning system** built around one core idea:
 
-Unlike typical AI fitness apps, LyftLogic does **not** rely on free-form prompt outputs. Every plan is post-processed and enforced against explicit training rules so that the final result is something you would actually run in a real gym.
+> **AI should draft. Code should decide.**
 
----
-
-## 🚀 Why LyftLogic Exists
-
-Most AI-generated workout plans fail in predictable ways:
-
-- Random exercise selection every generation
-- Cardio mixed into strength warmups
-- Inconsistent volume and rest times
-- Overuse of abstract metrics like RPE
-- Ignoring real gym constraints (equipment, time, preferences)
-- “Suggestions” instead of hard enforcement
-
-LyftLogic was built to solve this by treating AI as a **draft generator**, not the final authority.
-
-All important training decisions are enforced programmatically.
+Instead of trusting model output directly, LyftLogic treats AI as an **untrusted proposal generator** and enforces all important rules **deterministically in code**.  
+The result is plans that are **stable, explainable, versioned, and realistic** — not random or vibes-based.
 
 ---
 
-## 🧠 Core Training Philosophy
+## 🚀 What LyftLogic Is (and Is Not)
 
-LyftLogic follows a strict, realism-first approach:
+**LyftLogic is:**
+- A deterministic planning system
+- Explicitly versioned
+- Diff-driven and explainable
+- Designed for iteration, not one-off generation
 
-- **No cardio before lifting**
-- **No finishers or cooldown fluff**
-- **Simple warmup philosophy**
+**LyftLogic is not:**
+- A “chat until it looks good” app
+- A black-box AI fitness tool
+- A recommendation engine that resets state on every regenerate
+
+---
+
+## 🧠 Core Design Principles
+
+### 1) AI is never the source of truth
+LLMs generate *drafts*.  
+All outputs are validated, corrected, and stabilized by deterministic rules engines before being shown to the user.
+
+### 2) Constraints are enforced, not suggested
+If a rule exists, it is enforced in code.  
+If something violates constraints, it is rejected — not “recommended against.”
+
+### 3) Plans evolve through versions
+Plans do not reset.  
+They **change**, and every change is:
+- deterministic
+- diffed
+- explained
+- reversible
+
+---
+
+## 🏋️ Training System (Realism-First)
+
+Training plans are designed to resemble how experienced lifters actually program.
+
+**Hard rules enforced in code:**
+- No cardio before lifting
+- No finishers or cooldown fluff
+- Simple warmups  
   - 1 lighter warm-up set (~50%) before each lift
-- **Low-to-moderate volume**
+- Low-to-moderate volume  
   - Default: 2 working sets per exercise
-- **Long rest periods**
-  - ≥4 minutes for compound lifts  
-  - ≥3 minutes for isolation exercises
-- **Rep ranges, not prescriptions**
-  - 6–8 or 8–12 (movement-dependent)
-- **Effort cues instead of RPE**
-  - Final set taken close to failure
-- **Consistency-first programming**
-  - Core movements repeat across the week
-  - Emphasis changes, not random exercises
-- **Primary compounds are never accessories**
-- **Exercise count scales with session length**
-  - Shorter sessions = fewer movements
-  - Main lifts are never dropped
+- Long rest periods  
+  - ≥4 min compounds  
+  - ≥3 min isolations
+- Rep ranges, not prescriptions (e.g. 6–8, 8–12)
+- Effort cues instead of RPE
+- Core lifts repeat across the week
+- Primary compounds are never accessories
+- Session length strictly limits exercise count
 
-These rules are **enforced in code**, not suggested.
+All training plans support:
+- Versioned snapshots
+- Deterministic regeneration
+- Diff rendering in the UI
+- Restore to previous versions
 
 ---
 
-## 🏗️ System Architecture
+## 🥗 Nutrition System (Fail-Closed & Explainable)
 
-LyftLogic uses a **hybrid AI + deterministic rules engine**.
+Nutrition planning is designed to be **safe, stable, and auditable**.
 
-### 1️⃣ LLM Draft Generation
+**Guaranteed behaviors:**
+- Allergens are **hard-blocked**
+- Diet constraints enforced (vegetarian, vegan, etc.)
+- Deterministic calorie and macro math
+- Supports maintenance, cut, bulk  
+  - 0.5 / 1 / 2 lb per week rates
+- No silent changes
+- Every regenerate produces:
+  - an explicit diff
+  - human-readable explanations
 
-The language model produces an initial plan structure based on:
-- Experience level
-- Days per week
+Nutrition plans:
+- Are generated and regenerated deterministically
+- Maintain context across versions
+- Never “randomly reshuffle” meals
+
+*(Nutrition editing and persistence are intentionally staged features — see roadmap.)*
+
+---
+
+## 🔁 Versioning & Diffs (Core Feature)
+
+Both **training** and **nutrition** plans support:
+
+- Stateless regeneration
+- Versioned snapshots
+- Index-stable diffs
+- Human-readable explanations
+
+**Example (nutrition regenerate):**
+```text
+Calories: maintenance changed from 2600 → 2400.
+Calories: cut (1 lb/week) changed from 2100 → 1900.
+Meal 1 replaced to meet new calorie target.
+This makes changes inspectable instead of opaque.
+
+---
+
+## 🧩 Constraints Model
+
+### Training Constraints
+- Equipment bans (e.g. no barbells)
+- Machine preference
 - Session length
-- Available equipment
-- User notes / preferences
+- Split logic (Upper / Lower / SHARMS)
+- Compound lift caps
 
-This output is treated as **untrusted input**.
+### Nutrition Constraints
+- Allergies (fail-closed)
+- Diet type
+- Macro targets
+- Meal count
+- Regeneration without losing context
 
----
-
-### 2️⃣ Deterministic Rules Engine
-
-A custom rules engine post-processes the draft to:
-
-- Enforce movement counts per session
-- Normalize sets, reps, and rest times
-- Cap compound volume per day
-- Enforce session-time exercise limits
-- Respect equipment constraints (e.g. *no dumbbells*, *no barbells*)
-- Bias exercise selection (e.g. *prefer machines*)
-- Prevent invalid placements (e.g. bench as an accessory)
-- Remove forbidden content (cardio warmups, RPE, finishers)
-- Deduplicate exercises and stabilize outputs
-
-This guarantees **predictable, gym-realistic plans**.
+**Rules > preferences** everywhere.
 
 ---
 
-## 🧩 Constraints & Preferences (v1)
+## 🏗️ Architecture Overview
 
-LyftLogic supports **hard enforcement** of user notes such as:
+LyftLogic is built around **explicit state and deterministic transitions**.
 
-- **Equipment bans**
-  - “No dumbbells”
-  - “No barbells”
-  - “Prefer machines”
-- **Time constraints**
-  - Session length directly limits exercise count
-- **Split logic**
-  - Upper / Lower / SHARMS templates
-  - Leg days capped at ≤2 compounds
-- **Exercise bias**
-  - Machine vs free-weight preference
-  - Stable row / press / hinge selection
+### 1️⃣ Draft Generation (Untrusted)
+The LLM generates a candidate structure only.
 
-Notes are treated as **constraints first, preferences second**.
+### 2️⃣ Deterministic Rules Engines
+
+#### Training Rules Engine
+- Normalizes volume, reps, rest
+- Enforces equipment and placement rules
+- Stabilizes outputs across edits
+
+#### Nutrition Rules Engine
+- Validates meals against allergens
+- Computes deterministic macro targets
+- Produces versioned snapshots
+- Generates index-stable diffs + explanations
+
+No plan is shown unless it passes validation.
+
+---
+
+## 🖥️ Frontend Structure
+
+The frontend intentionally separates concerns:
+- **Training** and **Nutrition** live on separate pages
+- Plan-level navigation mirrors real product UX
+- Diffs are rendered explicitly
+- Nutrition is currently read-only (generate / regenerate)
 
 ---
 
@@ -113,58 +172,70 @@ Notes are treated as **constraints first, preferences second**.
 
 ### Backend
 - FastAPI (Python)
-- OpenAI API
-- Pydantic (strict schema validation)
-- Custom deterministic rules engine
+- Pydantic (strict schemas)
+- OpenAI API (draft generation only)
+- Deterministic rules engines
+- Versioned diff logic
 
 ### Frontend
 - Nuxt 3 (Vue)
 - TypeScript
 - REST API integration
 
-### Data
-- JSON-based plan storage
-- Input/output persistence for reproducibility
-
 ---
 
-## 📊 Example Scenarios Handled Correctly
+## ▶️ Running Locally
 
-LyftLogic reliably adapts plans for cases like:
+### Backend
+```bash
+cd apps/backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
 
-- “No dumbbells” → zero dumbbell leakage
-- “No barbells” → full machine / cable substitution
-- Short (30–35 min) vs long sessions
-- Beginner vs advanced lifters
-- Quad-focused vs hamstring-focused lower days
-- Dedicated Shoulders & Arms (SHARMS) days without filler movements
+### Backend Runs At
+http://127.0.0.1:8000
 
----
+###Run Tests
+pytest -q
 
-## 🔮 Roadmap
+###Frontend
+cd apps/frontend
+npm install
+npm run dev
 
-### Near-term
-- **Plan Editor Chat**
-  - Iteratively edit an existing plan instead of regenerating
-  - Versioned plan history
-  - Explicit constraint enforcement per edit
+###Frontend Runs At
+http://localhost:3000
 
-### Mid-term
-- **Macro calculator (deterministic)**
-- **AI meal planning driven by macro targets**
-- Nutrition education and adherence tools
+##Scenarios Handled Correctly
+No dumbbells → zero leakage
+No barbells → machine/cable substitutions
+30-minute vs 75-minute sessions
+Beginner vs advanced lifters
+SHARMS days without filler
+Allergy-safe meal plans
+Calorie changes with explicit explanations
 
-### Long-term
-- Exercise substitution memory
-- PDF export
-- Simple workout logging
-- Performance and speed optimizations
+##Roadmap (Intentionally Staged)
+###Near-Term
+Nutrition version persistence
+Restore previous nutrition versions
+Unified diff history view
 
----
+###Mid-Term
+Nutrition chat edit → apply flow
+Deterministic macro calculator
+PDF export
 
-## 📌 Status
+###Long-Term
+Exercise substitution memory
+Workout logging
+Performance analytics
 
-LyftLogic is an active project focused on **production-quality AI behavior**, not prompt-only generation.
+##Project Status
 
-The goal is not maximal personalization —  
-it is **trustworthy, editable, constraint-aware training plans**.
+LyftLogic is an engineering-focused system, not a consumer app demo.
+
+The goal is not maximal personalization —
+it is predictable, explainable, constraint-aware planning that users can trust and iterate on.
