@@ -106,7 +106,6 @@ Both **training** and **nutrition** plans support:
 - Human-readable explanations
 
 **Example (nutrition regenerate):**
-```text
 Calories: maintenance changed from 2600 → 2400.
 Calories: cut (1 lb/week) changed from 2100 → 1900.
 Meal 1 replaced to meet new calorie target.
@@ -194,7 +193,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 
-### Backend Runs At
+###Backend Runs At
 http://127.0.0.1:8000
 
 ###Run Tests
