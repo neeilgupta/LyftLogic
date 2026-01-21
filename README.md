@@ -185,8 +185,8 @@ The frontend intentionally separates concerns:
 
 ## ▶️ Running Locally
 
-### Backend
 ```bash
+### Backend
 cd apps/backend
 python -m venv .venv
 source .venv/bin/activate
