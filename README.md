@@ -18,7 +18,7 @@ The result is plans that are **stable, explainable, versioned, and realistic** �
 - Designed for iteration, not one-off generation
 
 **LyftLogic is not:**
-- A “chat until it looks good” app
+- A "chat until it looks good" app
 - A black-box AI fitness tool
 - A recommendation engine that resets state on every regenerate
 
@@ -32,7 +32,7 @@ All outputs are validated, corrected, and stabilized by deterministic rules engi
 
 ### 2) Constraints are enforced, not suggested
 If a rule exists, it is enforced in code.  
-If something violates constraints, it is rejected — not “recommended against.”
+If something violates constraints, it is rejected — not "recommended against."
 
 ### 3) Plans evolve through versions
 Plans do not reset.  
@@ -90,7 +90,7 @@ Nutrition planning is designed to be **safe, stable, and auditable**.
 Nutrition plans:
 - Are generated and regenerated deterministically
 - Maintain context across versions
-- Never “randomly reshuffle” meals
+- Never "randomly reshuffle" meals
 
 *(Nutrition editing and persistence are intentionally staged features — see roadmap.)*
 
@@ -106,9 +106,11 @@ Both **training** and **nutrition** plans support:
 - Human-readable explanations
 
 **Example (nutrition regenerate):**
+```
 Calories: maintenance changed from 2600 → 2400.
 Calories: cut (1 lb/week) changed from 2100 → 1900.
 Meal 1 replaced to meet new calorie target.
+```
 This makes changes inspectable instead of opaque.
 
 ---
@@ -185,56 +187,66 @@ The frontend intentionally separates concerns:
 
 ## ▶️ Running Locally
 
-```bash
 ### Backend
+```bash
 cd apps/backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
+```
 
-###Backend Runs At
-http://127.0.0.1:8000
+**Backend runs at:** http://127.0.0.1:8000
 
-###Run Tests
+### Run Tests
+```bash
 pytest -q
+```
 
-###Frontend
+### Frontend
+```bash
 cd apps/frontend
 npm install
 npm run dev
+```
 
-###Frontend Runs At
-http://localhost:3000
+**Frontend runs at:** http://localhost:3000
 
-##Scenarios Handled Correctly
-No dumbbells → zero leakage
-No barbells → machine/cable substitutions
-30-minute vs 75-minute sessions
-Beginner vs advanced lifters
-SHARMS days without filler
-Allergy-safe meal plans
-Calorie changes with explicit explanations
+---
 
-##Roadmap (Intentionally Staged)
-###Near-Term
-Nutrition version persistence
-Restore previous nutrition versions
-Unified diff history view
+## ✅ Scenarios Handled Correctly
 
-###Mid-Term
-Nutrition chat edit → apply flow
-Deterministic macro calculator
-PDF export
+- No dumbbells → zero leakage
+- No barbells → machine/cable substitutions
+- 30-minute vs 75-minute sessions
+- Beginner vs advanced lifters
+- SHARMS days without filler
+- Allergy-safe meal plans
+- Calorie changes with explicit explanations
 
-###Long-Term
-Exercise substitution memory
-Workout logging
-Performance analytics
+---
 
-##Project Status
+## 🗺️ Roadmap (Intentionally Staged)
+
+### Near-Term
+- Nutrition version persistence
+- Restore previous nutrition versions
+- Unified diff history view
+
+### Mid-Term
+- Nutrition chat edit → apply flow
+- Deterministic macro calculator
+- PDF export
+
+### Long-Term
+- Exercise substitution memory
+- Workout logging
+- Performance analytics
+
+---
+
+## 📊 Project Status
 
 LyftLogic is an engineering-focused system, not a consumer app demo.
 
-The goal is not maximal personalization —
-it is predictable, explainable, constraint-aware planning that users can trust and iterate on.
+The goal is not maximal personalization — it is **predictable, explainable, constraint-aware planning** that users can trust and iterate on.
