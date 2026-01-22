@@ -1,8 +1,6 @@
 # LyftLogic
 
-LyftLogic is a full-stack **training and nutrition planning system** built around one core idea:
-
-> **AI should draft. Code should decide.**
+LyftLogic is a full-stack **training and nutrition planning system**
 
 Instead of trusting model output directly, LyftLogic treats AI as an **untrusted proposal generator** and enforces all important rules **deterministically in code**.  
 The result is plans that are **stable, explainable, versioned, and realistic** — not random or vibes-based.
