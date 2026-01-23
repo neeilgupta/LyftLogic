@@ -217,6 +217,10 @@
             {{ Number(idx) + 1 }}. {{ meal.name }}
           </div>
 
+          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">
+            {{ mealMacrosLine(meal) }}
+          </div>
+
           <div style="font-size: 13px; opacity: 0.85;">
             <span style="font-weight: 600;">Ingredients:</span>
             <span v-if="meal.ingredients && meal.ingredients.length">
@@ -450,6 +454,18 @@ function currentInputs() {
     diet: diet.value,
     rate: rate.value,
   };
+}
+
+function mealMacrosLine(meal: any): string {
+  const macros = meal.macros;
+  if (!macros) return "";
+  
+  const cal = Math.round(macros.calories || 0);
+  const p = Math.round(macros.protein_g || 0);
+  const c = Math.round(macros.carbs_g || 0);
+  const f = Math.round(macros.fat_g || 0);
+  
+  return `${cal} cal • P ${p}g • C ${c}g • F ${f}g`;
 }
 
 async function onNutritionGenerate() {
