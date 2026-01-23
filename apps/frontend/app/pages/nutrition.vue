@@ -185,6 +185,61 @@
       </div>
     </section>
 
+        <!-- Generated meals -->
+    <section
+      v-if="nutritionOutput"
+      style="
+        border: 1px solid #eee;
+        border-radius: 12px;
+        padding: 14px;
+        background: #fff;
+        margin-bottom: 14px;
+      "
+    >
+      <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom: 10px;">
+        <div style="font-weight: 800;">Meal Plan</div>
+        <div style="opacity: 0.7; font-size: 13px;">
+          {{ (nutritionOutput.accepted?.length ?? 0) }} accepted • {{ (nutritionOutput.rejected?.length ?? 0) }} rejected
+        </div>
+      </div>
+
+      <div v-if="!nutritionOutput.accepted || nutritionOutput.accepted.length === 0" style="opacity: 0.75;">
+        No accepted meals returned. Try increasing batch size or loosening constraints.
+      </div>
+
+      <div v-else style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px;">
+        <div
+          v-for="(meal, idx) in nutritionOutput.accepted"
+          :key="meal.key || meal.name || idx"
+          style="grid-column: span 6; border: 1px solid #eee; border-radius: 12px; padding: 12px;"
+        >
+          <div style="font-weight: 700; margin-bottom: 6px;">
+            {{ Number(idx) + 1 }}. {{ meal.name }}
+          </div>
+
+          <div style="font-size: 13px; opacity: 0.85;">
+            <span style="font-weight: 600;">Ingredients:</span>
+            <span v-if="meal.ingredients && meal.ingredients.length">
+              {{ meal.ingredients.map((i: any) => i.name).join(", ") }}
+            </span>
+            <span v-else>—</span>
+          </div>
+        </div>
+      </div>
+
+      <details v-if="nutritionOutput.rejected && nutritionOutput.rejected.length" style="margin-top: 12px;">
+        <summary style="cursor: pointer; font-weight: 600;">
+          Rejected meals ({{ nutritionOutput.rejected.length }})
+        </summary>
+        <ul style="margin: 10px 0 0; padding-left: 18px; line-height: 1.5;">
+          <li v-for="(meal, idx) in nutritionOutput.rejected" :key="meal.key || meal.name || idx">
+            {{ meal.name }}
+          </li>
+        </ul>
+      </details>
+    </section>
+
+
     <!-- Diff / Explanations -->
     <section
       style="

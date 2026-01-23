@@ -33,14 +33,20 @@ def required_diet_tags_for_user(diet: Optional[str]) -> set[str]:
     """
     if not diet:
         return set()
+
     d = diet.strip().lower()
+
     if d == "vegan":
         return {"vegan"}
+
     if d == "vegetarian":
         return {"vegetarian"}
-    # If unknown diet string, fail-closed by requiring an impossible tag
-    # OR choose to raise. I prefer raise to surface config bugs.
-    raise ValueError(f"unsupported diet: {diet}")
+
+    if d == "pescatarian":
+        return {"pescatarian"}
+
+    # Fail-open: unknown diet strings impose no required tags
+    return set()
 
 
 # LLM function signature:

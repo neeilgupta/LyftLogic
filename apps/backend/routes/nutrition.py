@@ -9,6 +9,8 @@ from services.nutrition.versioning import (
     diff_nutrition,
     explain_nutrition_diff,
 )
+from services.nutrition.stub_meals import generate_stub_meals
+
 from models.nutrition import (
     NutritionGenerateRequest,
     NutritionGenerateResponse,
@@ -20,37 +22,15 @@ router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
 
 def _stub_llm_generate(req: GenerationRequest, attempt: int):
-    """
-    Deterministic, LLM-free generator so endpoints work locally.
-    You can swap this out later for OpenAI without touching versioning/diff logic.
-    """
-    # Diet tags that will pass meal_is_safe() logic in services/nutrition/allergens.py
-    d = (req.diet or "").strip().lower()
-    if d == "vegan":
-        diet_tags = ["vegan"]
-    elif d == "vegetarian":
-        diet_tags = ["vegetarian"]
-    else:
-        diet_tags = ["omnivore"]
+    stub = generate_stub_meals(req, attempt)
+    meals = stub["meals"]
 
-    # Always safe base ingredient (unless user is allergic to rice)
-    base_ing = {
-        "name": "Rice",
-        "contains": ["rice"],
-        "diet_tags": diet_tags,
-        "is_compound": False,
-    }
+    # Preserve test contract: stable keys based on index + attempt
+    for i, m in enumerate(meals):
+        m["template_key"] = m.get("key")  # keep your real key for debugging
+        m["key"] = f"meal_{i+1}_(attempt_{attempt})"
 
-    # Deterministic names (attempt affects suffix so retries are stable)
-    out = []
-    for i in range(req.batch_size):
-        out.append(
-            {
-                "name": f"Meal {i + 1} (attempt {attempt})",
-                "ingredients": [base_ing],
-            }
-        )
-    return out
+    return meals
 
 
 def _constraints_snapshot(req: NutritionGenerateRequest | NutritionRegenerateRequest) -> dict:

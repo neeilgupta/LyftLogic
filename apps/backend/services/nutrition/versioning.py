@@ -227,8 +227,21 @@ def explain_nutrition_diff(diff: dict) -> list[str]:
             for item in items_sorted:
                 idx = int(item.get("index", 0)) + 1
                 frm = (item.get("from") or {}).get("name")
+                frm_key = (item.get("from") or {}).get("key")
                 to = (item.get("to") or {}).get("name")
-                out.append(f"Meal {idx} replaced: {frm} → {to}.")
+                to_key = (item.get("to") or {}).get("key")
+                # Extract attempt from key if present (format: meal_N_(attempt_X))
+                frm_attempt = ""
+                to_attempt = ""
+                if frm_key and "(attempt_" in frm_key:
+                    frm_attempt = frm_key.split("(attempt_")[1].rstrip(")")
+                if to_key and "(attempt_" in to_key:
+                    to_attempt = to_key.split("(attempt_")[1].rstrip(")")
+                
+                if frm_attempt and to_attempt:
+                    out.append(f"Meal {idx} replaced: {frm} (attempt {frm_attempt}) → {to} (attempt {to_attempt}).")
+                else:
+                    out.append(f"Meal {idx} replaced: {frm} → {to}.")
         elif key == "meals_removed":
             for item in items_sorted:
                 idx = int(item.get("index", 0)) + 1
