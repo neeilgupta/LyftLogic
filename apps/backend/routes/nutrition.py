@@ -20,6 +20,20 @@ from models.nutrition import (
 
 router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
+def _infer_target_calories(targets: dict) -> float | None:
+    m = targets.get("maintenance")
+    if isinstance(m, (int, float)):
+        return float(m)
+
+    for k in ("bulk", "cut"):
+        v = targets.get(k)
+        if isinstance(v, dict):
+            for vv in v.values():
+                if isinstance(vv, (int, float)):
+                    return float(vv)
+    return None
+
+
 
 def _stub_llm_generate(req: GenerationRequest, attempt: int):
     stub = generate_stub_meals(req, attempt)
@@ -53,13 +67,15 @@ def nutrition_generate(req: NutritionGenerateRequest):
         batch_size=req.batch_size,
     )
 
-    gen = generate_safe_meals(gen_req, _stub_llm_generate)
-
-
-    # Build snapshot via regenerate module helper (keeps schema centralized)
-    # Note: NutritionTargets is TypedDict; Pydantic gives us a normal dict via model_dump()
     targets: NutritionTargets = req.targets.model_dump()
+    object.__setattr__(gen_req, "targets", targets)
 
+
+    tc = _infer_target_calories(targets)
+    if tc is not None:
+        object.__setattr__(gen_req, "target_calories", float(tc))
+
+    gen = generate_safe_meals(gen_req, _stub_llm_generate)
     from services.nutrition.versioning import build_nutrition_version_v1
 
     snap = build_nutrition_version_v1(
@@ -91,6 +107,12 @@ def nutrition_regenerate(req: NutritionRegenerateRequest):
     )
 
     targets: NutritionTargets = req.targets.model_dump()
+    object.__setattr__(gen_req, "targets", targets)
+
+    tc = _infer_target_calories(targets)
+    if tc is not None:
+        object.__setattr__(gen_req, "target_calories", float(tc))
+
 
     curr, diff, explanations = regenerate_nutrition_v1(
         prev=req.prev_snapshot.model_dump(),

@@ -221,13 +221,39 @@
             {{ mealMacrosLine(meal) }}
           </div>
 
-          <div style="font-size: 13px; opacity: 0.85;">
+          <div style="font-size: 13px; opacity: 0.85; margin-bottom: 10px;">
             <span style="font-weight: 600;">Ingredients:</span>
             <span v-if="meal.ingredients && meal.ingredients.length">
               {{ meal.ingredients.map((i: any) => i.name).join(", ") }}
             </span>
             <span v-else>—</span>
           </div>
+
+          <details style="margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px;">
+            <summary style="cursor: pointer; font-size: 12px; font-weight: 600; opacity: 0.7; user-select: none;">
+              View ingredients & macros
+            </summary>
+            <div style="margin-top: 8px; space-y: 8px;">
+              <div style="background: #fafafa; border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+                <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">Macros</div>
+                <div style="font-size: 11px; line-height: 1.5; opacity: 0.85;">
+                  <div>Calories: {{ meal.macros?.calories ?? 0 }}</div>
+                  <div>Protein: {{ meal.macros?.protein_g ?? 0 }} g</div>
+                  <div>Carbs: {{ meal.macros?.carbs_g ?? 0 }} g</div>
+                  <div>Fat: {{ meal.macros?.fat_g ?? 0 }} g</div>
+                </div>
+              </div>
+              <div style="background: #fafafa; border-radius: 8px; padding: 8px;">
+                <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">Ingredients</div>
+                <ul style="margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.5; opacity: 0.85;">
+                  <li v-for="(ing, j) in (meal.ingredients ?? [])" :key="j">
+                    <span style="font-weight: 600;">{{ ing.name }}</span
+                    ><span v-if="ing.grams != null"> — {{ ing.grams }} g</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 

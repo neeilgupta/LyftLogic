@@ -532,4 +532,50 @@ MEAL_LIBRARY: list[dict] = [
             {"name": "strawberries", "grams": 160, "contains": ["strawberries"], "diet_tags": ["vegan"], "is_compound": False},
         ],
     },
+        # ---------- Scalable Snacks (300–500 cals capable) ----------
+
+    {
+        "key": "whey_milk_banana",
+        "name": "Whey + milk + banana",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "whey protein powder", "grams": 30, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "milk, 2%", "grams": 350, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "banana", "grams": 140, "contains": ["banana"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+
+    {
+        "key": "greek_yogurt_granola_honey",
+        "name": "Greek yogurt + granola + honey",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "greek yogurt, nonfat", "grams": 280, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "granola", "grams": 50, "contains": ["gluten"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "honey", "grams": 18, "contains": ["honey"], "diet_tags": ["vegetarian"], "is_compound": False},
+        ],
+    },
+
+    {
+        "key": "pb_toast_fruit",
+        "name": "PB toast + fruit",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "bread, whole wheat", "grams": 100, "contains": ["gluten"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "peanut butter", "grams": 24, "contains": ["peanut"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "apple", "grams": 180, "contains": ["apple"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+
+    {
+        "key": "portionable_trail_mix",
+        "name": "Trail mix (nuts + dried fruit)",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "almonds", "grams": 25, "contains": ["tree_nut"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "walnuts", "grams": 20, "contains": ["tree_nut"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "raisins", "grams": 35, "contains": ["raisins"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "dark chocolate", "grams": 15, "contains": ["dark_chocolate"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
 ]
