@@ -308,6 +308,90 @@ def _macro_targets_v1(goal: str, target_cals: float) -> dict[str, float]:
         "calories": _round1(target_cals),
     }
 
+def _clamp_int(x: int, lo: int, hi: int) -> int:
+    return lo if x < lo else hi if x > hi else x
+
+
+def _infer_meals_needed_from_target(target_cals: float | None) -> int:
+    if target_cals is None or target_cals <= 0:
+        return 4
+    if target_cals < 2300:
+        return 4
+    if target_cals <= 2800:
+        return 5
+    return 6
+
+
+def _slots_for_meals_needed(n: int) -> list[str]:
+    n = _clamp_int(int(n), 2, 6)
+    if n == 2:
+        return ["lunch", "dinner"]
+    if n == 3:
+        return ["breakfast", "lunch", "dinner"]
+    if n == 4:
+        return ["breakfast", "lunch", "dinner", "snack"]
+    if n == 5:
+        return ["breakfast", "lunch", "dinner", "snack", "snack"]
+    return ["breakfast", "lunch", "dinner", "snack", "snack", "snack"]
+
+
+def _slot_budget_percents(slots: list[str]) -> list[float]:
+    n = len(slots)
+    if n == 2:
+        return [0.50, 0.50]
+    if n == 3:
+        return [1/3, 1/3, 1/3]
+    if n == 4:
+        return [0.25, 0.30, 0.30, 0.15]
+    if n == 5:
+        return [0.24, 0.26, 0.26, 0.12, 0.12]
+    # n == 6
+    return [0.22, 0.24, 0.24, 0.10, 0.10, 0.10]
+
+
+def _round_to_nearest_10(x: float) -> int:
+    # nearest 10, deterministic (0.5 goes up)
+    return int(((x + 5.0) // 10.0) * 10)
+
+
+def _slot_budgets(target_cals: float, slots: list[str]) -> list[int]:
+    perc = _slot_budget_percents(slots)
+    raw = [target_cals * p for p in perc]
+    budgets = [_round_to_nearest_10(v) for v in raw]
+    if budgets:
+        budgets[-1] += int(round(target_cals)) - sum(budgets)
+    return budgets
+
+
+def _scale_meal_ingredients(meal: dict[str, Any], scale: float) -> bool:
+    ings = meal.get("ingredients") or []
+    if not ings:
+        return False
+    changed = False
+    for ing in ings:
+        g = ing.get("grams")
+        if g is None:
+            continue
+        try:
+            g0 = int(g)
+        except Exception:
+            continue
+        g1 = int(round(g0 * scale))
+        if g1 < 1:
+            g1 = 1
+        if g1 != g0:
+            ing["grams"] = g1
+            changed = True
+    return changed
+
+
+def _slot_tag_match(slot: str, tags: Iterable[str]) -> bool:
+    tset = {str(t).strip().lower() for t in (tags or [])}
+    if slot == "snack":
+        return bool(tset & {"snack", "dessert"})
+    return slot in tset
+
+
 
 def _find_first_matching_ingredient_idx(meal: dict[str, Any], preferred_names: list[str]) -> int | None:
     ings = meal.get("ingredients", [])
@@ -554,7 +638,7 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
     required = _diet_required_tags(getattr(req, "diet", None))
 
     # Candidate meals
-    candidates = []
+    candidates: list[dict[str, Any]] = []
     for m in MEAL_LIBRARY:
         if not _meal_allowed_by_diet(m, required):
             continue
@@ -562,20 +646,51 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
             continue
         candidates.append(m)
 
-    # Use batch_size, meals_needed, meals_per_day, or meals from request
-    k = (
-        getattr(req, "batch_size", None)
-        or getattr(req, "meals_needed", None)
-        or getattr(req, "meals_per_day", None)
-        or getattr(req, "meals", None)
-        or 3
-    )
+    # Target calories (routes usually inject this into req)
+    target = getattr(req, "calories", None) or getattr(req, "target_calories", None)
     try:
-        k = int(k)
+        target_f = float(target) if target is not None else None
     except Exception:
-        k = 3
+        target_f = None
 
-    # Precompute macro scores for candidates
+    # Phase 4-D: infer meals from calories unless meals_needed explicitly provided
+    # Sentinel: meals_needed <= 0 means "infer from target_calories"
+    raw_meals_needed = getattr(req, "meals_needed", None)
+    if raw_meals_needed is not None:
+        try:
+            meals_needed_int = int(raw_meals_needed)
+        except Exception:
+            meals_needed_int = 0
+        
+        if meals_needed_int > 0:
+            # Explicit override: user provided a positive meals_needed
+            meals_needed_final = _clamp_int(meals_needed_int, 2, 6)
+        else:
+            # Sentinel (0 or negative): infer from calories
+            meals_needed_final = _infer_meals_needed_from_target(target_f)
+    else:
+        # No meals_needed provided at all: infer from calories
+        meals_needed_final = _infer_meals_needed_from_target(target_f)
+
+    # batch_size (if present and positive) overrides total returned meals
+    # Sentinel: batch_size <= 0 means "use meals_needed_final, don't override"
+    raw_batch = getattr(req, "batch_size", None)
+    if raw_batch is not None:
+        try:
+            batch_int = int(raw_batch)
+        except Exception:
+            batch_int = 0
+        
+        if batch_int > 0:
+            # Explicit override: user provided a positive batch_size
+            meals_needed_final = _clamp_int(batch_int, 2, 6)
+        # else: sentinel (0 or negative) means don't override, keep meals_needed_final
+
+    # Slots + budgets
+    slots = _slots_for_meals_needed(meals_needed_final)
+    budgets: list[int] = _slot_budgets(float(target_f), slots) if target_f is not None else []
+
+    # Precompute macro scores for candidates (goal-aware ranking)
     goal = _infer_goal_from_targets(req)
     wp, wc, wf = _macro_bias_from_goal(goal)
 
@@ -590,10 +705,27 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
         ings = tm.get("ingredients") or []
         macros = _meal_macros_from_pantry(ings)
         tm["_macro_score"] = _macro_score_from_macros(macros)
-        tm["_macros"] = macros  # Store for goal-aware ranking
+        tm["_macros"] = macros
 
+    # Per-slot deterministic pick
     seed = _seed_string(req, attempt)
-    picked = _deterministic_pick(candidates, seed, k, goal=goal)
+    picked: list[dict[str, Any]] = []
+    remaining = list(candidates)
+
+    for i, slot in enumerate(slots):
+        slot_candidates = [m for m in remaining if _slot_tag_match(slot, m.get("tags"))]
+        if not slot_candidates:
+            slot_candidates = list(remaining) if remaining else list(candidates)
+
+        one = _deterministic_pick(slot_candidates, seed + f"|slot={slot}|i={i}", 1, goal=goal)
+        if not one:
+            continue
+
+        tm = one[0]
+        picked.append(tm)
+
+        if tm in remaining and len(remaining) > 1:
+            remaining.remove(tm)
 
     # Build output meals (copy templates so we can mutate grams)
     out_meals: list[dict[str, Any]] = []
@@ -609,7 +741,6 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
                     tags.append("omnivore")
                 ing["diet_tags"] = tags
 
-        # Aggregate meal-level fields for allergen engine compatibility
         meal_contains: set[str] = set()
         meal_diet_tags: set[str] = set()
 
@@ -623,7 +754,6 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
                 if s:
                     meal_diet_tags.add(s)
 
-        # If diet is None/unknown, ensure omnivore exists at meal level too
         if fail_open:
             meal_diet_tags.add("omnivore")
 
@@ -640,18 +770,29 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
             }
         )
 
-    # Calorie-close if request has a target
-    target = getattr(req, "calories", None) or getattr(req, "target_calories", None)
-    try:
-        target_f = float(target) if target is not None else None
-    except Exception:
-        target_f = None
+    # Phase 4-D: scale each meal toward its slot calorie budget (scale ALL ingredients)
+    if target_f is not None and budgets:
+        for i, m in enumerate(out_meals):
+            if i >= len(budgets):
+                break
 
+            meal_cals = float((m.get("macros") or {}).get("calories", 0.0))
+            if meal_cals <= 0:
+                continue
+
+            s = float(budgets[i]) / meal_cals
+            if s < 0.8:
+                s = 0.8
+            elif s > 1.6:
+                s = 1.6
+
+            if _scale_meal_ingredients(m, s):
+                m["macros"] = _meal_macros_from_pantry(m["ingredients"])
+
+    # Day-level closing still runs after scaling
     if target_f is not None:
-        goal = _infer_goal_from_targets(req)
         _macro_close_v1(out_meals, goal=goal, target_cals=float(target_f))
     else:
-        # keep old behavior if no target
         _calorie_close_by_adjusting_last_meal_carbs(out_meals, target_f)
 
     # Recompute macros after any adjustment
@@ -665,6 +806,8 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
         "totals": totals,
         "meta": {
             "seed": seed,
+            "slots": slots,
+            "slot_budgets": budgets if budgets else None,
             "diet_required": sorted(list(required)),
             "allergy_blocked": sorted(list(blocked)),
             "candidate_count": len(candidates),

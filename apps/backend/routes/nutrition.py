@@ -33,6 +33,15 @@ def _infer_target_calories(targets: dict) -> float | None:
                     return float(vv)
     return None
 
+def _infer_meals_needed_from_target_cals(tc: float | None) -> int:
+    if tc is None:
+        return 4
+    if tc < 2300:
+        return 4
+    if tc <= 2800:
+        return 5
+    return 6
+
 
 
 def _stub_llm_generate(req: GenerationRequest, attempt: int):
@@ -59,19 +68,26 @@ def _constraints_snapshot(req: NutritionGenerateRequest | NutritionRegenerateReq
 
 @router.post("/generate", response_model=NutritionGenerateResponse)
 def nutrition_generate(req: NutritionGenerateRequest):
+    targets: NutritionTargets = req.targets.model_dump()
+    tc = _infer_target_calories(targets)
+
+    meals_needed_final = int(req.meals_needed)
+    if meals_needed_final <= 0:
+        meals_needed_final = _infer_meals_needed_from_target_cals(tc)
+
+    batch_size_final = int(req.batch_size)
+    if batch_size_final <= 0:
+        batch_size_final = meals_needed_final
+
     gen_req = GenerationRequest(
         diet=req.diet,
         allergies=req.allergies,
-        meals_needed=req.meals_needed,
+        meals_needed=meals_needed_final,
         max_attempts=req.max_attempts,
-        batch_size=req.batch_size,
+        batch_size=batch_size_final,
     )
 
-    targets: NutritionTargets = req.targets.model_dump()
     object.__setattr__(gen_req, "targets", targets)
-
-
-    tc = _infer_target_calories(targets)
     if tc is not None:
         object.__setattr__(gen_req, "target_calories", float(tc))
 
@@ -95,33 +111,30 @@ def nutrition_generate(req: NutritionGenerateRequest):
 
     return NutritionGenerateResponse(output=output, version_snapshot=snap)
 
-
 @router.post("/regenerate", response_model=NutritionRegenerateResponse)
 def nutrition_regenerate(req: NutritionRegenerateRequest):
+    targets: NutritionTargets = req.targets.model_dump()
+    tc = _infer_target_calories(targets)
+
+    meals_needed_final = int(req.meals_needed)
+    if meals_needed_final <= 0:
+        meals_needed_final = _infer_meals_needed_from_target_cals(tc)
+
+    batch_size_final = int(req.batch_size)
+    if batch_size_final <= 0:
+        batch_size_final = meals_needed_final
+
     gen_req = GenerationRequest(
         diet=req.diet,
         allergies=req.allergies,
-        meals_needed=req.meals_needed,
+        meals_needed=meals_needed_final,
         max_attempts=req.max_attempts,
-        batch_size=req.batch_size,
+        batch_size=batch_size_final,
     )
 
-    targets: NutritionTargets = req.targets.model_dump()
     object.__setattr__(gen_req, "targets", targets)
-
-    tc = _infer_target_calories(targets)
     if tc is not None:
         object.__setattr__(gen_req, "target_calories", float(tc))
-
-
-    curr, diff, explanations = regenerate_nutrition_v1(
-        prev=req.prev_snapshot.model_dump(),
-        version=int(req.prev_snapshot.version) + 1,
-        targets=targets,
-        req=gen_req,
-        llm_generate=_stub_llm_generate,
-        constraints_snapshot=_constraints_snapshot(req),
-    )
 
     attempt_offset = int(req.prev_snapshot.version)
 
@@ -156,4 +169,3 @@ def nutrition_regenerate(req: NutritionRegenerateRequest):
         diff=diff,
         explanations=explanations,
     )
-

@@ -114,19 +114,18 @@
             </select>
         </label>
 
-
         <label style="grid-column: span 3; display:flex; flex-direction:column; gap:6px;">
-          <span style="font-size: 12px; opacity: 0.75;">Meals per day</span>
-          <input
-            v-model.number="mealsPerDay"
+        <span style="font-size: 12px; opacity: 0.75;">Meals per day (blank = infer)</span>
+        <input
+            v-model="mealsPerDayText"
             :disabled="nutritionLoading"
-            type="number"
+            type="text"
             inputmode="numeric"
-            min="3"
-            max="6"
+            placeholder="infer"
             style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
-          />
+        />
         </label>
+
 
         <label style="grid-column: span 3; display:flex; flex-direction:column; gap:6px;">
           <span style="font-size: 12px; opacity: 0.75;">Diet</span>
@@ -207,55 +206,69 @@
         No accepted meals returned. Try increasing batch size or loosening constraints.
       </div>
 
-      <div v-else style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px;">
+      <div v-else>
         <div
-          v-for="(meal, idx) in nutritionOutput.accepted"
-          :key="meal.key || meal.name || idx"
-          style="grid-column: span 6; border: 1px solid #eee; border-radius: 12px; padding: 12px;"
+            v-for="slot in SLOT_ORDER.filter(s => getMealsForSlot(s.key).length)"
+            :key="slot.key"
+            style="margin-bottom: 16px;"
         >
-          <div style="font-weight: 700; margin-bottom: 6px;">
-            {{ Number(idx) + 1 }}. {{ meal.name }}
-          </div>
-
-          <div style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">
-            {{ mealMacrosLine(meal) }}
-          </div>
-
-          <div style="font-size: 13px; opacity: 0.85; margin-bottom: 10px;">
-            <span style="font-weight: 600;">Ingredients:</span>
-            <span v-if="meal.ingredients && meal.ingredients.length">
-              {{ meal.ingredients.map((i: any) => i.name).join(", ") }}
-            </span>
-            <span v-else>—</span>
-          </div>
-
-          <details style="margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px;">
-            <summary style="cursor: pointer; font-size: 12px; font-weight: 600; opacity: 0.7; user-select: none;">
-              View ingredients & macros
-            </summary>
-            <div style="margin-top: 8px; space-y: 8px;">
-              <div style="background: #fafafa; border-radius: 8px; padding: 8px; margin-bottom: 8px;">
-                <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">Macros</div>
-                <div style="font-size: 11px; line-height: 1.5; opacity: 0.85;">
-                  <div>Calories: {{ meal.macros?.calories ?? 0 }}</div>
-                  <div>Protein: {{ meal.macros?.protein_g ?? 0 }} g</div>
-                  <div>Carbs: {{ meal.macros?.carbs_g ?? 0 }} g</div>
-                  <div>Fat: {{ meal.macros?.fat_g ?? 0 }} g</div>
-                </div>
-              </div>
-              <div style="background: #fafafa; border-radius: 8px; padding: 8px;">
-                <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">Ingredients</div>
-                <ul style="margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.5; opacity: 0.85;">
-                  <li v-for="(ing, j) in (meal.ingredients ?? [])" :key="j">
-                    <span style="font-weight: 600;">{{ ing.name }}</span
-                    ><span v-if="ing.grams != null"> — {{ ing.grams }} g</span>
-                  </li>
-                </ul>
-              </div>
+            <div style="font-weight: 800; margin-bottom: 8px;">
+            {{ slot.label }} ({{ getMealsForSlot(slot.key).length }})
             </div>
-          </details>
+
+            <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px;">
+            <div
+                v-for="(meal, idx) in getMealsForSlot(slot.key)"
+                :key="meal.key || meal.name || idx"
+                style="grid-column: span 6; border: 1px solid #eee; border-radius: 12px; padding: 12px;"
+            >
+                <div style="font-weight: 700; margin-bottom: 6px;">
+                {{ meal.name }}
+                </div>
+
+                <div style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">
+                {{ mealMacrosLine(meal) }}
+                </div>
+
+                <div style="font-size: 13px; opacity: 0.85; margin-bottom: 10px;">
+                <span style="font-weight: 600;">Ingredients:</span>
+                <span v-if="meal.ingredients?.length">
+                    {{ meal.ingredients.map((i: any) => i.name).join(", ") }}
+                </span>
+                <span v-else>—</span>
+                </div>
+
+                <details style="margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px;">
+                <summary style="cursor: pointer; font-size: 12px; font-weight: 600; opacity: 0.7;">
+                    View ingredients & macros
+                </summary>
+
+                <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="background: #fafafa; border-radius: 8px; padding: 8px;">
+                    <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">Macros</div>
+                    <div style="font-size: 11px; line-height: 1.5; opacity: 0.85;">
+                        <div>Calories: {{ meal.macros?.calories ?? 0 }}</div>
+                        <div>Protein: {{ meal.macros?.protein_g ?? 0 }} g</div>
+                        <div>Carbs: {{ meal.macros?.carbs_g ?? 0 }} g</div>
+                        <div>Fat: {{ meal.macros?.fat_g ?? 0 }} g</div>
+                    </div>
+                    </div>
+
+                    <div style="background: #fafafa; border-radius: 8px; padding: 8px;">
+                    <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">Ingredients</div>
+                    <ul style="margin: 0; padding-left: 16px; font-size: 11px;">
+                        <li v-for="(ing, j) in meal.ingredients ?? []" :key="j">
+                        <strong>{{ ing.name }}</strong>
+                        <span v-if="ing.grams != null"> — {{ ing.grams }} g</span>
+                        </li>
+                    </ul>
+                    </div>
+                </div>
+                </details>
+            </div>
+            </div>
         </div>
-      </div>
+    </div>
 
       <details v-if="nutritionOutput.rejected && nutritionOutput.rejected.length" style="margin-top: 12px;">
         <summary style="cursor: pointer; font-weight: 600;">
@@ -351,10 +364,29 @@ const defaultNutritionTargets: NutritionTargets = {
 // UI state (fresh refresh resets state — expected)
 const goal = ref<NutritionGoal>("maintenance");
 const calories = ref<number>(defaultNutritionTargets.maintenance);
-const mealsPerDay = ref<number>(4);
+const mealsPerDay = ref<number | null>(null);
 const allergiesText = ref<string>("");
 const diet = ref<DietChoice>("none");
 const rate = ref<RateChoice>("1");
+
+const mealsPerDayText = ref<string>(String(mealsPerDay.value ?? ""));
+
+// Keep mealsPerDay in sync (null when blank)
+watch(mealsPerDayText, (v) => {
+  const t = String(v ?? "").trim();
+  if (t === "") {
+    mealsPerDay.value = null;
+    return;
+  }
+  const n = Number(t);
+  mealsPerDay.value = Number.isFinite(n) ? n : null;
+});
+
+watch(mealsPerDay, (v) => {
+  mealsPerDayText.value = v == null ? "" : String(v);
+});
+
+
 
 
 const goalLabel = computed(() => {
@@ -426,7 +458,7 @@ const allergies = computed<string[]>(() => {
 function buildNutritionBaseRequest(inputs: {
   goal: NutritionGoal;
   calories: number;
-  mealsPerDay: number;
+  mealsPerDay: number | null; // <-- allow blank/infer
   allergies: string[];
   diet: DietChoice;
 }) {
@@ -446,15 +478,28 @@ function buildNutritionBaseRequest(inputs: {
     targets.bulk = { "0.5": inputs.calories, "1": inputs.calories, "2": inputs.calories };
   }
 
-  return {
+  const req: any = {
     targets,
     diet: inputs.diet === "none" ? null : inputs.diet,
     allergies: inputs.allergies,
-    meals_needed: inputs.mealsPerDay,
     max_attempts: 10,
-    batch_size: 6,
   };
+
+  // Determine meals_needed and batch_size:
+  // - If mealsPerDay is blank/null: send 0 as sentinel (backend will infer from calories)
+  // - If mealsPerDay is provided: clamp to 2..6 and send actual value
+  let mealsNeeded = 0;
+  let batchSize = 0;
+  if (inputs.mealsPerDay !== null && Number.isFinite(Number(inputs.mealsPerDay))) {
+    mealsNeeded = Math.max(2, Math.min(6, Math.trunc(Number(inputs.mealsPerDay))));
+    batchSize = mealsNeeded;
+  }
+  req.meals_needed = mealsNeeded;
+  req.batch_size = batchSize;
+
+  return req;
 }
+
 
 function pretty(x: any) {
   return JSON.stringify(x, null, 2);
@@ -493,6 +538,62 @@ function mealMacrosLine(meal: any): string {
   
   return `${cal} cal • P ${p}g • C ${c}g • F ${f}g`;
 }
+
+
+const SLOT_ORDER = [
+  { key: "breakfast", label: "Breakfast" },
+  { key: "lunch", label: "Lunch" },
+  { key: "dinner", label: "Dinner" },
+  { key: "snack", label: "Snacks" },
+] as const;
+
+type SlotKey = typeof SLOT_ORDER[number]["key"];
+
+function mealSlot(meal: any): SlotKey | null {
+  const tags = (meal.tags || []).map((t: string) => t.toLowerCase());
+  if (tags.includes("breakfast")) return "breakfast";
+  if (tags.includes("lunch")) return "lunch";
+  if (tags.includes("dinner")) return "dinner";
+  if (tags.includes("snack")) return "snack";
+  return null;
+}
+
+type MealSlot = "breakfast" | "lunch" | "dinner" | "snack"
+
+
+const groupedMeals = computed<Record<MealSlot, any[]>>(() => {
+  const groups: Record<MealSlot, any[]> = {
+    breakfast: [],
+    lunch: [],
+    dinner: [],
+    snack: [],
+  }
+
+  const accepted = nutritionOutput.value?.accepted ?? []
+
+  for (const meal of accepted) {
+    const slot = mealSlot(meal)
+    if (slot) {
+      groups[slot].push(meal)
+    }
+  }
+
+  // ✅ Promote last lunch → dinner if no dinner exists
+  if (groups.dinner.length === 0 && groups.lunch.length >= 2) {
+    const dinnerMeal = groups.lunch.pop()
+    if (dinnerMeal) {
+      groups.dinner.push(dinnerMeal)
+    }
+  }
+
+  return groups
+})
+
+
+function getMealsForSlot(slotKey: string): any[] {
+  return (groupedMeals.value as Record<string, any[]>)[slotKey] ?? [];
+}
+
 
 async function onNutritionGenerate() {
   nutritionLoading.value = true;

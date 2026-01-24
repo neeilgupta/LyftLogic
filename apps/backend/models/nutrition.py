@@ -38,9 +38,9 @@ class NutritionGenerateRequest(BaseModel):
     diet: Optional[str] = None
     allergies: List[str] = Field(default_factory=list)
 
-    meals_needed: int = Field(ge=1, le=20)
+    meals_needed: int = Field(ge=0, le=20)
+    batch_size: int = Field(ge=0, le=20)
     max_attempts: int = Field(ge=1, le=50)
-    batch_size: int = Field(ge=1, le=20)
 
 
 class NutritionGenerateResponse(BaseModel):
