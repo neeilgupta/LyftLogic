@@ -7,6 +7,7 @@ from typing import Any, Iterable
 
 from .ingredients_pantry import INGREDIENT_PANTRY_PER_100G
 from .meal_library import MEAL_LIBRARY
+from services.nutrition.allergens import build_allergen_set
 
 
 # Ingredient name aliases: map common/shorthand names to pantry keys
@@ -634,7 +635,7 @@ def _macro_close_v1(
 
 def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
     # Determine constraints
-    blocked = _normalize_tokens(getattr(req, "allergies", None))
+    blocked = build_allergen_set(list(getattr(req, "allergies", None) or []))
     required = _diet_required_tags(getattr(req, "diet", None))
 
     # Candidate meals

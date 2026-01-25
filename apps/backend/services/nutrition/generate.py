@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from services.nutrition.allergens import build_allergen_set, meal_is_safe
+from services.nutrition.allergens import build_allergen_set, meal_is_safe, meal_rejection_reason
 from services.nutrition.contracts import Meal
 
 
@@ -91,11 +91,15 @@ def generate_safe_meals(
         for meal in candidates:
             if len(accepted) >= req.meals_needed:
                 break
-
-            if meal_is_safe(meal, allergen_set, required_diet_tags=required_diet):
+            reason = meal_rejection_reason(meal, allergen_set, required_diet_tags=required_diet)
+            if reason is None:
                 accepted.append(meal)
             else:
-                rejected.append(meal)
+                # Keep response shape the same (still a meal dict), just add a field
+                m = dict(meal) if isinstance(meal, dict) else {"raw": str(meal)}
+                m["rejection_reason"] = reason
+                rejected.append(m)
+
 
         if len(accepted) >= req.meals_needed:
             return GenerationResult(
