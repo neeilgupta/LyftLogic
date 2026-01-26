@@ -121,3 +121,11 @@ def test_nutrition_regenerate_meal_swap_diff_is_deterministic(client):
     joined = "\n".join(body["explanations"])
     assert "attempt 1" in joined
     assert "attempt 2" in joined
+
+def test_macro_calc_stub_returns_implemented_false(client):
+    r = client.post("/nutrition/macro-calc", json={})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["implemented"] is False
+    assert "scaffold" in body["message"].lower()
+
