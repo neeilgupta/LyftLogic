@@ -73,3 +73,21 @@ class NutritionRegenerateResponse(BaseModel):
 
     diff: Dict[str, Any]
     explanations: List[str]
+
+class MacroCalcRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sex: Optional[str] = None
+    age: Optional[int] = None
+    height_cm: Optional[float] = None
+    weight_kg: Optional[float] = None
+    activity_level: Optional[str] = None
+    goal: Optional[str] = None
+
+
+class MacroCalcResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    implemented: bool
+    message: str
+    macros: Optional[Dict[str, Any]] = None

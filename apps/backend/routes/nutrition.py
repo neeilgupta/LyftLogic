@@ -16,7 +16,11 @@ from models.nutrition import (
     NutritionGenerateResponse,
     NutritionRegenerateRequest,
     NutritionRegenerateResponse,
+    MacroCalcRequest,
+    MacroCalcResponse,
 )
+
+
 
 router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
@@ -179,4 +183,11 @@ def nutrition_regenerate(req: NutritionRegenerateRequest):
         version_snapshot=snap,
         diff=diff,
         explanations=explanations,
+    )
+@router.post("/macro-calc", response_model=MacroCalcResponse)
+def macro_calc(req: MacroCalcRequest):
+    return MacroCalcResponse(
+        implemented=False,
+        message="Macro calculator scaffold is live. Math will be added in Phase 4-A.",
+        macros=None,
     )
