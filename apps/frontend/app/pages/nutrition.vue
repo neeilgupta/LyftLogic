@@ -40,6 +40,23 @@
       </a>
     </section>
 
+    <section
+    style="
+        border: 1px solid #eee;
+        border-radius: 12px;
+        padding: 14px;
+        background: #fff;
+        margin-bottom: 14px;
+    "
+    >
+    <div style="font-weight: 800; margin-bottom: 6px;">Macro Calculator</div>
+    <div style="opacity: 0.75; margin-bottom: 10px;">
+        Coming next (Phase 4-A). This will compute targets before meal generation.
+    </div>
+    <button disabled :style="buttonStyle(true)">Calculate macros</button>
+    </section>
+
+
 
     <!-- Inputs + Controls -->
     <section
@@ -340,6 +357,7 @@ const { generateNutrition, regenerateNutrition } = useNutritionApi();
 
 const nutritionLoading = ref(false);
 const nutritionError = ref<string | null>(null);
+const DEBUG_NUTRITION = false;
 
 const nutritionSnapshot = ref<any | null>(null);
 const nutritionOutput = ref<any | null>(null);
@@ -591,7 +609,7 @@ const groupedMeals = computed<Record<MealSlot, any[]>>(() => {
     if (!slot || !s) continue;
 
     // If something duplicated AFTER acceptance, you'll catch it here instantly.
-    if (seenGlobal.has(s)) {
+    if (DEBUG_NUTRITION && seenGlobal.has(s)) {
       console.warn("[nutrition] DUPLICATE IN accepted (post-acceptance):", {
         sig: s,
         name: meal?.name,
@@ -617,7 +635,7 @@ const groupedMeals = computed<Record<MealSlot, any[]>>(() => {
     groups[k] = groups[k].filter((m) => {
       const s = sig(m);
       if (!s) return false;
-      if (seenSlot.has(s)) {
+      if (DEBUG_NUTRITION && seenSlot.has(s)) {
         console.warn("[nutrition] DUPLICATE IN slot render:", { slot: k, sig: s, name: m?.name });
         return false;
       }
@@ -648,6 +666,9 @@ async function onNutritionGenerate() {
     nutritionExplanations.value = [];
   } catch (e: any) {
     nutritionError.value = e?.data?.detail ?? e?.message ?? String(e);
+    nutritionSnapshot.value = null;
+    nutritionOutput.value = null;
+    nutritionExplanations.value = null;
   } finally {
     nutritionLoading.value = false;
   }
@@ -674,6 +695,9 @@ async function onNutritionRegenerate() {
     nutritionExplanations.value = res.explanations || [];
   } catch (e: any) {
     nutritionError.value = e?.data?.detail ?? e?.message ?? String(e);
+    nutritionSnapshot.value = null;
+    nutritionOutput.value = null;
+    nutritionExplanations.value = null;
   } finally {
     nutritionLoading.value = false;
   }
