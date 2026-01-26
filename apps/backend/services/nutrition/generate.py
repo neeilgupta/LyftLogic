@@ -79,6 +79,16 @@ def generate_safe_meals(
 
     accepted: list[dict] = []
     rejected: list[dict] = []
+    # Phase 4-G: avoid duplicate template meals across attempts
+    accepted_templates: set[str] = set()
+
+    def _template_sig(m: dict) -> str:
+        if not isinstance(m, dict):
+            return ""
+        sig = m.get("template_key") or m.get("key") or m.get("name") or ""
+        return str(sig).strip().lower()
+
+
 
     for attempt in range(1, req.max_attempts + 1):
         candidates = llm_generate(req, attempt)
@@ -87,18 +97,49 @@ def generate_safe_meals(
         if not isinstance(candidates, list):
             rejected.append({"error": "llm_returned_non_list", "attempt": attempt, "raw": str(type(candidates))})
             continue
+        # Phase 4-G: accept unique templates first, then allow repeats as deterministic fallback
+        unique_pool: list[Meal] = []
+        repeat_pool: list[Meal] = []
+
+        # Prevent duplicates inside the SAME LLM batch too
+        seen_this_attempt: set[str] = set()
 
         for meal in candidates:
-            if len(accepted) >= req.meals_needed:
-                break
+            # Always validate safety first (allergies/diet are hard constraints)
             reason = meal_rejection_reason(meal, allergen_set, required_diet_tags=required_diet)
-            if reason is None:
-                accepted.append(meal)
-            else:
-                # Keep response shape the same (still a meal dict), just add a field
+            if reason is not None:
                 m = dict(meal) if isinstance(meal, dict) else {"raw": str(meal)}
                 m["rejection_reason"] = reason
                 rejected.append(m)
+                continue
+
+            sig = _template_sig(meal)
+
+            # Prefer not-yet-used templates; treat duplicates as fallback
+            if sig and (sig in accepted_templates or sig in seen_this_attempt):
+                repeat_pool.append(meal)
+            else:
+                unique_pool.append(meal)
+                if sig:
+                    seen_this_attempt.add(sig)
+
+        # 1) Accept unique first
+        for meal in unique_pool:
+            if len(accepted) >= req.meals_needed:
+                break
+            accepted.append(meal)
+            sig = _template_sig(meal)
+            if sig:
+                accepted_templates.add(sig)
+
+        # 2) If still short, accept repeats (deterministic fallback)
+        for meal in repeat_pool:
+            if len(accepted) >= req.meals_needed:
+                break
+            accepted.append(meal)
+            sig = _template_sig(meal)
+            if sig:
+                accepted_templates.add(sig)
 
 
         if len(accepted) >= req.meals_needed:

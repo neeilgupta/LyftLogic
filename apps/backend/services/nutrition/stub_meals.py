@@ -639,13 +639,22 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
     required = _diet_required_tags(getattr(req, "diet", None))
 
     # Candidate meals
-    candidates: list[dict[str, Any]] = []
+    candidates_by_key: dict[str, dict[str, Any]] = {}
     for m in MEAL_LIBRARY:
         if not _meal_allowed_by_diet(m, required):
             continue
         if not _meal_allowed_by_allergies(m, blocked):
             continue
-        candidates.append(m)
+
+        k = str(m.get("key") or m.get("name") or "")
+        if not k:
+            continue
+
+        # keep first occurrence deterministically
+        if k not in candidates_by_key:
+            candidates_by_key[k] = m
+
+    candidates: list[dict[str, Any]] = list(candidates_by_key.values())
 
     # Target calories (routes usually inject this into req)
     target = getattr(req, "calories", None) or getattr(req, "target_calories", None)
@@ -713,20 +722,46 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
     picked: list[dict[str, Any]] = []
     remaining = list(candidates)
 
+    used_template_keys: set[str] = set()
+
+    def _tkey(m: dict[str, Any]) -> str:
+        return str(m.get("key") or m.get("name") or "")
+
     for i, slot in enumerate(slots):
-        slot_candidates = [m for m in remaining if _slot_tag_match(slot, m.get("tags"))]
+        # First try: slot-match + unused templates
+        slot_candidates = [
+            m for m in remaining
+            if _slot_tag_match(slot, m.get("tags")) and _tkey(m) not in used_template_keys
+        ]
+
+        # Fallback 1: slot-match even if repeats (only if we ran out)
         if not slot_candidates:
-            slot_candidates = list(remaining) if remaining else list(candidates)
+            slot_candidates = [m for m in remaining if _slot_tag_match(slot, m.get("tags"))]
+
+        # Fallback 2: anything remaining (still deterministic)
+        if not slot_candidates:
+            if remaining:
+                slot_candidates = list(remaining)
+            else:
+                # Prefer unused candidates even when remaining is empty
+                unused_any = [m for m in candidates if _tkey(m) not in used_template_keys]
+                slot_candidates = unused_any if unused_any else list(candidates)
+
 
         one = _deterministic_pick(slot_candidates, seed + f"|slot={slot}|i={i}", 1, goal=goal)
         if not one:
             continue
 
         tm = one[0]
+        tk = _tkey(tm)
         picked.append(tm)
+        if tk:
+            used_template_keys.add(tk)
 
-        if tm in remaining and len(remaining) > 1:
-            remaining.remove(tm)
+        # Remove by key (not object identity) so duplicates can't slip through
+        if tk:
+            remaining = [m for m in remaining if _tkey(m) != tk]
+
 
     # Build output meals (copy templates so we can mutate grams)
     out_meals: list[dict[str, Any]] = []
