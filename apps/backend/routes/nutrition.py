@@ -42,19 +42,38 @@ def _infer_meals_needed_from_target_cals(tc: float | None) -> int:
         return 5
     return 6
 
-
-
 def _stub_llm_generate(req: GenerationRequest, attempt: int):
     stub = generate_stub_meals(req, attempt)
-    meals = stub["meals"]
+    meals = stub.get("meals", [])
+    if not isinstance(meals, list):
+        return []
 
-    # Preserve test contract: stable keys based on index + attempt
-    for i, m in enumerate(meals):
-        m["template_key"] = m.get("key")  # keep your real key for debugging
+    # 1) Deduplicate by original template key (the MEAL_LIBRARY key)
+    unique: list[dict] = []
+    seen: set[str] = set()
+
+    for m in meals:
+        if not isinstance(m, dict):
+            continue
+        tk = str(m.get("key") or "").strip().lower()
+        if not tk:
+            continue
+        if tk in seen:
+            continue
+        seen.add(tk)
+        unique.append(m)
+
+    # 2) Do NOT cycle repeats here.
+    #    If we have fewer uniques than batch_size, return fewer.
+    #    generate_safe_meals() will make additional attempts if it needs more uniques.
+    out: list[dict] = [dict(m) for m in unique[: int(req.batch_size)]]
+
+    # 3) Preserve UI/test contract keys while keeping template identity
+    for i, m in enumerate(out):
+        m["template_key"] = m.get("key")  # original stable key
         m["key"] = f"meal_{i+1}_(attempt_{attempt})"
 
-    return meals
-
+    return out
 
 def _constraints_snapshot(req: NutritionGenerateRequest | NutritionRegenerateRequest) -> dict:
     return {
@@ -86,10 +105,6 @@ def nutrition_generate(req: NutritionGenerateRequest):
         max_attempts=req.max_attempts,
         batch_size=batch_size_final,
     )
-
-    object.__setattr__(gen_req, "targets", targets)
-    if tc is not None:
-        object.__setattr__(gen_req, "target_calories", float(tc))
 
     gen = generate_safe_meals(gen_req, _stub_llm_generate)
     from services.nutrition.versioning import build_nutrition_version_v1
@@ -131,10 +146,6 @@ def nutrition_regenerate(req: NutritionRegenerateRequest):
         max_attempts=req.max_attempts,
         batch_size=batch_size_final,
     )
-
-    object.__setattr__(gen_req, "targets", targets)
-    if tc is not None:
-        object.__setattr__(gen_req, "target_calories", float(tc))
 
     attempt_offset = int(req.prev_snapshot.version)
 

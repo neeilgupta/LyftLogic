@@ -219,12 +219,18 @@
             <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px;">
             <div
                 v-for="(meal, idx) in getMealsForSlot(slot.key)"
-                :key="meal.key || meal.name || idx"
+                :key="meal.template_key || meal.key || meal.name || idx"
                 style="grid-column: span 6; border: 1px solid #eee; border-radius: 12px; padding: 12px;"
             >
                 <div style="font-weight: 700; margin-bottom: 6px;">
                 {{ meal.name }}
+                <div style="font-size: 11px; opacity: 0.6; margin-bottom: 6px;">
+                template_key: {{ meal.template_key || "—" }} • key: {{ meal.key || "—" }}
                 </div>
+
+                </div>
+
+                
 
                 <div style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">
                 {{ mealMacrosLine(meal) }}
@@ -275,7 +281,7 @@
           Rejected meals ({{ nutritionOutput.rejected.length }})
         </summary>
         <ul style="margin: 10px 0 0; padding-left: 18px; line-height: 1.5;">
-          <li v-for="(meal, idx) in nutritionOutput.rejected" :key="meal.key || meal.name || idx">
+          <li v-for="(meal, idx) in nutritionOutput.rejected" :key="meal.template_key || meal.key || meal.name || idx">
             {{ meal.name }}
           </li>
         </ul>
@@ -567,27 +573,62 @@ const groupedMeals = computed<Record<MealSlot, any[]>>(() => {
     lunch: [],
     dinner: [],
     snack: [],
-  }
+  };
 
-  const accepted = nutritionOutput.value?.accepted ?? []
+  const accepted = nutritionOutput.value?.accepted ?? [];
+
+  // Track duplicates globally + per-slot (for debugging)
+  const seenGlobal = new Set<string>();
+
+  function sig(meal: any): string {
+    return String(meal?.template_key || meal?.key || meal?.name || "").trim().toLowerCase();
+  }
 
   for (const meal of accepted) {
-    const slot = mealSlot(meal)
-    if (slot) {
-      groups[slot].push(meal)
+    const s = sig(meal);
+    const slot = mealSlot(meal);
+
+    if (!slot || !s) continue;
+
+    // If something duplicated AFTER acceptance, you'll catch it here instantly.
+    if (seenGlobal.has(s)) {
+      console.warn("[nutrition] DUPLICATE IN accepted (post-acceptance):", {
+        sig: s,
+        name: meal?.name,
+        key: meal?.key,
+        template_key: meal?.template_key,
+        tags: meal?.tags,
+      });
+    } else {
+      seenGlobal.add(s);
     }
+
+    groups[slot].push(meal);
   }
 
-  // ✅ Promote last lunch → dinner if no dinner exists
   if (groups.dinner.length === 0 && groups.lunch.length >= 2) {
-    const dinnerMeal = groups.lunch.pop()
-    if (dinnerMeal) {
-      groups.dinner.push(dinnerMeal)
-    }
+    const dinnerMeal = groups.lunch.pop();
+    if (dinnerMeal) groups.dinner.push(dinnerMeal);
   }
 
-  return groups
-})
+  // FINAL GUARD: dedupe within each slot deterministically
+  for (const k of Object.keys(groups) as MealSlot[]) {
+    const seenSlot = new Set<string>();
+    groups[k] = groups[k].filter((m) => {
+      const s = sig(m);
+      if (!s) return false;
+      if (seenSlot.has(s)) {
+        console.warn("[nutrition] DUPLICATE IN slot render:", { slot: k, sig: s, name: m?.name });
+        return false;
+      }
+      seenSlot.add(s);
+      return true;
+    });
+  }
+
+  return groups;
+});
+
 
 
 function getMealsForSlot(slotKey: string): any[] {

@@ -223,6 +223,56 @@ def _deterministic_pick(meals: list[dict[str, Any]], seed: str, k: int, goal: st
         i += 1
     return out
 
+def _deterministic_pick_for_slot(
+    meals: list[dict[str, Any]],
+    seed: str,
+    k: int,
+    slot: str,
+    goal: str = "maintenance",
+) -> list[dict[str, Any]]:
+    """
+    Deterministic slot-aware picker:
+    - For snacks: prioritize variety (hash) over macro_score so you don't always get trail mix.
+    - For other slots: keep existing behavior.
+    """
+    if not meals:
+        return []
+
+    scored = []
+    for m in meals:
+        key = str(m.get("key", m.get("name", "")))
+        bucket = 0 if key.startswith("-") else 1
+
+        macro_score = float(m.get("_macro_score", 0.0))
+        hash_score = _stable_int_hash(seed + "::" + key)
+
+        # Snack: variety-first (hash dominates), macro_score only as a weak tie-breaker
+        if slot == "snack":
+            scored.append(((bucket, hash_score, -macro_score), m))
+            continue
+
+        # Default: keep current behavior (macro_score dominates)
+        goal_bias = 0
+        if goal == "bulk":
+            goal_bias = int(macro_score)
+        elif goal == "cut":
+            macros = m.get("_macros", {})
+            fat_penalty = int(float(macros.get("fat_g", 0.0)) * 0.5)
+            goal_bias = -fat_penalty
+
+        scored.append(((bucket, goal_bias, -macro_score, hash_score), m))
+
+    scored.sort(key=lambda x: x[0])
+    ordered = [m for _, m in scored]
+
+    out: list[dict[str, Any]] = []
+    i = 0
+    while len(out) < max(0, int(k)):
+        out.append(ordered[i % len(ordered)])
+        i += 1
+    return out
+
+
 
 
 def _find_carb_adjust_ingredient(meal: dict[str, Any]) -> int | None:
@@ -748,7 +798,14 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
                 slot_candidates = unused_any if unused_any else list(candidates)
 
 
-        one = _deterministic_pick(slot_candidates, seed + f"|slot={slot}|i={i}", 1, goal=goal)
+        one = _deterministic_pick_for_slot(
+            slot_candidates,
+            seed + f"|slot={slot}|i={i}",
+            1,
+            slot=slot,
+            goal=goal,
+        )
+
         if not one:
             continue
 

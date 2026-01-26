@@ -85,8 +85,17 @@ def generate_safe_meals(
     def _template_sig(m: dict) -> str:
         if not isinstance(m, dict):
             return ""
-        sig = m.get("template_key") or m.get("key") or m.get("name") or ""
+        # Prefer stable identity fields if present
+        sig = (
+            m.get("template_key")
+            or m.get("source_key")
+            or m.get("meal_key")
+            or m.get("library_key")
+            or m.get("name")
+            or ""
+        )
         return str(sig).strip().lower()
+
 
 
 
@@ -114,6 +123,9 @@ def generate_safe_meals(
                 continue
 
             sig = _template_sig(meal)
+            if not sig and isinstance(meal, dict):
+                sig = str(meal.get("name") or "").strip().lower()
+
 
             # Prefer not-yet-used templates; treat duplicates as fallback
             if sig and (sig in accepted_templates or sig in seen_this_attempt):
@@ -123,23 +135,20 @@ def generate_safe_meals(
                 if sig:
                     seen_this_attempt.add(sig)
 
-        # 1) Accept unique first
+        # Accept unique templates only (no repeats across attempts)
         for meal in unique_pool:
             if len(accepted) >= req.meals_needed:
                 break
-            accepted.append(meal)
+
             sig = _template_sig(meal)
+            # hard guard: never accept the same template twice
+            if sig and sig in accepted_templates:
+                continue
+
+            accepted.append(meal)
             if sig:
                 accepted_templates.add(sig)
 
-        # 2) If still short, accept repeats (deterministic fallback)
-        for meal in repeat_pool:
-            if len(accepted) >= req.meals_needed:
-                break
-            accepted.append(meal)
-            sig = _template_sig(meal)
-            if sig:
-                accepted_templates.add(sig)
 
 
         if len(accepted) >= req.meals_needed:
