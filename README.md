@@ -7,7 +7,31 @@ The result is plans that are **stable, explainable, versioned, and realistic** �
 
 ---
 
-## 🚀 What LyftLogic Is (and Is Not)
+## � Project Status
+
+**Current state (v1 stable):**
+- ✅ **Training system**: Full generation and regeneration with versioned snapshots, diffs, and restore
+- ✅ **Nutrition system**: Full generation and regeneration with versioned snapshots, diffs, and deterministic deduplication
+- ✅ **Deterministic versioning**: Both systems support reversible, diffable plan evolution
+- ⚠️ **Macro calculator**: Scaffold in place; mathematical implementation incomplete
+- 🚧 **Persistence**: Version storage and restore features are intentionally staged (coming soon)
+
+---
+
+## 💭 Why LyftLogic Exists
+
+Most fitness planning tools treat AI output as gospel. LyftLogic does the opposite.
+
+The system prioritizes:
+1. **Trust through verifiability** — Every constraint is explicit, enforced in code, and human-auditable
+2. **Determinism over novelty** — Regenerating a plan twice with the same inputs yields the same result; changes are intentional and tracked
+3. **Explainability over magic** — When a plan changes, you see why (the diff), not just that it changed
+
+This approach trades some degree of "magical personalization" for predictability and confidence.
+
+---
+
+## �🚀 What LyftLogic Is (and Is Not)
 
 **LyftLogic is:**
 - A deterministic planning system
@@ -44,7 +68,7 @@ They **change**, and every change is:
 
 ## 🏋️ Training System (Realism-First)
 
-Training plans are designed to resemble how experienced lifters actually program.
+Training plans resemble how experienced lifters actually program.
 
 **Hard rules enforced in code:**
 - No cardio before lifting
@@ -70,12 +94,12 @@ All training plans support:
 
 ---
 
-## 🥗 Nutrition System (Fail-Closed & Explainable)
+## 🥗 Nutrition System (First-Class & Auditable)
 
-Nutrition planning is designed to be **safe, stable, and auditable**.
+Nutrition planning is a full peer of the training system: fully versioned, deterministically regenerable, and completely auditable.
 
 **Guaranteed behaviors:**
-- Allergens are **hard-blocked**
+- Allergens are **hard-blocked** (fail-closed)
 - Diet constraints enforced (vegetarian, vegan, etc.)
 - Deterministic calorie and macro math
 - Supports maintenance, cut, bulk  
@@ -84,13 +108,13 @@ Nutrition planning is designed to be **safe, stable, and auditable**.
 - Every regenerate produces:
   - an explicit diff
   - human-readable explanations
+- **No duplicate meals in a single plan**
 
 Nutrition plans:
 - Are generated and regenerated deterministically
 - Maintain context across versions
-- Never "randomly reshuffle" meals
-
-*(Nutrition editing and persistence are intentionally staged features — see roadmap.)*
+- Never reshuffle meals unpredictably
+- Support full versioning and restore (staged feature)
 
 ---
 
@@ -243,8 +267,14 @@ npm run dev
 
 ---
 
-## 📊 Project Status
+## 📊 Project Philosophy
 
 LyftLogic is an engineering-focused system, not a consumer app demo.
 
 The goal is not maximal personalization — it is **predictable, explainable, constraint-aware planning** that users can trust and iterate on.
+
+**Design choices:**
+- Determinism is mandatory; novelty is optional
+- Every constraint is enforced, not suggested
+- Every change is versioned, diffed, and explained
+- AI is a tool for drafting, never a source of truth
