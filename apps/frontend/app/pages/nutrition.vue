@@ -113,6 +113,7 @@
     />
     </label>
 
+
     <label style="grid-column: span 2; display:flex; flex-direction:column; gap:6px;">
     <span style="font-size: 12px; opacity: 0.75;">Weight (lb)</span>
     <input
@@ -184,12 +185,12 @@
       </select>
     </label>
 
-    <label v-if="goal !== 'maintenance'" style="grid-column: span 3; display:flex; flex-direction:column; gap:6px;">
+    <label style="grid-column: span 2; display:flex; flex-direction:column; gap:6px;">
       <span style="font-size: 12px; opacity: 0.75;">Rate</span>
       <select
         v-model="rate"
-        :disabled="macroLoading || nutritionLoading"
-        style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+        :disabled="goal === 'maintenance' || macroLoading || nutritionLoading"
+        :style="{padding: '8px 10px', borderRadius: '10px', border: '1px solid #ddd', background: 'white', opacity: goal === 'maintenance' ? 0.5 : 1, cursor: goal === 'maintenance' ? 'not-allowed' : 'pointer'}"
       >
         <option value="0.5">0.5 lb/week</option>
         <option value="1">1 lb/week</option>
@@ -197,17 +198,26 @@
       </select>
     </label>
 
-    <div style="grid-column: span 6; display:flex; flex-direction:column; justify-content:flex-end;">
+    <div style="grid-column: span 4; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
       <button
         :disabled="macroLoading || nutritionLoading"
         @click="onApplyTargetsAndGenerate"
         :style="buttonStyle(macroLoading || nutritionLoading)"
       >
-        Apply targets to planner & generate
+        Apply targets & generate
       </button>
-      <div style="font-size: 12px; opacity: 0.75; margin-top: 6px;">
-        Uses the Diet/Allergies/Meals-per-day inputs below for generation.
-      </div>
+      <button
+        :disabled="macroLoading || nutritionLoading"
+        @click="onCopyTargets"
+        :style="buttonStyle(macroLoading || nutritionLoading)"
+        title="Copy targets to clipboard"
+      >
+        {{ copyStatusLabel }}
+      </button>
+    </div>
+
+    <div style="grid-column: span 12; font-size: 12px; opacity: 0.75;">
+      Uses the Diet/Allergies/Meals-per-day inputs below for generation.
     </div>
   </div>
 
@@ -554,7 +564,28 @@ const macroHeightFt = ref<number>(5);
 const macroHeightIn = ref<number>(11);
 const macroWeightLb = ref<number>(175);
 const macroActivity = ref<MacroActivity>("moderate");
+const copyStatusLabel = ref<string>("Copy targets");
 
+// Clamp macro inputs to valid ranges
+watch(macroHeightFt, (v) => {
+  macroHeightFt.value = Math.max(0, Math.trunc(v ?? 0));
+});
+watch(macroHeightIn, (v) => {
+  macroHeightIn.value = Math.max(0, Math.min(11, Math.trunc(v ?? 0)));
+});
+watch(macroWeightLb, (v) => {
+  macroWeightLb.value = Math.max(1, Math.trunc(v ?? 1));
+});
+
+// Prefill plannerTargets from nutritionSnapshot if available
+watch(nutritionSnapshot, (snapshot) => {
+  if (snapshot?.targets) {
+    plannerTargets.value = { ...snapshot.targets };
+    // Backward compatibility: set goal/rate if available
+    if (snapshot.goal) goal.value = snapshot.goal;
+    if (snapshot.rate) rate.value = snapshot.rate;
+  }
+}, { immediate: true });
 
 type NutritionGoal = "maintenance" | "cut" | "bulk";
 type DietChoice =
@@ -850,10 +881,22 @@ const groupedMeals = computed<Record<MealSlot, any[]>>(() => {
   return groups;
 });
 
-
-
 function getMealsForSlot(slotKey: string): any[] {
   return (groupedMeals.value as Record<string, any[]>)[slotKey] ?? [];
+}
+
+async function onCopyTargets() {
+  try {
+    const targets = plannerTargets.value;
+    const selectedCal = presetCaloriesFor(goal.value, rate.value);
+    const text = `Selected: ${selectedCal} cal (${goalLabel.value}${goal.value !== 'maintenance' ? ' @ ' + rate.value + ' lb/wk' : ''})\nMaintenance: ${targets.maintenance} cal\nCut: 0.5 lb/wk=${targets.cut["0.5"]} cal, 1 lb/wk=${targets.cut["1"]} cal, 2 lb/wk=${targets.cut["2"]} cal\nBulk: 0.5 lb/wk=${targets.bulk["0.5"]} cal, 1 lb/wk=${targets.bulk["1"]} cal, 2 lb/wk=${targets.bulk["2"]} cal`;
+    await navigator.clipboard.writeText(text);
+    copyStatusLabel.value = "Copied!";
+    setTimeout(() => { copyStatusLabel.value = "Copy targets"; }, 1400);
+  } catch (e) {
+    copyStatusLabel.value = "Copy failed";
+    setTimeout(() => { copyStatusLabel.value = "Copy targets"; }, 1400);
+  }
 }
 
 async function onMacroCalc() {
