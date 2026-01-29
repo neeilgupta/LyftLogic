@@ -523,15 +523,6 @@ MEAL_LIBRARY: list[dict] = [
             {"name": "dark chocolate", "grams": 20, "contains": ["dark_chocolate"], "diet_tags": ["vegan"], "is_compound": False},
         ],
     },
-    {
-        "key": "ice_cream_and_strawberries",
-        "name": "Ice cream + strawberries",
-        "tags": ["snack", "dessert"],
-        "ingredients": [
-            {"name": "ice cream, vanilla", "grams": 150, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
-            {"name": "strawberries", "grams": 160, "contains": ["strawberries"], "diet_tags": ["vegan"], "is_compound": False},
-        ],
-    },
         # ---------- Scalable Snacks (300–500 cals capable) ----------
 
     {
