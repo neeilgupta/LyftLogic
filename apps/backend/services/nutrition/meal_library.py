@@ -578,4 +578,332 @@ MEAL_LIBRARY: list[dict] = [
             {"name": "dark chocolate", "grams": 15, "contains": ["dark_chocolate"], "diet_tags": ["vegan"], "is_compound": False},
         ],
     },
+
+    # ============================================================
+    # EXPANSION: 45+ new healthy meal templates
+    # ============================================================
+
+    # ---------- NEW BREAKFASTS (healthy, high-protein) ----------
+    {
+        "key": "greek_yogurt_0_berries_seeds",
+        "name": "Greek yogurt (0%), berries, seeds",
+        "tags": ["breakfast", "snack"],
+        "ingredients": [
+            {"name": "greek yogurt, 0%", "grams": 300, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "berries, mixed", "grams": 180, "contains": ["berries"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "hemp seeds", "grams": 15, "contains": ["hemp"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "skyr_berries_granola_nuts",
+        "name": "Skyr (Icelandic yogurt), berries, granola",
+        "tags": ["breakfast", "snack"],
+        "ingredients": [
+            {"name": "skyr, icelandic yogurt", "grams": 300, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "blueberries", "grams": 150, "contains": ["blueberries"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "granola", "grams": 35, "contains": ["gluten"], "diet_tags": ["vegetarian"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "cottage_cheese_berries_honey",
+        "name": "Cottage cheese (fat-free), berries, honey",
+        "tags": ["breakfast", "snack"],
+        "ingredients": [
+            {"name": "cottage cheese, fat-free", "grams": 300, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "raspberries", "grams": 180, "contains": ["raspberries"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "honey", "grams": 10, "contains": ["honey"], "diet_tags": ["vegetarian"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "egg_whites_oats_banana",
+        "name": "Egg whites, oatmeal, banana",
+        "tags": ["breakfast"],
+        "ingredients": [
+            {"name": "egg whites", "grams": 300, "contains": ["egg"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "oatmeal, cooked", "grams": 300, "contains": ["oats"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "banana", "grams": 120, "contains": ["banana"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "scrambled_eggs_wholegrains_veggies",
+        "name": "Scrambled eggs, whole wheat toast, veggies",
+        "tags": ["breakfast"],
+        "ingredients": [
+            {"name": "eggs, whole", "grams": 200, "contains": ["egg"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "whole wheat bread", "grams": 80, "contains": ["gluten"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "bell pepper", "grams": 150, "contains": ["pepper"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "spinach", "grams": 60, "contains": ["spinach"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "oatmeal_whey_berries_seeds",
+        "name": "Oatmeal, whey, mixed berries, seeds",
+        "tags": ["breakfast"],
+        "ingredients": [
+            {"name": "oatmeal, cooked", "grams": 300, "contains": ["oats"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "whey protein powder", "grams": 30, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "berries, mixed", "grams": 140, "contains": ["berries"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "flax seeds, ground", "grams": 12, "contains": ["seeds"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "quinoa_breakfast_bowl_fruit_nuts",
+        "name": "Quinoa breakfast bowl (fruit, almonds)",
+        "tags": ["breakfast"],
+        "ingredients": [
+            {"name": "quinoa, cooked", "grams": 280, "contains": ["quinoa"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "milk, 2%", "grams": 120, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "banana", "grams": 100, "contains": ["banana"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "almonds", "grams": 15, "contains": ["tree_nut"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "sweet_potato_eggs_spinach",
+        "name": "Sweet potato, eggs, spinach",
+        "tags": ["breakfast"],
+        "ingredients": [
+            {"name": "sweet potato, boiled", "grams": 300, "contains": ["sweet_potato"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "eggs, whole", "grams": 140, "contains": ["egg"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "spinach", "grams": 80, "contains": ["spinach"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+
+    # ---------- NEW LUNCHES / DINNERS (lean proteins, whole carbs) ----------
+    {
+        "key": "chicken_breast_wild_rice_broccoli",
+        "name": "Chicken breast, wild rice, broccoli",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "chicken breast, skinless", "grams": 200, "contains": ["chicken"], "diet_tags": ["omnivore"], "is_compound": False},
+            {"name": "wild rice, cooked", "grams": 280, "contains": ["rice"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "broccoli", "grams": 200, "contains": ["broccoli"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 8, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "ground_turkey_farro_peppers_onion",
+        "name": "Ground turkey, farro, peppers, onions",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "ground turkey, 93% lean", "grams": 190, "contains": ["turkey"], "diet_tags": ["omnivore"], "is_compound": False},
+            {"name": "farro, cooked", "grams": 260, "contains": ["gluten"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "bell pepper", "grams": 150, "contains": ["pepper"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "onion", "grams": 80, "contains": ["onion"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 6, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "salmon_sweet_potato_asparagus",
+        "name": "Salmon fillet, sweet potato, asparagus",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "salmon fillet, cooked", "grams": 180, "contains": ["fish"], "diet_tags": ["pescatarian"], "is_compound": False},
+            {"name": "sweet potato, boiled", "grams": 280, "contains": ["sweet_potato"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "asparagus", "grams": 200, "contains": ["asparagus"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 10, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "lean_beef_brown_rice_vegetables",
+        "name": "Lean beef sirloin, brown rice, mixed veggies",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "beef sirloin, lean", "grams": 190, "contains": ["beef"], "diet_tags": ["omnivore"], "is_compound": False},
+            {"name": "brown rice, long-grain", "grams": 280, "contains": ["rice"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "carrots", "grams": 150, "contains": ["carrots"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "zucchini, raw", "grams": 120, "contains": ["zucchini"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 6, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "tilapia_millet_spinach_tomato",
+        "name": "Tilapia, millet, spinach, tomato",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "tilapia, cooked", "grams": 200, "contains": ["fish"], "diet_tags": ["pescatarian"], "is_compound": False},
+            {"name": "millet, cooked", "grams": 280, "contains": ["millet"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "spinach", "grams": 100, "contains": ["spinach"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "tomato", "grams": 120, "contains": ["tomato"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 8, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "pork_tenderloin_barley_veggies",
+        "name": "Pork tenderloin, barley, roasted veggies",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "pork tenderloin, cooked", "grams": 190, "contains": ["pork"], "diet_tags": ["omnivore"], "is_compound": False},
+            {"name": "barley, pearl, cooked", "grams": 280, "contains": ["gluten"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "bell pepper", "grams": 120, "contains": ["pepper"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "cauliflower, raw", "grams": 180, "contains": ["cauliflower"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 8, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "halibut_teff_chard_lemon",
+        "name": "Halibut, teff, Swiss chard, lemon",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "halibut, cooked", "grams": 200, "contains": ["fish"], "diet_tags": ["pescatarian"], "is_compound": False},
+            {"name": "teff, cooked", "grams": 280, "contains": ["teff"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "chard, raw", "grams": 150, "contains": ["chard"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "lemon juice", "grams": 15, "contains": ["lemon_juice"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 10, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+
+    # ---------- VEGETARIAN / VEGAN MAINS (protein from plants) ----------
+    {
+        "key": "lentil_spelt_bowl_roasted_veggies",
+        "name": "Lentil & spelt bowl, roasted vegetables",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "lentils, cooked", "grams": 280, "contains": ["lentils"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "spelt, cooked", "grams": 260, "contains": ["gluten"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "bell pepper", "grams": 140, "contains": ["pepper"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "zucchini, raw", "grams": 140, "contains": ["zucchini"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 10, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "chickpea_quinoa_kale_avocado",
+        "name": "Chickpea & quinoa bowl, kale, avocado",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "chickpeas, cooked", "grams": 280, "contains": ["chickpeas"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "quinoa, cooked", "grams": 260, "contains": ["quinoa"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "kale, raw", "grams": 150, "contains": ["kale"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "avocado", "grams": 100, "contains": ["avocado"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "white_bean_millet_spinach_tomato",
+        "name": "White bean & millet, spinach, tomato",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "white beans, cooked", "grams": 280, "contains": ["beans"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "millet, cooked", "grams": 260, "contains": ["millet"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "spinach", "grams": 120, "contains": ["spinach"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "tomato sauce", "grams": 140, "contains": ["tomato"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 8, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "tofu_farro_broccoli_garlic",
+        "name": "Crispy tofu, farro, broccoli, garlic",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "tofu, firm", "grams": 250, "contains": ["soy"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "farro, cooked", "grams": 260, "contains": ["gluten"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "broccoli", "grams": 180, "contains": ["broccoli"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "garlic", "grams": 10, "contains": ["garlic"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 12, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "tempeh_brown_rice_bok_choy",
+        "name": "Tempeh, brown rice, bok choy",
+        "tags": ["lunch", "dinner"],
+        "ingredients": [
+            {"name": "tempeh", "grams": 210, "contains": ["soy"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "brown rice, long-grain", "grams": 280, "contains": ["rice"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "broccoli", "grams": 180, "contains": ["broccoli"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "soy sauce", "grams": 10, "contains": ["soy"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 10, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+
+    # ---------- NEW SNACKS (healthy, whole-food, no junk) ----------
+    {
+        "key": "string_cheese_apple_walnut",
+        "name": "String cheese, apple, walnuts",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "string cheese, part-skim", "grams": 28, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "apple, with skin", "grams": 180, "contains": ["apple"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "walnuts, raw", "grams": 15, "contains": ["tree_nut"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "cottage_cheese_peach_seeds",
+        "name": "Cottage cheese, peach, pumpkin seeds",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "cottage cheese, lowfat", "grams": 200, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "peach", "grams": 150, "contains": ["peach"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "pumpkin seeds, raw", "grams": 15, "contains": ["seeds"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "greek_yogurt_kiwi_chia",
+        "name": "Greek yogurt, kiwi, chia seeds",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "greek yogurt, 0%", "grams": 250, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "kiwi fruit", "grams": 150, "contains": ["kiwi"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "chia seeds, raw", "grams": 12, "contains": ["seeds"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "whole_wheat_toast_tahini_honey",
+        "name": "Whole wheat toast, tahini, honey",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "whole wheat bread", "grams": 100, "contains": ["gluten"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "tahini, raw", "grams": 14, "contains": ["sesame"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "honey", "grams": 12, "contains": ["honey"], "diet_tags": ["vegetarian"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "tuna_whole_grain_salad_olive_oil",
+        "name": "Tuna, whole grain crackers, olive oil",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "tuna, canned in water", "grams": 120, "contains": ["fish"], "diet_tags": ["pescatarian"], "is_compound": False},
+            {"name": "whole wheat bread", "grams": 80, "contains": ["gluten"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 8, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "egg_avocado_toast",
+        "name": "Egg + avocado on whole wheat toast",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "eggs, whole", "grams": 100, "contains": ["egg"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "avocado", "grams": 80, "contains": ["avocado"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "whole wheat bread", "grams": 80, "contains": ["gluten"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "ricotta_berries_honey_seeds",
+        "name": "Ricotta, berries, honey, seeds",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "ricotta, lowfat", "grams": 200, "contains": ["dairy"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "berries, mixed", "grams": 150, "contains": ["berries"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "honey", "grams": 10, "contains": ["honey"], "diet_tags": ["vegetarian"], "is_compound": False},
+            {"name": "flax seeds, ground", "grams": 8, "contains": ["seeds"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "chickpea_salad_olive_oil_lemon",
+        "name": "Chickpea salad (greens, olive oil, lemon)",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "chickpeas, cooked", "grams": 200, "contains": ["chickpeas"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "mixed salad greens", "grams": 120, "contains": ["lettuce"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "olive oil", "grams": 10, "contains": ["olive_oil"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "lemon juice", "grams": 10, "contains": ["lemon_juice"], "diet_tags": ["vegan"], "is_compound": False},
+        ],
+    },
+    {
+        "key": "almond_butter_banana_oats_snack",
+        "name": "Almond butter, banana, oats (snack)",
+        "tags": ["snack"],
+        "ingredients": [
+            {"name": "almond butter, natural", "grams": 18, "contains": ["tree_nut"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "banana", "grams": 120, "contains": ["banana"], "diet_tags": ["vegan"], "is_compound": False},
+            {"name": "oats, dry", "grams": 30, "contains": ["oats"], "diet_tags": ["vegetarian"], "is_compound": False},
+        ],
+    },
 ]
