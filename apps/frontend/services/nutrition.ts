@@ -25,6 +25,27 @@ export type NutritionGenerateRequest = {
   batch_size: number;
 };
 
+export type MacroCalcRequest = {
+  sex: "male" | "female";
+  age: number;
+  height_cm: number;
+  weight_kg: number;
+  activity_level: "sedentary" | "light" | "moderate" | "very" | "athlete" | "active" | "very_active";
+};
+
+export type MacroCalcResponse = {
+  implemented: boolean;
+  message: string;
+  macros: {
+    tdee: number;
+    maintenance: number;
+    targets: NutritionTargets;
+    explanation: string;
+    activity_multiplier: number;
+    bmr: number;
+  };
+};
+
 export type NutritionGenerateResponse = {
   output: Record<string, any>;
   version_snapshot: NutritionVersionSnapshotV1;
@@ -60,6 +81,16 @@ export function useNutritionApi() {
       body: payload,
     });
   }
+  
+  async function macroCalc(payload: MacroCalcRequest) {
+    return await $fetch<MacroCalcResponse>("/nutrition/macro-calc", {
+      baseURL,
+      method: "POST",
+      body: payload,
+    });
+  }
 
-  return { generateNutrition, regenerateNutrition };
+
+    return { generateNutrition, regenerateNutrition, macroCalc };
+
 }

@@ -83,6 +83,8 @@ class MacroCalcRequest(BaseModel):
     weight_kg: Optional[float] = None
     activity_level: Optional[str] = None
     goal: Optional[str] = None
+    rate: Optional[str] = None  # "0.5" | "1" | "2"
+
 
 
 class MacroCalcResponse(BaseModel):

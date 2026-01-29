@@ -20,6 +20,45 @@ _ACTIVITY_FACTORS: dict[ActivityLevel, float] = {
     "very_active": 1.9,
 }
 
+# ---- Phase 4-A (Roadmap v4) macro-calc: metric + explicit multipliers ----
+
+V4ActivityLevel = Literal["sedentary", "light", "moderate", "very", "athlete"]
+
+_V4_ACTIVITY_FACTORS: dict[V4ActivityLevel, float] = {
+    "sedentary": 1.2,
+    "light": 1.375,
+    "moderate": 1.55,
+    "very": 1.725,
+    "athlete": 1.9,
+}
+
+def _round_nearest_10(x: float) -> int:
+    return int(round(x / 10.0) * 10)
+
+def _normalize_activity_level_v4(s: str) -> V4ActivityLevel:
+    """
+    Accepts strict Roadmap v4 labels + a few safe aliases without changing core planner logic.
+
+    Supported canonical (Roadmap v4):
+      sedentary, light, moderate, very, athlete
+
+    Safe aliases accepted:
+      very_active -> athlete
+      active -> very
+    """
+    raw = (s or "").strip().lower()
+    alias = {
+        "very_active": "athlete",
+        "active": "very",
+    }.get(raw, raw)
+
+    if alias not in _V4_ACTIVITY_FACTORS:
+        raise ValueError(
+            "invalid activity_level; expected one of: sedentary, light, moderate, very, athlete"
+        )
+    return alias  # type: ignore[return-value]
+
+
 _RATE_DELTAS: dict[Rate, int] = {
     "0.5": 250,
     "1": 500,
@@ -130,6 +169,85 @@ def calculate_calorie_targets(
         targets[("bulk", rate)] = maintenance + delta
 
     return CalorieTargets(bmr=bmr, maintenance=maintenance, targets=targets)
+
+def calculate_macro_calc_v4_metric(
+    *,
+    sex: Sex,
+    age: int,
+    height_cm: float,
+    weight_kg: float,
+    activity_level: str,
+) -> dict:
+    """
+    Roadmap v4 Phase 4-A deterministic macro calculator (no persistence, no LLM).
+
+    Formula:
+      Mifflin–St Jeor BMR:
+        Men:    10W + 6.25H - 5A + 5
+        Women:  10W + 6.25H - 5A - 161
+      TDEE = BMR * activity_multiplier
+
+    Rounding:
+      maintenance is rounded to nearest 10 kcal/day
+
+    Suggested targets:
+      uses existing _RATE_DELTAS mapping (0.5/1/2 lb per week -> 250/500/1000 kcal/day)
+    """
+    # Validation (fail-closed)
+    if sex not in ("male", "female"):
+        raise ValueError("sex must be 'male' or 'female'")
+    if age is None or age <= 0:
+        raise ValueError("age must be > 0")
+    if height_cm is None or height_cm <= 0:
+        raise ValueError("height_cm must be > 0")
+    if weight_kg is None or weight_kg <= 0:
+        raise ValueError("weight_kg must be > 0")
+
+    lvl = _normalize_activity_level_v4(activity_level)
+    mult = _V4_ACTIVITY_FACTORS[lvl]
+
+    bmr = calculate_bmr_mifflin(
+        weight=weight_kg,
+        height=height_cm,
+        age=age,
+        sex=sex,
+        units="metric",
+    )
+
+    tdee_raw = float(bmr) * float(mult)
+    maintenance = _round_nearest_10(tdee_raw)
+
+    cut: dict[str, int] = {}
+    bulk: dict[str, int] = {}
+
+    # Use existing deterministic delta mapping (do not change)
+    for rate, delta in _RATE_DELTAS.items():
+        cut[str(rate)] = maintenance - int(delta)
+        bulk[str(rate)] = maintenance + int(delta)
+
+    explanation_lines = [
+        "Formula: Mifflin–St Jeor (metric)",
+        f"Inputs: sex={sex}, age={age}, height_cm={height_cm}, weight_kg={weight_kg}, activity_level={lvl}",
+        f"BMR: {bmr} kcal/day",
+        f"Activity multiplier ({lvl}): {mult}",
+        f"TDEE (raw): {tdee_raw:.2f} kcal/day",
+        f"Maintenance (rounded to nearest 10): {maintenance} kcal/day",
+        "Rate deltas (lb/week): 0.5→250, 1→500, 2→1000 kcal/day",
+    ]
+
+    return {
+        "tdee": tdee_raw,
+        "maintenance": maintenance,
+        "targets": {
+            "maintenance": maintenance,
+            "cut": cut,
+            "bulk": bulk,
+        },
+        "explanation": "\n".join(explanation_lines),
+        "activity_multiplier": mult,
+        "bmr": bmr,
+    }
+
 
 
 def macros_for_calories(*, weight_lb: float, calories: int) -> MacroResult:

@@ -122,10 +122,31 @@ def test_nutrition_regenerate_meal_swap_diff_is_deterministic(client):
     assert "attempt 1" in joined
     assert "attempt 2" in joined
 
-def test_macro_calc_stub_returns_implemented_false(client):
-    r = client.post("/nutrition/macro-calc", json={})
+def test_macro_calc_returns_implemented_true_and_targets_shape(client):
+    req = {
+        "sex": "male",
+        "age": 25,
+        "height_cm": 180,
+        "weight_kg": 80,
+        "activity_level": "moderate",
+    }
+    r = client.post("/nutrition/macro-calc", json=req)
     assert r.status_code == 200
+
     body = r.json()
-    assert body["implemented"] is False
-    assert "scaffold" in body["message"].lower()
+    assert body["implemented"] is True
+    assert body["message"] == "ok"
+
+    macros = body["macros"]
+    assert "tdee" in macros
+    assert "maintenance" in macros
+    assert "targets" in macros
+    assert "explanation" in macros
+
+    # Planner target shape should match existing NutritionTargets
+    targets = macros["targets"]
+    assert set(targets.keys()) == {"maintenance", "cut", "bulk"}
+    assert set(targets["cut"].keys()) == {"0.5", "1", "2"}
+    assert set(targets["bulk"].keys()) == {"0.5", "1", "2"}
+
 

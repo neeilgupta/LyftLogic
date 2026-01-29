@@ -40,21 +40,187 @@
       </a>
     </section>
 
-    <section
-    style="
-        border: 1px solid #eee;
-        border-radius: 12px;
-        padding: 14px;
-        background: #fff;
-        margin-bottom: 14px;
-    "
-    >
-    <div style="font-weight: 800; margin-bottom: 6px;">Macro Calculator</div>
-    <div style="opacity: 0.75; margin-bottom: 10px;">
-        Coming next (Phase 4-A). This will compute targets before meal generation.
+<section
+  style="
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 14px;
+    background: #fff;
+    margin-bottom: 14px;
+  "
+>
+  <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom: 10px;">
+    <div style="font-weight: 800;">Macro Calculator</div>
+    <div v-if="macroResult" style="opacity: 0.7; font-size: 13px;">
+      TDEE {{ Math.round(macroResult.macros.tdee) }} • Maint {{ macroResult.macros.maintenance }}
     </div>
-    <button disabled :style="buttonStyle(true)">Calculate macros</button>
-    </section>
+  </div>
+
+  <div
+    style="
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    "
+  >
+    <label style="grid-column: span 2; display:flex; flex-direction:column; gap:6px;">
+      <span style="font-size: 12px; opacity: 0.75;">Sex</span>
+      <select
+        v-model="macroSex"
+        :disabled="macroLoading || nutritionLoading"
+        style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+      >
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+      </select>
+    </label>
+
+    <label style="grid-column: span 2; display:flex; flex-direction:column; gap:6px;">
+      <span style="font-size: 12px; opacity: 0.75;">Age</span>
+      <input
+        v-model.number="macroAge"
+        :disabled="macroLoading || nutritionLoading"
+        type="number"
+        inputmode="numeric"
+        min="1"
+        style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+      />
+    </label>
+
+    <label style="grid-column: span 2; display:flex; flex-direction:column; gap:6px;">
+    <span style="font-size: 12px; opacity: 0.75;">Height (ft)</span>
+    <input
+        v-model.number="macroHeightFt"
+        :disabled="macroLoading || nutritionLoading"
+        type="number"
+        inputmode="numeric"
+        min="0"
+        style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+    />
+    </label>
+
+    <label style="grid-column: span 2; display:flex; flex-direction:column; gap:6px;">
+    <span style="font-size: 12px; opacity: 0.75;">Height (in)</span>
+    <input
+        v-model.number="macroHeightIn"
+        :disabled="macroLoading || nutritionLoading"
+        type="number"
+        inputmode="numeric"
+        min="0"
+        max="11"
+        style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+    />
+    </label>
+
+    <label style="grid-column: span 2; display:flex; flex-direction:column; gap:6px;">
+    <span style="font-size: 12px; opacity: 0.75;">Weight (lb)</span>
+    <input
+        v-model.number="macroWeightLb"
+        :disabled="macroLoading || nutritionLoading"
+        type="number"
+        inputmode="numeric"
+        min="1"
+        style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+    />
+    </label>
+
+
+    <label style="grid-column: span 4; display:flex; flex-direction:column; gap:6px;">
+      <span style="font-size: 12px; opacity: 0.75;">Activity</span>
+      <select
+        v-model="macroActivity"
+        :disabled="macroLoading || nutritionLoading"
+        style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+      >
+        <option value="sedentary">Sedentary (1.2)</option>
+        <option value="light">Light (1.375)</option>
+        <option value="moderate">Moderate (1.55)</option>
+        <option value="very">Very (1.725)</option>
+        <option value="athlete">Athlete (1.9)</option>
+      </select>
+    </label>
+  </div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 10px;">
+    <button
+      :disabled="macroLoading || nutritionLoading"
+      @click="onMacroCalc"
+      :style="buttonStyle(macroLoading || nutritionLoading)"
+    >
+      {{ macroLoading ? "Calculating…" : "Calculate" }}
+    </button>
+
+    <div v-if="macroResult" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <div style="font-size: 13px; opacity: 0.85;">
+        <strong>Maintenance:</strong> {{ macroResult.macros.maintenance }} cal/day
+      </div>
+
+      <div style="font-size: 13px; opacity: 0.85;">
+        <strong>BMR:</strong> {{ macroResult.macros.bmr }} • <strong>Multiplier:</strong> {{ macroResult.macros.activity_multiplier }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Goal/rate selection (drives planner inputs) -->
+  <div v-if="macroResult"
+    style="
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    "
+  >
+    <label style="grid-column: span 3; display:flex; flex-direction:column; gap:6px;">
+      <span style="font-size: 12px; opacity: 0.75;">Goal</span>
+      <select
+        v-model="goal"
+        :disabled="macroLoading || nutritionLoading"
+        style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+      >
+        <option value="maintenance">Maintenance</option>
+        <option value="cut">Cut</option>
+        <option value="bulk">Bulk</option>
+      </select>
+    </label>
+
+    <label v-if="goal !== 'maintenance'" style="grid-column: span 3; display:flex; flex-direction:column; gap:6px;">
+      <span style="font-size: 12px; opacity: 0.75;">Rate</span>
+      <select
+        v-model="rate"
+        :disabled="macroLoading || nutritionLoading"
+        style="padding: 8px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+      >
+        <option value="0.5">0.5 lb/week</option>
+        <option value="1">1 lb/week</option>
+        <option value="2">2 lb/week</option>
+      </select>
+    </label>
+
+    <div style="grid-column: span 6; display:flex; flex-direction:column; justify-content:flex-end;">
+      <button
+        :disabled="macroLoading || nutritionLoading"
+        @click="onApplyTargetsAndGenerate"
+        :style="buttonStyle(macroLoading || nutritionLoading)"
+      >
+        Apply targets to planner & generate
+      </button>
+      <div style="font-size: 12px; opacity: 0.75; margin-top: 6px;">
+        Uses the Diet/Allergies/Meals-per-day inputs below for generation.
+      </div>
+    </div>
+  </div>
+
+  <div v-if="macroError" style="color:#b00020; font-size: 13px; margin-top: 10px;">
+    {{ macroError }}
+  </div>
+
+  <details v-if="macroResult" style="margin-top: 10px;">
+    <summary style="cursor: pointer; font-weight: 600; opacity: 0.85;">How this was calculated</summary>
+    <pre style="white-space: pre-wrap; margin-top: 8px;">{{ macroResult.macros.explanation }}</pre>
+  </details>
+</section>
+
 
 
 
@@ -71,12 +237,24 @@
       <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom: 12px;">
         <div style="font-weight: 800;">Inputs</div>
 
-        <div v-if="nutritionSnapshot" style="opacity: 0.7; font-size: 13px;">
-          v{{ nutritionSnapshot.version }} • {{ goalLabel }} • {{ calories }} cal
+        <div v-if="nutritionSnapshot" style="opacity: 0.7; font-size: 13px; text-align:right;">
+        v{{ nutritionSnapshot.version }} • {{ goalLabel }} • {{ selectedCaloriesFromTargets }} cal
+        <div style="font-size: 12px; opacity: 0.85;">
+            Maint {{ appliedTargets?.maintenance ?? "—" }} •
+            Cut {{ appliedTargets?.cut?.["0.5"] ?? "—" }}/{{ appliedTargets?.cut?.["1"] ?? "—" }}/{{ appliedTargets?.cut?.["2"] ?? "—" }} •
+            Bulk {{ appliedTargets?.bulk?.["0.5"] ?? "—" }}/{{ appliedTargets?.bulk?.["1"] ?? "—" }}/{{ appliedTargets?.bulk?.["2"] ?? "—" }}
         </div>
-        <div v-else style="opacity: 0.7; font-size: 13px;">
-          {{ goalLabel }}<span v-if="goal !== 'maintenance'"> ({{ rate }} lb/wk)</span> • {{ calories }} cal
         </div>
+
+        <div v-else style="opacity: 0.7; font-size: 13px; text-align:right;">
+        {{ goalLabel }}<span v-if="goal !== 'maintenance'"> ({{ rate }} lb/wk)</span> • {{ selectedCaloriesFromTargets }} cal
+        <div v-if="appliedTargets" style="font-size: 12px; opacity: 0.85;">
+            Maint {{ appliedTargets.maintenance }} •
+            Cut {{ appliedTargets.cut["0.5"] }}/{{ appliedTargets.cut["1"] }}/{{ appliedTargets.cut["2"] }} •
+            Bulk {{ appliedTargets.bulk["0.5"] }}/{{ appliedTargets.bulk["1"] }}/{{ appliedTargets.bulk["2"] }}
+        </div>
+        </div>
+
       </div>
 
       <!-- Minimal inputs grid -->
@@ -351,9 +529,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import NutritionDiff from "../components/NutritionDiff.vue";
-import { useNutritionApi, type NutritionTargets } from "../../services/nutrition";
+import { useNutritionApi, type NutritionTargets, type MacroCalcResponse } from "../../services/nutrition";
 
-const { generateNutrition, regenerateNutrition } = useNutritionApi();
+const { generateNutrition, regenerateNutrition, macroCalc } = useNutritionApi();
 
 const nutritionLoading = ref(false);
 const nutritionError = ref<string | null>(null);
@@ -362,6 +540,21 @@ const DEBUG_NUTRITION = false;
 const nutritionSnapshot = ref<any | null>(null);
 const nutritionOutput = ref<any | null>(null);
 const nutritionExplanations = ref<string[] | null>(null);
+
+const macroLoading = ref(false);
+const macroError = ref<string | null>(null);
+const macroResult = ref<MacroCalcResponse | null>(null);
+
+type MacroSex = "male" | "female";
+type MacroActivity = "sedentary" | "light" | "moderate" | "very" | "athlete";
+
+const macroSex = ref<MacroSex>("male");
+const macroAge = ref<number>(25);
+const macroHeightFt = ref<number>(5);
+const macroHeightIn = ref<number>(11);
+const macroWeightLb = ref<number>(175);
+const macroActivity = ref<MacroActivity>("moderate");
+
 
 type NutritionGoal = "maintenance" | "cut" | "bulk";
 type DietChoice =
@@ -385,9 +578,13 @@ const defaultNutritionTargets: NutritionTargets = {
   bulk: { "0.5": 2800, "1": 3000, "2": 3200 },
 };
 
+const plannerTargets = ref<NutritionTargets>({ ...defaultNutritionTargets });
+const appliedTargets = computed(() => plannerTargets.value);
+
+
 // UI state (fresh refresh resets state — expected)
 const goal = ref<NutritionGoal>("maintenance");
-const calories = ref<number>(defaultNutritionTargets.maintenance);
+const calories = computed(() => presetCaloriesFor(goal.value, rate.value));
 const mealsPerDay = ref<number | null>(null);
 const allergiesText = ref<string>("");
 const diet = ref<DietChoice>("none");
@@ -419,6 +616,11 @@ const goalLabel = computed(() => {
   return "Bulk";
 });
 
+const selectedCaloriesFromTargets = computed(() => {
+  return presetCaloriesFor(goal.value, rate.value);
+});
+
+
 function defaultCaloriesForGoal(g: NutritionGoal): number {
   if (g === "maintenance") return defaultNutritionTargets.maintenance;
 
@@ -440,36 +642,36 @@ function defaultCaloriesForGoal(g: NutritionGoal): number {
   );
 }
 
+function inchesFromFtIn(ft: number, inches: number): number {
+  const f = Number.isFinite(ft) ? ft : 0;
+  const i = Number.isFinite(inches) ? inches : 0;
+  return f * 12 + i;
+}
+
+function cmFromInches(totalIn: number): number {
+  return totalIn * 2.54;
+}
+
+function kgFromLb(lb: number): number {
+  return lb * 0.45359237;
+}
+
+
 function presetCaloriesFor(goal: NutritionGoal, r: RateChoice): number {
-  if (goal === "maintenance") return defaultNutritionTargets.maintenance;
+  const t = plannerTargets.value;
+
+  if (goal === "maintenance") return t.maintenance;
 
   if (goal === "cut") {
-    return (
-      defaultNutritionTargets.cut[r] ??
-      defaultNutritionTargets.cut["1"] ??
-      defaultNutritionTargets.maintenance
-    );
+    return t.cut[r] ?? t.cut["1"] ?? t.maintenance;
   }
 
   // bulk
-  return (
-    defaultNutritionTargets.bulk[r] ??
-    defaultNutritionTargets.bulk["1"] ??
-    defaultNutritionTargets.maintenance
-  );
+  return t.bulk[r] ?? t.bulk["1"] ?? t.maintenance;
 }
 
 
 
-
-// Small UX win: when goal changes, snap calories to that goal’s default.
-// (Still deterministic; no backend changes.)
-watch(
-  [() => goal.value, () => rate.value],
-  ([g, r]) => {
-    calories.value = presetCaloriesFor(g, r);
-  }
-);
 
 const allergies = computed<string[]>(() => {
   return allergiesText.value
@@ -487,10 +689,11 @@ function buildNutritionBaseRequest(inputs: {
   diet: DietChoice;
 }) {
   const targets: NutritionTargets = {
-    maintenance: defaultNutritionTargets.maintenance,
-    cut: { ...defaultNutritionTargets.cut },
-    bulk: { ...defaultNutritionTargets.bulk },
+    maintenance: plannerTargets.value.maintenance,
+    cut: { ...plannerTargets.value.cut },
+    bulk: { ...plannerTargets.value.bulk },
   };
+
 
   // Map the single calories input onto the selected goal.
   // Backend doesn’t use targets for generation today, but it’s correct for snapshot/versioning.
@@ -652,6 +855,60 @@ const groupedMeals = computed<Record<MealSlot, any[]>>(() => {
 function getMealsForSlot(slotKey: string): any[] {
   return (groupedMeals.value as Record<string, any[]>)[slotKey] ?? [];
 }
+
+async function onMacroCalc() {
+  macroLoading.value = true;
+  macroError.value = null;
+
+  try {
+    const totalIn = inchesFromFtIn(macroHeightFt.value, macroHeightIn.value);
+
+    // Fail-closed frontend validation (keeps UI errors clean)
+    if (totalIn <= 0) throw new Error("Height must be > 0.");
+    if (!Number.isFinite(macroWeightLb.value) || macroWeightLb.value <= 0) throw new Error("Weight must be > 0.");
+
+    const res = await macroCalc({
+        sex: macroSex.value,
+        age: macroAge.value,
+        height_cm: cmFromInches(totalIn),
+        weight_kg: kgFromLb(macroWeightLb.value),
+        activity_level: macroActivity.value,
+    });
+
+
+    if (!res.implemented) {
+      throw new Error(res.message || "Macro calculator not implemented.");
+    }
+
+    macroResult.value = res;
+
+    // Do NOT auto-apply. Just update preview calories to match computed targets
+    // (stays deterministic; user still controls Apply)
+    plannerTargets.value = { ...res.macros.targets };
+  } catch (e: any) {
+    macroError.value = e?.data?.detail ?? e?.message ?? String(e);
+    macroResult.value = null;
+  } finally {
+    macroLoading.value = false;
+  }
+}
+
+async function onApplyTargetsAndGenerate() {
+  // Fail closed: must have a valid calc result
+  if (!macroResult.value) {
+    macroError.value = "Run Calculate first.";
+    return;
+  }
+  macroError.value = null;
+
+  // Apply the targets deterministically (plannerTargets drives snapshot + header display)
+  plannerTargets.value = { ...macroResult.value.macros.targets };
+
+
+  // Immediately generate (Option A)
+  await onNutritionGenerate();
+}
+
 
 
 async function onNutritionGenerate() {
