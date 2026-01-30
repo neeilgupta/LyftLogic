@@ -1,20 +1,12 @@
 <template>
-  <main style="padding: 20px; font-family: system-ui; max-width: 1200px; margin: 0 auto;">
+  <main class="nutrition-page">
     <h1 style="margin: 0 0 10px;">Nutrition</h1>
     <p style="margin: 0 0 18px; opacity: 0.8;">
       Generate and iterate meal plans independently of training.
     </p>
 
         <!-- Maintenance calories guidance -->
-    <section
-      style="
-        border: 1px solid #eee;
-        border-radius: 12px;
-        padding: 14px;
-        background: #fafafa;
-        margin-bottom: 14px;
-      "
-    >
+    <section class="ll-card ll-card-muted">
       <div style="font-weight: 800; margin-bottom: 6px;">
         How to find your maintenance calories
       </div>
@@ -40,15 +32,7 @@
       </a>
     </section>
 
-<section
-  style="
-    border: 1px solid #eee;
-    border-radius: 12px;
-    padding: 14px;
-    background: #fff;
-    margin-bottom: 14px;
-  "
->
+<section class="ll-card">
   <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom: 10px;">
     <div style="font-weight: 800;">Macro Calculator</div>
     <div v-if="macroResult" style="opacity: 0.7; font-size: 13px;">
@@ -235,15 +219,7 @@
 
 
     <!-- Inputs + Controls -->
-    <section
-      style="
-        border: 1px solid #eee;
-        border-radius: 12px;
-        padding: 14px;
-        background: #fff;
-        margin-bottom: 14px;
-      "
-    >
+    <section class="ll-card">
       <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom: 12px;">
         <div style="font-weight: 800;">Inputs</div>
 
@@ -390,16 +366,7 @@
     </section>
 
         <!-- Generated meals -->
-    <section
-      v-if="nutritionOutput"
-      style="
-        border: 1px solid #eee;
-        border-radius: 12px;
-        padding: 14px;
-        background: #fff;
-        margin-bottom: 14px;
-      "
-    >
+    <section v-if="nutritionOutput" class="ll-card">
       <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom: 10px;">
         <div style="font-weight: 800;">Meal Plan</div>
         <div style="opacity: 0.7; font-size: 13px;">
@@ -423,10 +390,12 @@
 
             <div style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px;">
             <div
-                v-for="(meal, idx) in getMealsForSlot(slot.key)"
-                :key="meal.template_key || meal.key || meal.name || idx"
-                style="grid-column: span 6; border: 1px solid #eee; border-radius: 12px; padding: 12px;"
+              v-for="(meal, idx) in getMealsForSlot(slot.key)"
+              :key="meal.template_key || meal.key || meal.name || idx"
+              class="meal-card"
+              style="grid-column: span 6;"
             >
+
                 <div style="font-weight: 700; margin-bottom: 6px;">
                 {{ meal.name }}
                 <div style="font-size: 11px; opacity: 0.6; margin-bottom: 6px;">
@@ -495,28 +464,12 @@
 
 
     <!-- Diff / Explanations -->
-    <section
-      style="
-        border: 1px solid #eee;
-        border-radius: 12px;
-        padding: 14px;
-        background: #fff;
-        margin-bottom: 14px;
-      "
-    >
+    <section class="ll-card">
       <NutritionDiff :explanations="nutritionExplanations" :version="nutritionSnapshot?.version ?? null" />
     </section>
 
     <!-- Raw JSON -->
-    <section
-      v-if="nutritionSnapshot"
-      style="
-        border: 1px solid #eee;
-        border-radius: 12px;
-        padding: 14px;
-        background: #fff;
-      "
-    >
+    <section v-if="nutritionSnapshot" class="ll-card">
       <div style="font-weight: 800; margin-bottom: 8px;">Raw JSON</div>
 
       <details style="margin-bottom: 10px;">
@@ -1003,3 +956,73 @@ async function onNutritionRegenerate() {
   }
 }
 </script>
+
+<style scoped>
+/* === Theme tokens (purple / black / silver-grey) === */
+.nutrition-page {
+  --accent: #7c3aed;         /* purple */
+  --accent-dark: #6d28d9;
+  --ink: #0b0f19;            /* near-black */
+  --muted: #6b7280;          /* gray text */
+  --bg: #0f172a;             /* optional dark, not used yet */
+  --page: #f5f6f8;           /* silver-grey background */
+  --surface: #ffffff;        /* card surface */
+  --surface-2: #f9fafb;      /* muted card surface */
+  --border: #e5e7eb;         /* silver border */
+  --shadow: 0 8px 24px rgba(0,0,0,0.06);
+
+  background: var(--page);
+  color: var(--ink);
+  padding: 20px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Card wrapper */
+.ll-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.ll-card-muted {
+  background: var(--surface-2);
+}
+
+/* Meal cards */
+.meal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.meal-card:hover {
+  border-color: rgba(124, 58, 237, 0.45);
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.10);
+  transform: translateY(-1px);
+}
+
+/* Details styling (keeps your existing <details> nice) */
+details {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fafafa;
+}
+
+details summary {
+  cursor: pointer;
+}
+
+/* Mobile: make meal cards full width */
+@media (max-width: 768px) {
+  .nutrition-page { padding: 14px 12px; }
+}
+</style>
+
