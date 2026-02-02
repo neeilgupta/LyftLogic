@@ -235,6 +235,14 @@ def calculate_macro_calc_v4_metric(
         "Rate deltas (lb/week): 0.5→250, 1→500, 2→1000 kcal/day",
     ]
 
+    debug_targets = {
+        "maintenance": maintenance,
+        "cut_expected": {r: maintenance - d for r, d in _RATE_DELTAS.items()},
+        "bulk_expected": {r: maintenance + d for r, d in _RATE_DELTAS.items()},
+        "cut_actual": cut,
+        "bulk_actual": bulk,
+    }
+
     return {
         "tdee": tdee_raw,
         "maintenance": maintenance,
@@ -246,6 +254,7 @@ def calculate_macro_calc_v4_metric(
         "explanation": "\n".join(explanation_lines),
         "activity_multiplier": mult,
         "bmr": bmr,
+        "debug_targets": debug_targets,
     }
 
 

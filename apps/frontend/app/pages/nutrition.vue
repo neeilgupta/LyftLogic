@@ -667,6 +667,7 @@ const allergies = computed<string[]>(() => {
 // Pure function: inputs -> request payload (no side effects)
 function buildNutritionBaseRequest(inputs: {
   goal: NutritionGoal;
+  rate: "0.5" | "1" | "2" | null; // ✅ add this
   calories: number;
   mealsPerDay: number | null; // <-- allow blank/infer
   allergies: string[];
@@ -678,19 +679,21 @@ function buildNutritionBaseRequest(inputs: {
     bulk: { ...plannerTargets.value.bulk },
   };
 
-
-  // Map the single calories input onto the selected goal.
-  // Backend doesn’t use targets for generation today, but it’s correct for snapshot/versioning.
+  // ✅ Only update the selected goal + selected rate
+  // Keep the rest of the table intact for snapshot/versioning.
   if (inputs.goal === "maintenance") {
     targets.maintenance = inputs.calories;
   } else if (inputs.goal === "cut") {
-    targets.cut = { "0.5": inputs.calories, "1": inputs.calories, "2": inputs.calories };
-  } else {
-    targets.bulk = { "0.5": inputs.calories, "1": inputs.calories, "2": inputs.calories };
+    const r = (inputs.rate ?? "1");
+    targets.cut = { ...targets.cut, [r]: inputs.calories };
+  } else if (inputs.goal === "bulk") {
+    const r = (inputs.rate ?? "1");
+    targets.bulk = { ...targets.bulk, [r]: inputs.calories };
   }
 
   const req: any = {
     targets,
+    target_calories: inputs.calories,
     diet: inputs.diet === "none" ? null : inputs.diet,
     allergies: inputs.allergies,
     max_attempts: 10,
@@ -710,6 +713,7 @@ function buildNutritionBaseRequest(inputs: {
 
   return req;
 }
+
 
 
 function pretty(x: any) {
@@ -859,18 +863,35 @@ async function onMacroCalc() {
   try {
     const totalIn = inchesFromFtIn(macroHeightFt.value, macroHeightIn.value);
 
+    // ===== BLOCK 0 DEBUG: MACRO CALC (payload + conversions) =====
+    const heightCmDebug = cmFromInches(totalIn);
+    const weightKgDebug = kgFromLb(macroWeightLb.value);
+
+    console.log("[BLOCK 0] Macro Calc — frontend inputs + converted payload", {
+      sex: macroSex.value,
+      age: macroAge.value,
+      height_ft: macroHeightFt.value,
+      height_in: macroHeightIn.value,
+      total_inches: totalIn,
+      height_cm: heightCmDebug,
+      weight_lb: macroWeightLb.value,
+      weight_kg: weightKgDebug,
+      activity_level: macroActivity.value,
+    });
+    // ============================================================
+
     // Fail-closed frontend validation (keeps UI errors clean)
     if (totalIn <= 0) throw new Error("Height must be > 0.");
-    if (!Number.isFinite(macroWeightLb.value) || macroWeightLb.value <= 0) throw new Error("Weight must be > 0.");
+    if (!Number.isFinite(macroWeightLb.value) || macroWeightLb.value <= 0)
+      throw new Error("Weight must be > 0.");
 
     const res = await macroCalc({
-        sex: macroSex.value,
-        age: macroAge.value,
-        height_cm: cmFromInches(totalIn),
-        weight_kg: kgFromLb(macroWeightLb.value),
-        activity_level: macroActivity.value,
+      sex: macroSex.value,
+      age: macroAge.value,
+      height_cm: heightCmDebug,
+      weight_kg: weightKgDebug,
+      activity_level: macroActivity.value,
     });
-
 
     if (!res.implemented) {
       throw new Error(res.message || "Macro calculator not implemented.");
@@ -888,6 +909,7 @@ async function onMacroCalc() {
     macroLoading.value = false;
   }
 }
+
 
 async function onApplyTargetsAndGenerate() {
   // Fail closed: must have a valid calc result
@@ -913,6 +935,10 @@ async function onNutritionGenerate() {
 
   try {
     const base = buildNutritionBaseRequest(currentInputs());
+    console.log(
+      "[BLOCK 0] Nutrition Generate — payload sent to backend",
+      JSON.parse(JSON.stringify(base))
+    );
     const res = await generateNutrition(base);
     nutritionSnapshot.value = res.version_snapshot;
     nutritionOutput.value = res.output ?? null;

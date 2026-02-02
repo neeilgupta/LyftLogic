@@ -34,9 +34,10 @@ class NutritionGenerateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     targets: NutritionTargets
-
+    target_calories: Optional[int] = Field(default=None, ge=900, le=4500) 
     diet: Optional[str] = None
     allergies: List[str] = Field(default_factory=list)
+    
 
     meals_needed: int = Field(ge=0, le=20)
     batch_size: int = Field(ge=0, le=20)
@@ -56,7 +57,7 @@ class NutritionRegenerateRequest(BaseModel):
     prev_snapshot: NutritionVersionV1
 
     targets: NutritionTargets
-
+    target_calories: Optional[int] = Field(default=None, ge=900, le=4500)
     diet: Optional[str] = None
     allergies: List[str] = Field(default_factory=list)
 
