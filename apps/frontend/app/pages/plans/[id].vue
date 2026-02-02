@@ -1,28 +1,16 @@
 <template>
-  <main style="padding: 20px; font-family: system-ui; max-width: 1200px; margin: 0 auto;">
-    <nav style="margin-bottom: 16px;">
-      <NuxtLink to="/" style="text-decoration: underline;">← Back to home</NuxtLink>
+  <main class="plan-detail-page">    <nav style="margin-bottom: 16px;">
+      <NuxtLink to="/" class="nav-link">← Back to home</NuxtLink>
       <span style="margin: 0 10px;">·</span>
-      <NuxtLink to="/generate" style="text-decoration: underline;">Generate another plan</NuxtLink>
+      <NuxtLink to="/generate" class="nav-link">Generate another plan</NuxtLink>
       <span style="margin: 0 10px;">·</span>
-      <NuxtLink to="/plans" style="text-decoration: underline;">All plans</NuxtLink>
+      <NuxtLink to="/plans" class="nav-link">All plans</NuxtLink>
     </nav>
 
     <!-- ========================= -->
     <!-- Phase 2: Version Bar (Always Visible) -->
     <!-- ========================= -->
-    <div
-      style="
-        margin-bottom: 14px;
-        border: 1px solid #eee;
-        border-radius: 12px;
-        padding: 12px;
-        background: #fff;
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        flex-wrap: wrap;
-      "
+    <div class="version-bar"
     >
       <div style="font-weight: 800;">
         Version
@@ -41,7 +29,7 @@
         <select
           v-model.number="selectedVersionNumber"
           :disabled="versionsPending"
-          style="padding: 6px 10px; border-radius: 10px; border: 1px solid #ddd; background: white;"
+          class="version-select"
         >
           <option v-if="versionsPending" :value="null">Loading versions…</option>
           <option v-else-if="!versions.length" :value="null">No versions</option>
@@ -61,8 +49,7 @@
           v-if="selectedVersionNumber != null && selectedVersionNumber !== latestVersionNumber"
           :disabled="restoring || versionsPending"
           @click="restoreSelected"
-          style="padding: 6px 10px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
-        >
+            class="restore-button"        >
           {{ restoring ? "Restoring…" : "Restore this version" }}
         </button>
 
@@ -86,7 +73,7 @@
       <p style="margin: 0 0 18px; opacity: 0.85;">{{ selectedOutput.summary }}</p>
 
       <!-- Global notes -->
-      <div style="border: 1px solid #eee; border-radius: 12px; padding: 14px; margin-bottom: 14px;">
+      <div class="notes-card">
         <div v-if="selectedOutput.progression_notes?.length" style="margin-bottom: 10px;">
           <h3
   style="
@@ -170,13 +157,7 @@
       <div
         v-if="displayDiff !== null"
 
-        style="
-          margin-bottom: 14px;
-          border: 1px solid #eee;
-          border-radius: 12px;
-          padding: 12px;
-          background: #fff;
-        "
+        class="diff-card"
       >
         <div style="font-weight: 800; margin-bottom: 6px;">What changed</div>
 
@@ -248,7 +229,7 @@
         v-for="(day, i) in selectedOutput.weekly_split"
         :key="i"
         :id="`day-${i}`"
-        style="border: 1px solid #eee; border-radius: 12px; padding: 14px; margin-bottom: 14px;"
+        class="day-card"
       >
         <h2 style="margin: 0 0 6px; font-weight: 600;">
           {{ day.day }} — {{ isRestDay(day) ? "Rest Day" : day.focus }}
@@ -281,7 +262,7 @@
       <!-- ========================= -->
       <!-- Phase 1: Chat Panel -->
       <!-- ========================= -->
-      <section style="position: sticky; top: 14px; border: 1px solid #eee; border-radius: 12px; padding: 14px; height: calc(100vh - 140px); display: flex; flex-direction: column;">
+      <section class="chat-panel">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;">
           <div>
             <div style="font-weight: 800;">Chat</div>
@@ -295,14 +276,14 @@
         </div>
 
         <!-- Messages -->
-        <div ref="chatScrollEl" style="flex: 1; overflow: auto; border: 1px solid #eee; border-radius: 12px; padding: 10px; background: #fafafa;">
+        <div ref="chatScrollEl" class="chat-messages">
           <div v-if="!chatHistory.length" style="opacity: 0.7; font-size: 13px; padding: 10px;">
             No edits yet — send a message to start.
           </div>
 
           <div v-for="(m, i) in chatHistory" :key="`ch-${i}`" style="margin-bottom: 10px;">
             <div style="display: flex; justify-content: flex-end;">
-              <div style="max-width: 85%; background: white; border: 1px solid #e6e6e6; border-radius: 12px; padding: 10px;">
+              <div class="chat-message">
                 <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px;">You</div>
                 <div style="white-space: pre-wrap; word-break: break-word;">{{ m.message }}</div>
                 <div style="opacity: 0.6; font-size: 12px; margin-top: 6px;">
@@ -327,21 +308,13 @@
             v-model="editMessage"
             rows="3"
             placeholder="Type an adjustment…"
-            style="
-              width: 100%;
-              padding: 10px;
-              border: 1px solid #ddd;
-              border-radius: 10px;
-              font-family: inherit;
-              font-size: 14px;
-              line-height: 1.4;
-            "
+            class="chat-textarea"
           />
           <div style="display: flex; gap: 10px; margin-top: 8px; align-items: center;">
             <button
               :disabled="editPending || applyPending || !editMessage.trim()"
               @click="sendEditAndApply()"
-              style="padding: 10px 12px; border-radius: 10px; border: 1px solid #ddd; background: white; cursor: pointer;"
+              class="send-button"
             >
               {{ (editPending || applyPending) ? "Working…" : "Send" }}
             </button>
@@ -1027,3 +1000,205 @@ lastDiff.value = (applyRes as any)?.diff ?? null;
 }
 
 </script>
+<style scoped>
+/* Global dark theme setup */
+:global(html),
+:global(body) {
+  background: #0b0f19;
+  margin: 0;
+}
+
+:global(#__nuxt) {
+  background: #0b0f19;
+  min-height: 100vh;
+}
+
+.plan-detail-page {
+  --accent: #7c3aed;
+  --accent-dark: #6d28d9;
+  --ink: #f8fafc;
+  --muted: #a1a1aa;
+  --page: #0b0f19;
+  --surface: #111827;
+  --surface-2: #0f172a;
+  --border: rgba(255,255,255,0.10);
+  --shadow: 0 10px 30px rgba(0,0,0,0.35);
+
+  background: var(--page);
+  color: var(--ink);
+  padding: 32px 48px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  max-width: 1500px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* Navigation links */
+.nav-link {
+  color: rgba(255,255,255,0.88);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 140ms ease;
+}
+
+.nav-link:hover {
+  color: var(--accent);
+}
+
+/* Version bar */
+.version-bar {
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow);
+}
+
+.version-select {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.restore-button {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+
+.restore-button:hover:not(:disabled) {
+  background: var(--accent-dark);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
+}
+
+.restore-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Notes card */
+.notes-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* Diff card */
+.diff-card {
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* Day card */
+.day-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* Chat panel */
+.chat-panel {
+  position: sticky;
+  top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  height: calc(100vh - 140px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--surface-2);
+}
+
+.chat-message {
+  max-width: 85%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.chat-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  background: var(--surface-2);
+  color: var(--ink);
+  resize: vertical;
+  transition: border-color 140ms ease;
+}
+
+.chat-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+.chat-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.send-button {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+
+.send-button:hover:not(:disabled) {
+  background: var(--accent-dark);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
+}
+
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .plan-detail-page {
+    padding: 20px 16px;
+  }
+}
+</style>

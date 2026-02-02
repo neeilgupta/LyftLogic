@@ -424,7 +424,7 @@
                 </summary>
 
                 <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
-                    <div style="background: #fafafa; border-radius: 8px; padding: 8px;">
+                    <div class="meal-card__detail-panel">
                     <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">Macros</div>
                     <div style="font-size: 11px; line-height: 1.5; opacity: 0.85;">
                         <div>Calories: {{ meal.macros?.calories ?? 0 }}</div>
@@ -434,7 +434,7 @@
                     </div>
                     </div>
 
-                    <div style="background: #fafafa; border-radius: 8px; padding: 8px;">
+                    <div class="meal-card__detail-panel">
                     <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">Ingredients</div>
                     <ul style="margin: 0; padding-left: 16px; font-size: 11px;">
                         <li v-for="(ing, j) in meal.ingredients ?? []" :key="j">
@@ -958,25 +958,45 @@ async function onNutritionRegenerate() {
 </script>
 
 <style scoped>
+/* Make the dark theme cover the entire app page, not just the centered container */
+:global(html),
+:global(body) {
+  background: #0b0f19;
+  margin: 0;
+}
+
+/* Also force Nuxt root container to match (removes the white frame/border) */
+:global(#__nuxt) {
+  background: #0b0f19;
+  min-height: 100vh;
+}
+
 /* === Theme tokens (purple / black / silver-grey) === */
 .nutrition-page {
   --accent: #7c3aed;         /* purple */
   --accent-dark: #6d28d9;
-  --ink: #0b0f19;            /* near-black */
-  --muted: #6b7280;          /* gray text */
-  --bg: #0f172a;             /* optional dark, not used yet */
-  --page: #f5f6f8;           /* silver-grey background */
-  --surface: #ffffff;        /* card surface */
-  --surface-2: #f9fafb;      /* muted card surface */
-  --border: #e5e7eb;         /* silver border */
-  --shadow: 0 8px 24px rgba(0,0,0,0.06);
+  --ink: #f8fafc;            /* light text */
+  --muted: #a1a1aa;          /* muted text */
+  --page: #0b0f19;           /* near-black background */
+  --surface: #111827;        /* card surface */
+  --surface-2: #0f172a;      /* muted card surface */
+  --border: rgba(255,255,255,0.10);
+  --shadow: 0 10px 30px rgba(0,0,0,0.35);
 
   background: var(--page);
   color: var(--ink);
-  padding: 20px;
+  padding: 32px 48px;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  max-width: 1100px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Widen centered content rail */
+.nutrition-page > * {
+  max-width: 1500px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Card wrapper */
@@ -986,7 +1006,7 @@ async function onNutritionRegenerate() {
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow);
 }
 
 .ll-card-muted {
@@ -1008,21 +1028,62 @@ async function onNutritionRegenerate() {
   transform: translateY(-1px);
 }
 
+/* Sub-panels inside meal-card <details> (Macros / Ingredients chips) */
+.meal-card__detail-panel {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+/* === Buttons — override ONLY buttons using buttonStyle() === */
+.nutrition-page button[style] {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 13px;
+  transition: background 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+.nutrition-page button[style]:hover:not(:disabled) {
+  background: var(--accent-dark) !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
+}
+
+.nutrition-page button[style]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.nutrition-page button[style]:disabled {
+  background: var(--accent) !important;
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  box-shadow: none;
+}
+
+/* === Section header spacing — normalize standalone headers === */
+/* Bare card headers (not inside a flex row) use scattered 6–8px margins inline.
+   This brings them to a uniform 10px to match the flex-row headers. */
+.ll-card > div[style*="font-weight: 800"] {
+  margin-bottom: 10px !important;
+}
+
 /* Details styling (keeps your existing <details> nice) */
 details {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px;
-  background: #fafafa;
+  background: var(--surface-2);
 }
 
 details summary {
   cursor: pointer;
 }
 
-/* Mobile: make meal cards full width */
-@media (max-width: 768px) {
-  .nutrition-page { padding: 14px 12px; }
+@media (max-width: 900px) {
+  .nutrition-page {
+    padding: 20px 16px;
+  }
 }
 </style>
-
