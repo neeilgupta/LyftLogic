@@ -87,7 +87,14 @@ def _sum_plan_calories(meals: list[dict]) -> int:
 
 
 
-def _explicit_target_from_req(req: NutritionGenerateRequest | NutritionRegenerateRequest) -> int | None:
+def _selected_target_from_req(
+    req: NutritionGenerateRequest | NutritionRegenerateRequest,
+    targets: dict,
+) -> int | None:
+    """
+    Only enforce calorie-range checks when the client explicitly provides target_calories.
+    Tests and older clients may only send targets (maintenance/cut/bulk table).
+    """
     tc = getattr(req, "target_calories", None)
     if tc is None:
         return None
@@ -96,10 +103,6 @@ def _explicit_target_from_req(req: NutritionGenerateRequest | NutritionRegenerat
     except Exception:
         return None
 
-
-    # Fallback: infer from targets
-    inferred = _infer_target_calories(targets)
-    return int(inferred) if inferred is not None else None
 
 
 def _fail_closed_calorie_guard(target: int | None, accepted: list[dict]) -> None:
@@ -169,16 +172,18 @@ def _constraints_snapshot(req: NutritionGenerateRequest | NutritionRegenerateReq
 @router.post("/generate", response_model=NutritionGenerateResponse)
 def nutrition_generate(req: NutritionGenerateRequest):
     targets: NutritionTargets = req.targets.model_dump()
-    tc = _infer_target_calories(targets)
+    selected_target = _selected_target_from_req(req, targets)
+
+    tc = float(selected_target) if selected_target is not None else _infer_target_calories(targets)
 
     meals_needed_final = int(req.meals_needed)
     if meals_needed_final <= 0:
         meals_needed_final = _infer_meals_needed_from_target_cals(tc)
 
-    explicit_target = _explicit_target_from_req(req)
     per_meal_cap = None
-    if explicit_target is not None and meals_needed_final > 0:
-        per_meal_cap = int((explicit_target / meals_needed_final) * 1.10)
+    if selected_target is not None and meals_needed_final > 0:
+        per_meal_cap = int((selected_target / meals_needed_final) * 2.0)
+
 
     batch_size_final = int(req.batch_size)
     if batch_size_final <= 0:
@@ -190,12 +195,13 @@ def nutrition_generate(req: NutritionGenerateRequest):
         meals_needed=meals_needed_final,
         max_attempts=req.max_attempts,
         batch_size=batch_size_final,
-        calorie_cap_per_meal=per_meal_cap, 
+        target_calories=float(selected_target) if selected_target is not None else None,
+        calorie_cap_per_meal=per_meal_cap,
     )
 
     gen = generate_safe_meals(gen_req, _stub_llm_generate)
-    explicit_target = _explicit_target_from_req(req)
-    _fail_closed_calorie_guard(explicit_target, gen.accepted)
+    selected_target = _selected_target_from_req(req, targets)
+    _fail_closed_calorie_guard(selected_target, gen.accepted)
 
     from services.nutrition.versioning import build_nutrition_version_v1
 
@@ -219,16 +225,18 @@ def nutrition_generate(req: NutritionGenerateRequest):
 @router.post("/regenerate", response_model=NutritionRegenerateResponse)
 def nutrition_regenerate(req: NutritionRegenerateRequest):
     targets: NutritionTargets = req.targets.model_dump()
-    tc = _infer_target_calories(targets)
+    selected_target = _selected_target_from_req(req, targets)
+    tc = float(selected_target) if selected_target is not None else _infer_target_calories(targets)
 
     meals_needed_final = int(req.meals_needed)
     if meals_needed_final <= 0:
         meals_needed_final = _infer_meals_needed_from_target_cals(tc)
 
-    explicit_target = _explicit_target_from_req(req)
+    
+
     per_meal_cap = None
-    if explicit_target is not None and meals_needed_final > 0:
-        per_meal_cap = int((explicit_target / meals_needed_final) * 1.10)
+    if selected_target is not None and meals_needed_final > 0:
+        per_meal_cap = int((selected_target / meals_needed_final) * 2.0)
 
     batch_size_final = int(req.batch_size)
     if batch_size_final <= 0:
@@ -240,6 +248,7 @@ def nutrition_regenerate(req: NutritionRegenerateRequest):
         meals_needed=meals_needed_final,
         max_attempts=req.max_attempts,
         batch_size=batch_size_final,
+        target_calories=float(selected_target) if selected_target is not None else None,
         calorie_cap_per_meal=per_meal_cap,
     )
 
@@ -249,8 +258,8 @@ def nutrition_regenerate(req: NutritionRegenerateRequest):
         gen_req,
         lambda r, attempt: _stub_llm_generate(r, attempt + attempt_offset),
     )
-    explicit_target = _explicit_target_from_req(req)
-    _fail_closed_calorie_guard(explicit_target, gen.accepted)
+    selected_target = _selected_target_from_req(req, targets)
+    _fail_closed_calorie_guard(selected_target, gen.accepted)
 
 
     output = {

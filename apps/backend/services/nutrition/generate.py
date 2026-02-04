@@ -23,6 +23,10 @@ class GenerationRequest:
     batch_size: int    # meals per LLM call
     calorie_cap_per_meal: int | None = None 
 
+    target_calories: float | None = None
+
+    calorie_cap_per_meal: int | None = None
+
 
 @dataclass(frozen=True)
 class GenerationResult:
@@ -45,10 +49,10 @@ def required_diet_tags_for_user(diet: Optional[str]) -> set[str]:
         return {"vegan"}
 
     if d == "vegetarian":
-        return {"vegetarian"}
+        return {"vegetarian", "vegan"}
 
     if d == "pescatarian":
-        return {"pescatarian"}
+        return {"pescatarian", "vegetarian", "vegan"}
 
     # Fail-open: unknown diet strings impose no required tags
     return set()

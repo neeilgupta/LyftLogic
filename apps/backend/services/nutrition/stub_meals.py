@@ -5,9 +5,17 @@ import hashlib
 import math
 from typing import Any, Iterable
 
-from .ingredients_pantry import INGREDIENT_PANTRY_PER_100G
-from .meal_library import MEAL_LIBRARY
-from services.nutrition.allergens import build_allergen_set
+try:
+    from .ingredients_pantry import INGREDIENT_PANTRY_PER_100G
+    from .meal_library import MEAL_LIBRARY
+    from services.nutrition.allergens import build_allergen_set
+except ImportError:
+    # Fallback for standalone testing
+    from meal_library import MEAL_LIBRARY
+    # Create minimal mocks for testing
+    INGREDIENT_PANTRY_PER_100G = {}
+    def build_allergen_set(allergies):
+        return set(str(a).lower() for a in allergies if a)
 
 
 # Ingredient name aliases: map common/shorthand names to pantry keys
@@ -180,10 +188,11 @@ def _diet_required_tags(diet: Any) -> set[str]:
     if d == "vegan":
         return {"vegan"}
     if d == "vegetarian":
-        return {"vegetarian", "vegan"}  # vegan satisfies vegetarian
+        return {"vegetarian", "vegan"}
     if d == "pescatarian":
-        return {"pescatarian", "vegan"}  # allow vegan meals too
-    return set()  # fail-open for keto/halal/etc
+        return {"pescatarian", "vegetarian", "vegan"}  # ✅ FIX
+    return set()
+
 
 
 def _meal_allowed_by_diet(meal: dict[str, Any], required: set[str]) -> bool:
@@ -533,7 +542,7 @@ def _multi_meal_calorie_close_carbs(
         return
 
     # Walk meals last -> first for determinism
-    for _pass in range(2):  # two passes is enough for v1
+    for _pass in range(6):  # two passes is enough for v1
         totals = _sum_macros(meals)
         delta = float(target_cals) - float(totals["calories"])
         if abs(delta) <= tolerance_cals:
@@ -563,8 +572,8 @@ def _multi_meal_calorie_close_carbs(
                 meal,
                 idx,
                 grams_needed,
-                per_step_cap_g=250.0,
-                abs_cap_g=650.0,
+                per_step_cap_g=500.0,  # Increased from 250.0
+                abs_cap_g=1000.0,        # Increased from 650.0
             )
             if not changed:
                 continue
@@ -582,134 +591,18 @@ def _macro_close_v1(
     goal: str,
     target_cals: float,
 ) -> None:
+    """
+    Calories are HARD. Macros are SOFT.
+
+    When target_cals is provided, we only close calories using carb-adjustable
+    ingredients across meals. We do NOT add protein/fat to chase macro targets,
+    because that can push calories away from target and trigger per-meal cap
+    rejections (especially on cut targets).
+    """
     if not meals:
         return
 
-    targets = _macro_targets_v1(goal, target_cals)
-
-    # tolerances (v1)
-    tol_p = 25.0
-    tol_f = 15.0
     tol_cals = 100.0
-
-    # Only adjust ingredients already present in meals.
-    # Priority lists are "try if present".
-    PROTEIN_BASES = [
-        # omnivore
-        "chicken breast, cooked",
-        "turkey breast, cooked",
-        "salmon, cooked",
-        "tuna, canned",
-        "eggs, whole",
-        "egg whites",
-        "greek yogurt, nonfat",
-        "whey protein powder",
-        # veg
-        "tofu, firm",
-        "tempeh",
-        "lentils, cooked",
-        "black beans, cooked",
-        "chickpeas, cooked",
-        "vegan protein powder",
-    ]
-
-    FAT_BASES = [
-        "olive oil",
-        "butter",
-        "peanut butter",
-        "avocado",
-        "cheddar cheese",
-        "almonds",
-        "walnuts",
-    ]
-
-    # --- Pass A: protein close (last -> first)
-    for _pass in range(2):
-        totals = _sum_macros(meals)
-        p_delta = float(targets["protein_g"]) - float(totals["protein_g"])
-        if abs(p_delta) <= tol_p:
-            break
-
-        for meal in reversed(meals):
-            totals = _sum_macros(meals)
-            p_delta = float(targets["protein_g"]) - float(totals["protein_g"])
-            if abs(p_delta) <= tol_p:
-                break
-
-            idx = _find_first_matching_ingredient_idx(meal, PROTEIN_BASES)
-            if idx is None:
-                continue
-
-            ing = meal["ingredients"][idx]
-            name = ing.get("name")
-            # Use alias for lookup
-            canonical_name = _canonical_pantry_key(name)
-            per100 = INGREDIENT_PANTRY_PER_100G.get(canonical_name)
-            if not per100:
-                continue
-
-            p_per_g = float(per100.get("protein_g", 0.0)) / 100.0
-            if p_per_g <= 0:
-                continue
-
-            grams_needed = p_delta / p_per_g  # grams to change protein toward target
-
-            changed = _apply_ingredient_grams_delta(
-                meal,
-                idx,
-                grams_needed,
-                per_step_cap_g=200.0,
-                abs_cap_g=650.0,
-            )
-            if not changed:
-                continue
-
-            meal["macros"] = _meal_macros_from_pantry(meal["ingredients"])
-
-    # --- Pass B (optional): fat close (skip if maintenance-ish and already ok)
-    for _pass in range(2):
-        totals = _sum_macros(meals)
-        f_delta = float(targets["fat_g"]) - float(totals["fat_g"])
-        if abs(f_delta) <= tol_f:
-            break
-
-        for meal in reversed(meals):
-            totals = _sum_macros(meals)
-            f_delta = float(targets["fat_g"]) - float(totals["fat_g"])
-            if abs(f_delta) <= tol_f:
-                break
-
-            idx = _find_first_matching_ingredient_idx(meal, FAT_BASES)
-            if idx is None:
-                continue
-
-            ing = meal["ingredients"][idx]
-            name = ing.get("name")
-            # Use alias for lookup
-            canonical_name = _canonical_pantry_key(name)
-            per100 = INGREDIENT_PANTRY_PER_100G.get(canonical_name)
-            if not per100:
-                continue
-
-            f_per_g = float(per100.get("fat_g", 0.0)) / 100.0
-            if f_per_g <= 0:
-                continue
-
-            grams_needed = f_delta / f_per_g
-
-            changed = _apply_ingredient_grams_delta(
-                meal,
-                idx,
-                grams_needed,
-                per_step_cap_g=60.0,
-                abs_cap_g=250.0,
-            )
-            if not changed:
-                continue
-
-            meal["macros"] = _meal_macros_from_pantry(meal["ingredients"])
-
-    # --- Pass C: calories close with carb bases across meals
     _multi_meal_calorie_close_carbs(meals, target_cals, tolerance_cals=tol_cals)
 
     # Final recompute to ensure consistency
@@ -717,16 +610,36 @@ def _macro_close_v1(
         m["macros"] = _meal_macros_from_pantry(m["ingredients"])
 
 
+
 def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
     # Determine constraints
     blocked = build_allergen_set(list(getattr(req, "allergies", None) or []))
-    required = _diet_required_tags(getattr(req, "diet", None))
+    diet = getattr(req, "diet", None)
+    required = _diet_required_tags(diet)
 
-    # Candidate meals
+    # Prefilter meals by diet BEFORE any selection attempts
+    def _meal_passes_diet(meal: dict) -> bool:
+        if not required:
+            return True
+        for ing in meal.get("ingredients", []):
+            tags = set(t.lower() for t in (ing.get("diet_tags") or []))
+            if tags.isdisjoint(required):
+                return False
+        return True
+
+    # Build diet-filtered candidate pool
+    diet_candidates = [m for m in MEAL_LIBRARY if _meal_passes_diet(m)]
+    
+    # Fail-closed: if diet is specified but no meals are available, raise error
+    if diet and not diet_candidates:
+        raise ValueError(f"No meals available for diet={diet}")
+    
+    # Use diet-filtered pool (or full library if no diet specified)
+    pool = diet_candidates if diet else MEAL_LIBRARY
+
+    # Candidate meals (apply allergy filtering to the diet-filtered pool)
     candidates_by_key: dict[str, dict[str, Any]] = {}
-    for m in MEAL_LIBRARY:
-        if not _meal_allowed_by_diet(m, required):
-            continue
+    for m in pool:
         if not _meal_allowed_by_allergies(m, blocked):
             continue
 
@@ -908,10 +821,10 @@ def generate_stub_meals(req: Any, attempt: int) -> dict[str, Any]:
                 continue
 
             s = float(budgets[i]) / meal_cals
-            if s < 0.8:
-                s = 0.8
-            elif s > 1.6:
-                s = 1.6
+            if s < 0.5:
+                s = 0.5
+            elif s > 3.0:
+                s = 3.0
 
             if _scale_meal_ingredients(m, s):
                 m["macros"] = _meal_macros_from_pantry(m["ingredients"])

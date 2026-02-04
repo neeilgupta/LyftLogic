@@ -804,6 +804,54 @@ MEAL_LIBRARY: list[dict] = [
         ],
     },
 
+    # --- PESCATARIAN-SAFE MEALS (fish + veg ingredients) ---
+
+    {
+        "key": "pesc_salmon_rice_broccoli",
+        "name": "Salmon + rice + broccoli",
+        "tags": ["dinner"],
+        "ingredients": [
+            {"name": "salmon, cooked", "grams": 170, "diet_tags": ["pescatarian"], "contains": ["fish"]},
+            {"name": "white rice, cooked", "grams": 240, "diet_tags": ["vegan"], "contains": ["rice"]},
+            {"name": "broccoli", "grams": 120, "diet_tags": ["vegan"], "contains": ["broccoli"]},
+            {"name": "olive oil", "grams": 10, "diet_tags": ["vegan"], "contains": ["olive_oil"]},
+        ],
+    },
+
+    {
+        "key": "pesc_tuna_wrap",
+        "name": "Tuna wrap",
+        "tags": ["lunch"],
+        "ingredients": [
+            {"name": "tuna, canned in water", "grams": 150, "diet_tags": ["pescatarian"], "contains": ["fish"]},
+            {"name": "tortilla, flour", "grams": 90, "diet_tags": ["vegan"], "contains": ["wheat"]},
+            {"name": "greek yogurt, nonfat", "grams": 80, "diet_tags": ["vegetarian"], "contains": ["milk"]},
+        ],
+    },
+
+    {
+        "key": "pesc_greek_yogurt_berries",
+        "name": "Greek yogurt + berries",
+        "tags": ["breakfast", "snack"],
+        "ingredients": [
+            {"name": "greek yogurt, nonfat", "grams": 300, "diet_tags": ["vegetarian"], "contains": ["milk"]},
+            {"name": "blueberries", "grams": 120, "diet_tags": ["vegan"], "contains": ["blueberries"]},
+            {"name": "honey", "grams": 15, "diet_tags": ["vegetarian"], "contains": ["honey"]},
+        ],
+    },
+
+    {
+        "key": "pesc_eggs_toast",
+        "name": "Eggs + toast",
+        "tags": ["breakfast"],
+        "ingredients": [
+            {"name": "eggs, whole", "grams": 150, "diet_tags": ["vegetarian"], "contains": ["egg"]},
+            {"name": "bread, whole wheat", "grams": 80, "diet_tags": ["vegan"], "contains": ["wheat"]},
+            {"name": "butter", "grams": 10, "diet_tags": ["vegetarian"], "contains": ["milk"]},
+        ],
+    },
+
+
     # ---------- NEW SNACKS (healthy, whole-food, no junk) ----------
     {
         "key": "string_cheese_apple_walnut",

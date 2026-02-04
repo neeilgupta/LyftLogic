@@ -202,14 +202,19 @@ def meal_rejection_reason(
             return "Rejected: invalid_diet_tags_empty_token"
 
         # Diet enforcement (fail-closed)
+        # Ingredient must have AT LEAST ONE of the required diet tags
+        # Diet enforcement (fail-closed)
         if required_diet_tags:
+            # Special case: single "vegetarian" tag should accept vegan too (backward compat)
             if required_diet_tags == {"vegetarian"}:
                 if not (("vegetarian" in ing_diet) or ("vegan" in ing_diet)):
                     return "Rejected: diet_conflict requires=vegetarian"
+            # General case: ingredient must have at least one required tag
             else:
-                if not required_diet_tags.issubset(ing_diet):
+                if not (ing_diet & required_diet_tags):
                     req = sorted(list(required_diet_tags))
-                    return f"Rejected: diet_conflict requires={req}"
+                    ing = sorted(list(ing_diet))
+                    return f"Rejected: diet_conflict requires_one_of={req} ingredient_has={ing}"
 
     return None
 
