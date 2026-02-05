@@ -20,11 +20,12 @@
   <!-- LEFT: logo -->
   <div style="font-weight: 900; font-size: 20px; letter-spacing: 0.2px;">
     <NuxtLink
-      to="/generate"
+      to="/"
       style="text-decoration: none; color: rgba(255,255,255,0.95);"
     >
       LyftLogic
     </NuxtLink>
+
   </div>
 
   <!-- RIGHT: tabs -->

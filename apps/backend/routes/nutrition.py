@@ -22,6 +22,8 @@ from models.nutrition import (
     MacroCalcRequest,
     MacroCalcResponse,
 )
+from services.nutrition.boosters import apply_calorie_fill_boosters
+
 
 
 
@@ -200,8 +202,18 @@ def nutrition_generate(req: NutritionGenerateRequest):
     )
 
     gen = generate_safe_meals(gen_req, _stub_llm_generate)
+
     selected_target = _selected_target_from_req(req, targets)
+    if selected_target is not None:
+        apply_calorie_fill_boosters(
+            meals=gen.accepted,
+            target_calories=int(selected_target),
+            diet=req.diet,
+            allergies=req.allergies,
+        )
+
     _fail_closed_calorie_guard(selected_target, gen.accepted)
+
 
     from services.nutrition.versioning import build_nutrition_version_v1
 
@@ -258,8 +270,18 @@ def nutrition_regenerate(req: NutritionRegenerateRequest):
         gen_req,
         lambda r, attempt: _stub_llm_generate(r, attempt + attempt_offset),
     )
+
     selected_target = _selected_target_from_req(req, targets)
+    if selected_target is not None:
+        apply_calorie_fill_boosters(
+            meals=gen.accepted,
+            target_calories=int(selected_target),
+            diet=req.diet,
+            allergies=req.allergies,
+        )
+
     _fail_closed_calorie_guard(selected_target, gen.accepted)
+
 
 
     output = {

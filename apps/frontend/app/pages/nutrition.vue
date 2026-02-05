@@ -374,6 +374,35 @@
         </div>
       </div>
 
+      <div class="totals-bar">
+        <div class="totals-left">
+          <div class="totals-title">Daily totals</div>
+          <div class="totals-sub">
+            <span style="opacity:0.75; font-weight:800;">Aim:</span>
+            <span class="pill">{{ macroAims.calories ?? "—" }} cal</span>
+            · P <span class="pill">{{ macroAims.protein ?? "—" }}g</span>
+            · C <span class="pill">{{ macroAims.carbs ?? "—" }}g</span>
+            · F <span class="pill">{{ macroAims.fat ?? "—" }}g</span>
+
+            <template v-if="hasPlanTotals">
+              <span class="totals-sep">•</span>
+              <span style="opacity:0.75; font-weight:800;">Plan:</span>
+              <span class="pill">{{ dailyTotals.calories }} cal</span>
+              · P <span class="pill">{{ dailyTotals.protein }}g</span>
+              · C <span class="pill">{{ dailyTotals.carbs }}g</span>
+              · F <span class="pill">{{ dailyTotals.fat }}g</span>
+            </template>
+          </div>
+
+
+        </div>
+
+        <button class="debug-toggle" type="button" @click="showDebug = !showDebug">
+          {{ showDebug ? "Hide debug" : "Show debug" }}
+        </button>
+      </div>
+
+
       <div v-if="!nutritionOutput.accepted || nutritionOutput.accepted.length === 0" style="opacity: 0.75;">
         No accepted meals returned. Try increasing batch size or loosening constraints.
       </div>
@@ -398,9 +427,10 @@
 
                 <div style="font-weight: 700; margin-bottom: 6px;">
                 {{ meal.name }}
-                <div style="font-size: 11px; opacity: 0.6; margin-bottom: 6px;">
-                template_key: {{ meal.template_key || "—" }} • key: {{ meal.key || "—" }}
+                <div v-if="showDebug" style="font-size: 11px; opacity: 0.6; margin-bottom: 6px;">
+                  template_key: {{ meal.template_key || "—" }} • key: {{ meal.key || "—" }}
                 </div>
+
 
                 </div>
 
@@ -411,12 +441,18 @@
                 </div>
 
                 <div style="font-size: 13px; opacity: 0.85; margin-bottom: 10px;">
-                <span style="font-weight: 600;">Ingredients:</span>
-                <span v-if="meal.ingredients?.length">
-                    {{ meal.ingredients.map((i: any) => i.name).join(", ") }}
-                </span>
-                <span v-else>—</span>
+                  <span style="font-weight: 600;">Ingredients:</span>
+                  <span v-if="baseIngredientNames(meal).length">
+                    {{ baseIngredientNames(meal).join(", ") }}
+                  </span>
+                  <span v-else>—</span>
+
+                  <div v-if="boosterIngredientNames(meal).length" style="margin-top: 6px; font-size: 12px; opacity: 0.75;">
+                    <span style="font-weight: 700; color: rgba(167, 139, 250, 1);">Adjustments:</span>
+                    <span>{{ boosterIngredientNames(meal).join(", ") }}</span>
+                  </div>
                 </div>
+
 
                 <details style="margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px;">
                 <summary style="cursor: pointer; font-size: 12px; font-weight: 600; opacity: 0.7;">
@@ -437,10 +473,20 @@
                     <div class="meal-card__detail-panel">
                     <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px;">Ingredients</div>
                     <ul style="margin: 0; padding-left: 16px; font-size: 11px;">
-                        <li v-for="(ing, j) in meal.ingredients ?? []" :key="j">
-                        <strong>{{ ing.name }}</strong>
-                        <span v-if="ing.grams != null"> — {{ ing.grams }} g</span>
+                        <li v-for="(ing, j) in meal.ingredients ?? []" :key="j" style="display:flex; align-items:center; gap:8px;">
+                          <span style="display:flex; align-items:center; gap:8px;">
+                            <strong>{{ ing.name }}</strong>
+
+                            <span v-if="isBooster(ing)" class="booster-badge">
+                              Adjustment
+                            </span>
+                          </span>
+
+                          <span v-if="ing.grams != null" style="margin-left:auto; opacity:0.85;">
+                            {{ ing.grams }} g
+                          </span>
                         </li>
+
                     </ul>
                     </div>
                 </div>
@@ -496,6 +542,7 @@ import { useNutritionApi, type NutritionTargets, type MacroCalcResponse } from "
 
 const { generateNutrition, regenerateNutrition, macroCalc } = useNutritionApi();
 
+const showDebug = ref(false)
 const nutritionLoading = ref(false);
 const nutritionError = ref<string | null>(null);
 const DEBUG_NUTRITION = false;
@@ -714,11 +761,148 @@ function buildNutritionBaseRequest(inputs: {
   return req;
 }
 
+function num(v: any): number {
+  const n = typeof v === "string" ? parseFloat(v) : Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+function mealCalories(meal: any): number {
+  if (!meal) return 0
+  if (meal.calories != null) return num(meal.calories)
+  if (meal.macros?.calories != null) return num(meal.macros.calories)
+  return 0
+}
+
+function mealProtein(meal: any): number {
+  if (!meal) return 0
+  // common variants
+  if (meal.protein_g != null) return num(meal.protein_g)
+  if (meal.protein != null) return num(meal.protein)
+  if (meal.macros?.protein_g != null) return num(meal.macros.protein_g)
+  if (meal.macros?.protein != null) return num(meal.macros.protein)
+  return 0
+}
+
+function mealCarbs(meal: any): number {
+  if (!meal) return 0
+  if (meal.carbs_g != null) return num(meal.carbs_g)
+  if (meal.carbs != null) return num(meal.carbs)
+  if (meal.macros?.carbs_g != null) return num(meal.macros.carbs_g)
+  if (meal.macros?.carbs != null) return num(meal.macros.carbs)
+  return 0
+}
+
+function mealFat(meal: any): number {
+  if (!meal) return 0
+  if (meal.fat_g != null) return num(meal.fat_g)
+  if (meal.fat != null) return num(meal.fat)
+  if (meal.macros?.fat_g != null) return num(meal.macros.fat_g)
+  if (meal.macros?.fat != null) return num(meal.macros.fat)
+  return 0
+}
+
+const acceptedMeals = computed<any[]>(() => {
+  // Adjust these paths if your response shape differs
+  // Most likely: data.output.accepted
+  const out = (nutritionOutput.value as any)?.output?.accepted
+  return Array.isArray(out) ? out : []
+})
+
+const dailyTotals = computed(() => {
+  const meals = Array.isArray(nutritionOutput.value?.accepted) ? nutritionOutput.value.accepted : []
+
+  const calories = meals.reduce((s: number, m: any) => s + mealCalories(m), 0)
+  const protein = meals.reduce((s: number, m: any) => s + mealProtein(m), 0)
+  const carbs = meals.reduce((s: number, m: any) => s + mealCarbs(m), 0)
+  const fat = meals.reduce((s: number, m: any) => s + mealFat(m), 0)
+
+  return {
+    calories: Math.round(calories),
+    protein: Math.round(protein * 10) / 10,
+    carbs: Math.round(carbs * 10) / 10,
+    fat: Math.round(fat * 10) / 10,
+  }
+})
+
+const hasPlanTotals = computed(() => {
+  return (
+    dailyTotals.value.calories > 0 ||
+    dailyTotals.value.protein > 0 ||
+    dailyTotals.value.carbs > 0 ||
+    dailyTotals.value.fat > 0
+  )
+})
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n))
+}
+
+const macroAims = computed(() => {
+  const calAim = Number(selectedCaloriesFromTargets.value) || 0
+  if (calAim <= 0) {
+    return { calories: null, protein: null, carbs: null, fat: null }
+  }
+
+  // weight_lb: prefer macroWeightLb input (what user typed), fallback to 175 if unset
+  const weightLb = clamp(Number(macroWeightLb.value || 0) || 0, 50, 450)
+
+  // Protein aim (0.8 g/lb)
+  const proteinAim = Math.round(weightLb * 0.8)
+
+  // Deterministic fat target: 30% of calories
+  const fatCals = Math.round(calAim * 0.30)
+  const fatAim = Math.round(fatCals / 9)
+
+  // Carbs get the remainder (favor carbs)
+  const proteinCals = proteinAim * 4
+  const usedCals = proteinCals + fatAim * 9
+  const remainingCals = Math.max(0, calAim - usedCals)
+  const carbsAim = Math.round(remainingCals / 4)
+
+  return {
+    calories: Math.round(calAim),
+    protein: proteinAim,
+    carbs: carbsAim,
+    fat: fatAim,
+  }
+})
+
+
 
 
 function pretty(x: any) {
   return JSON.stringify(x, null, 2);
 }
+
+function isBooster(ing: any): boolean {
+  const t = String(ing?.type || "").toLowerCase().trim();
+  return t === "booster" || t === "adjustment";
+}
+
+function baseIngredientNames(meal: any): string[] {
+  const ings = Array.isArray(meal?.ingredients) ? meal.ingredients : [];
+  return ings
+    .filter((i: any) => i && !isBooster(i))
+    .map((i: any) => String(i.name || "").trim())
+    .filter((s: string) => !!s);
+}
+
+function boosterIngredientNames(meal: any): string[] {
+  const ings = Array.isArray(meal?.ingredients) ? meal.ingredients : [];
+  // dedupe while preserving order
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const i of ings) {
+    if (!i || !isBooster(i)) continue;
+    const nm = String(i.name || "").trim();
+    const key = nm.toLowerCase();
+    if (!nm || seen.has(key)) continue;
+    seen.add(key);
+    out.push(nm);
+  }
+  return out;
+}
+
 
 function buttonStyle(disabled: boolean) {
   return {
@@ -1048,6 +1232,17 @@ async function onNutritionRegenerate() {
   transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
 
+.booster-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(167, 139, 250, 0.45);
+  background: rgba(124, 58, 237, 0.12);
+  color: rgba(167, 139, 250, 1);
+  letter-spacing: 0.2px;
+}
+
 .meal-card:hover {
   border-color: rgba(124, 58, 237, 0.45);
   box-shadow: 0 8px 18px rgba(124, 58, 237, 0.10);
@@ -1087,6 +1282,62 @@ async function onNutritionRegenerate() {
   cursor: not-allowed !important;
   box-shadow: none;
 }
+
+.totals-bar{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(17, 24, 39, 0.55);
+  border-radius: 14px;
+  margin: 10px 0 14px;
+}
+
+.totals-title{
+  font-weight: 900;
+  font-size: 13px;
+  margin-bottom: 4px;
+  letter-spacing: 0.2px;
+}
+
+.totals-sub{
+  font-size: 13px;
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+.pill{
+  display:inline-flex;
+  align-items:center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(167, 139, 250, 0.30);
+  background: rgba(124, 58, 237, 0.10);
+  font-weight: 900;
+  margin: 0 2px;
+}
+
+.debug-toggle{
+  appearance:none;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.88);
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease;
+  white-space: nowrap;
+}
+
+.debug-toggle:hover{
+  background: rgba(255,255,255,0.07);
+  transform: translateY(-1px);
+}
+
 
 /* === Section header spacing — normalize standalone headers === */
 /* Bare card headers (not inside a flex row) use scattered 6–8px margins inline.
