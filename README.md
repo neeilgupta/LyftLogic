@@ -1,63 +1,88 @@
 # LyftLogic
 
-LyftLogic is a full-stack **training and nutrition planning system**
+LyftLogic is a **deterministic training and nutrition planning system** built for people who care about *consistency, realism, and trust*.
 
-Instead of trusting model output directly, LyftLogic treats AI as an **untrusted proposal generator** and enforces all important rules **deterministically in code**.  
-The result is plans that are **stable, explainable, versioned, and realistic** — not random or vibes-based.
+Instead of treating AI output as truth, LyftLogic treats AI as an **untrusted draft generator**.  
+All important logic — constraints, calories, macros, structure, and edits — is enforced **deterministically in code**.
 
----
-
-## � Project Status
-
-**Current state (v1 stable):**
-- ✅ **Training system**: Full generation and regeneration with versioned snapshots, diffs, and restore
-- ✅ **Nutrition system**: Full generation and regeneration with versioned snapshots, diffs, and deterministic deduplication
-- ✅ **Deterministic versioning**: Both systems support reversible, diffable plan evolution
-- ⚠️ **Macro calculator**: Scaffold in place; mathematical implementation incomplete
-- 🚧 **Persistence**: Version storage and restore features are intentionally staged (coming soon)
+The result: plans that are **stable, explainable, versioned, and human-sane** — not vibes-based.
 
 ---
 
-## 💭 Why LyftLogic Exists
+## 🚦 Project Status (Feb 2026)
 
-Most fitness planning tools treat AI output as gospel. LyftLogic does the opposite.
+**Current state (v1 functional):**
 
-The system prioritizes:
-1. **Trust through verifiability** — Every constraint is explicit, enforced in code, and human-auditable
-2. **Determinism over novelty** — Regenerating a plan twice with the same inputs yields the same result; changes are intentional and tracked
-3. **Explainability over magic** — When a plan changes, you see why (the diff), not just that it changed
+### Training
+- ✅ Deterministic plan generation
+- ✅ Regeneration with **versioned snapshots**
+- ✅ Index-stable diffs + explanations
+- ✅ Restore previous versions
+- ✅ Realistic lifting rules enforced in code
 
-This approach trades some degree of "magical personalization" for predictability and confidence.
+### Nutrition
+- ✅ Deterministic meal generation
+- ✅ Regeneration with versioned snapshots + diffs
+- ✅ Hard allergen blocking (fail-closed)
+- ✅ Diet constraints enforced
+- ✅ Slot-based meals (breakfast / lunch / dinner / snack)
+- ✅ **Deterministic calorie repair** (post-pass boosters)
+- ✅ Slot-aware boosters (e.g. honey in oats, oil only in savory meals)
+- ✅ Daily **macro & calorie aims** (guidance, not tracking)
+- ✅ Debug data hidden behind toggle
+
+### Macro Calculator
+- ✅ Fully implemented (metric math)
+- ⚠️ Used for guidance + target setting (not yet a hard constraint engine)
+
+### Persistence
+- 🚧 Version storage + restore intentionally staged (next milestone)
 
 ---
 
-## �🚀 What LyftLogic Is (and Is Not)
+## 💡 Why LyftLogic Exists
 
-**LyftLogic is:**
-- A deterministic planning system
-- Explicitly versioned
-- Diff-driven and explainable
-- Designed for iteration, not one-off generation
+Most fitness apps:
+- Trust AI output blindly
+- Regenerate from scratch
+- Lose context on every edit
+- Hide logic behind “smart recommendations”
 
-**LyftLogic is not:**
-- A "chat until it looks good" app
-- A black-box AI fitness tool
-- A recommendation engine that resets state on every regenerate
+LyftLogic does the opposite.
+
+**Design priorities:**
+1. **Trust through verifiability**  
+   Every rule is explicit, enforced, and auditable.
+2. **Determinism over novelty**  
+   Same inputs → same outputs. Changes are intentional and tracked.
+3. **Explainability over magic**  
+   If something changes, you see *why*.
+
+This trades novelty for confidence — by design.
+
+---
+
+## 🚫 What LyftLogic Is *Not*
+
+- ❌ A chat-until-it-looks-good app
+- ❌ A black-box AI fitness tool
+- ❌ A calorie tracker
+- ❌ A system that resets state on regenerate
 
 ---
 
 ## 🧠 Core Design Principles
 
 ### 1) AI is never the source of truth
-LLMs generate *drafts*.  
-All outputs are validated, corrected, and stabilized by deterministic rules engines before being shown to the user.
+LLMs generate **drafts only**.  
+All outputs are validated, corrected, and stabilized by deterministic rules engines.
 
 ### 2) Constraints are enforced, not suggested
-If a rule exists, it is enforced in code.  
-If something violates constraints, it is rejected — not "recommended against."
+If a rule exists, it is **enforced in code**.  
+Violations are rejected — not “warned about”.
 
 ### 3) Plans evolve through versions
-Plans do not reset.  
+Plans never reset.  
 They **change**, and every change is:
 - deterministic
 - diffed
@@ -72,86 +97,100 @@ Training plans resemble how experienced lifters actually program.
 
 **Hard rules enforced in code:**
 - No cardio before lifting
-- No finishers or cooldown fluff
+- No finishers or fluff
 - Simple warmups  
-  - 1 lighter warm-up set (~50%) before each lift
+  - 1 lighter set (~50%) before each lift
 - Low-to-moderate volume  
   - Default: 2 working sets per exercise
 - Long rest periods  
   - ≥4 min compounds  
   - ≥3 min isolations
-- Rep ranges, not prescriptions (e.g. 6–8, 8–12)
+- Rep ranges, not fixed reps
 - Effort cues instead of RPE
 - Core lifts repeat across the week
 - Primary compounds are never accessories
 - Session length strictly limits exercise count
 
-All training plans support:
+All plans support:
 - Versioned snapshots
 - Deterministic regeneration
-- Diff rendering in the UI
+- Diff rendering
 - Restore to previous versions
 
 ---
 
-## 🥗 Nutrition System (First-Class & Auditable)
+## 🥗 Nutrition System (First-Class, Not an Afterthought)
 
-Nutrition planning is a full peer of the training system: fully versioned, deterministically regenerable, and completely auditable.
+Nutrition is a full peer of training — not a bolt-on.
 
 **Guaranteed behaviors:**
-- Allergens are **hard-blocked** (fail-closed)
-- Diet constraints enforced (vegetarian, vegan, etc.)
-- Deterministic calorie and macro math
+- Allergens are **hard-blocked**
+- Diet constraints enforced
+- No duplicate meals in a plan
+- Deterministic calorie & macro math
 - Supports maintenance, cut, bulk  
   - 0.5 / 1 / 2 lb per week rates
-- No silent changes
+- No silent reshuffling
 - Every regenerate produces:
-  - an explicit diff
+  - a diff
   - human-readable explanations
-- **No duplicate meals in a single plan**
 
-Nutrition plans:
-- Are generated and regenerated deterministically
-- Maintain context across versions
-- Never reshuffle meals unpredictably
-- Support full versioning and restore (staged feature)
+### Calorie Repair (Key Feature)
+If a plan undershoots calories:
+- A **deterministic post-pass** adds safe boosters
+- Boosters are:
+  - diet-safe
+  - allergy-safe
+  - slot-aware (e.g. no olive oil in oats)
+- No random retries
+- No silent hacks
+
+---
+
+## 📊 Macro Aims (Guidance, Not Tracking)
+
+LyftLogic intentionally avoids “tracker” UX.
+
+Instead, it shows:
+- **Daily calorie aim**
+- **Protein aim:** `0.8 g / lb bodyweight`
+- **Fat target:** fixed % of calories
+- **Carbs:** remainder (carb-forward by default)
+
+This gives users clarity without micromanagement.
 
 ---
 
 ## 🔁 Versioning & Diffs (Core Feature)
 
-Both **training** and **nutrition** plans support:
+Both training and nutrition support:
 
 - Stateless regeneration
 - Versioned snapshots
 - Index-stable diffs
 - Human-readable explanations
 
-**Example (nutrition regenerate):**
-```
-Calories: maintenance changed from 2600 → 2400.
-Calories: cut (1 lb/week) changed from 2100 → 1900.
-Meal 1 replaced to meet new calorie target.
-```
-This makes changes inspectable instead of opaque.
+**Example (nutrition diff):**
+
+Changes are inspectable, not opaque.
 
 ---
 
 ## 🧩 Constraints Model
 
 ### Training Constraints
-- Equipment bans (e.g. no barbells)
-- Machine preference
+- Equipment bans
 - Session length
-- Split logic (Upper / Lower / SHARMS)
-- Compound lift caps
+- Split logic
+- Compound caps
+- Machine vs free-weight preference
 
 ### Nutrition Constraints
 - Allergies (fail-closed)
 - Diet type
-- Macro targets
-- Meal count
-- Regeneration without losing context
+- Calorie targets
+- Meal count inference
+- Context-preserving regeneration
 
 **Rules > preferences** everywhere.
 
@@ -159,35 +198,28 @@ This makes changes inspectable instead of opaque.
 
 ## 🏗️ Architecture Overview
 
-LyftLogic is built around **explicit state and deterministic transitions**.
+LyftLogic is built around **explicit state + deterministic transitions**.
 
-### 1️⃣ Draft Generation (Untrusted)
-The LLM generates a candidate structure only.
-
-### 2️⃣ Deterministic Rules Engines
-
-#### Training Rules Engine
-- Normalizes volume, reps, rest
-- Enforces equipment and placement rules
-- Stabilizes outputs across edits
-
-#### Nutrition Rules Engine
-- Validates meals against allergens
-- Computes deterministic macro targets
-- Produces versioned snapshots
-- Generates index-stable diffs + explanations
+1. **Draft generation (untrusted)**  
+   LLM proposes structure only.
+2. **Rules engines (authoritative)**  
+   Enforce constraints, normalize outputs, stabilize plans.
+3. **Version snapshot**  
+   Immutable record of state.
+4. **Diff + explanation**  
+   User-visible, human-readable.
 
 No plan is shown unless it passes validation.
 
 ---
 
-## 🖥️ Frontend Structure
+## 🖥️ Frontend Philosophy
 
-The frontend intentionally separates concerns:
-- **Training** and **Nutrition** live on separate pages
-- Plan-level navigation mirrors real product UX
-- Diffs are rendered explicitly
-- Nutrition is currently read-only (generate / regenerate)
+- Training and Nutrition are separate, first-class pages
+- Debug data hidden behind toggles
+- Diffs rendered explicitly
+- UX favors clarity over density
+- No “magic” edits
 
 ---
 
@@ -196,14 +228,15 @@ The frontend intentionally separates concerns:
 ### Backend
 - FastAPI (Python)
 - Pydantic (strict schemas)
-- OpenAI API (draft generation only)
 - Deterministic rules engines
 - Versioned diff logic
+- LLMs used only for drafting
 
 ### Frontend
 - Nuxt 3 (Vue)
 - TypeScript
-- REST API integration
+- REST APIs
+- Dark + purple product UI
 
 ---
 
@@ -216,7 +249,6 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
-```
 
 **Backend runs at:** http://127.0.0.1:8000
 
@@ -256,9 +288,9 @@ npm run dev
 - Unified diff history view
 
 ### Mid-Term
-- Nutrition chat edit → apply flow
-- Deterministic macro calculator
-- PDF export
+- Nutrition chat → apply flow
+- Macro targets as first-class constraints
+- PDF / shareable exports
 
 ### Long-Term
 - Exercise substitution memory
