@@ -10,7 +10,7 @@ The result: plans that are **stable, explainable, versioned, and human-sane** �
 ---
 ## Demo
 
-[▶️ Watch the LyftLogic demo](docs/LyftLogic%20V1%20Demo-2.mp4)
+[▶️ Watch the LyftLogic demo](https://github.com/user-attachments/assets/666f5f96-7468-4654-8cee-8cf86c80feaa)
 
 ## 🚦 Project Status (Feb 2026)
 
