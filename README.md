@@ -8,6 +8,11 @@ All important logic — constraints, calories, macros, structure, and edits — 
 The result: plans that are **stable, explainable, versioned, and human-sane** — not vibes-based.
 
 ---
+## Demo
+
+▶️ Watch a short demo of LyftLogic:
+
+[![LyftLogic demo](docs/demo_thumbnail.png)](file:///Users/gupta/Desktop/LyftLogic%20V1%20Demo.mov)
 
 ## 🚦 Project Status (Feb 2026)
 
