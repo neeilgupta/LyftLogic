@@ -12,7 +12,7 @@
         <div class="form-grid">
           <label class="form-field">
             <span class="form-label">Goal</span>
-            <select v-model="form.goal" class="form-input">
+            <select v-model="form.goal" class="form-input" :disabled="loading">
               <option value="hypertrophy">hypertrophy</option>
               <option value="strength">strength</option>
               <option value="fat_loss">fat_loss</option>
@@ -21,7 +21,7 @@
 
           <label class="form-field">
             <span class="form-label">Experience</span>
-            <select v-model="form.experience" class="form-input">
+            <select v-model="form.experience" class="form-input" :disabled="loading">
               <option value="beginner">beginner</option>
               <option value="intermediate">intermediate</option>
               <option value="advanced">advanced</option>
@@ -30,17 +30,17 @@
 
           <label class="form-field">
             <span class="form-label">Days per week</span>
-            <input v-model.number="form.days_per_week" type="number" min="1" max="7" class="form-input" />
+            <input v-model.number="form.days_per_week" type="number" min="1" max="7" class="form-input" :disabled="loading" />
           </label>
 
           <label class="form-field">
             <span class="form-label">Session minutes</span>
-            <input v-model.number="form.session_minutes" type="number" min="20" max="180" class="form-input" />
+            <input v-model.number="form.session_minutes" type="number" min="20" max="180" class="form-input" :disabled="loading" />
           </label>
 
           <label class="form-field full-width">
             <span class="form-label">Equipment</span>
-            <select v-model="form.equipment" class="form-input">
+            <select v-model="form.equipment" class="form-input" :disabled="loading">
               <option value="full_gym">full_gym</option>
               <option value="dumbbells">dumbbells</option>
               <option value="home_gym">home_gym</option>
@@ -57,6 +57,7 @@
             v-model="form.constraints"
             rows="6"
             class="form-input"
+            :disabled="loading"
             placeholder="Examples:
 - No dumbbells
 - No barbells
@@ -68,8 +69,17 @@
       </section>
 
       <button :disabled="loading" type="submit" class="generate-button">
-        {{ loading ? "Generating..." : "Generate plan" }}
+        {{ loading ? "Generating plan…" : "Generate plan" }}
       </button>
+
+      <LLLoadingPanel
+        v-if="loading"
+        title="Generating your training plan"
+        subtitle="Deterministic rules engine — same inputs always produce the same output."
+        :elapsed="elapsedSeconds"
+        :steps="trainingSteps"
+        hint="This can take ~15–20 seconds on cold start. No randomness, no AI source-of-truth."
+      />
 
       <div v-if="error" class="error-message">{{ error }}</div>
       <pre v-if="result" class="result-output">{{ result }}</pre>
@@ -78,9 +88,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { usePlans } from "../../composables/usePlans";
+import LLLoadingPanel from "../components/LLLoadingPanel.vue";
 
 const router = useRouter();
 const { generatePlan } = usePlans();
@@ -98,6 +109,40 @@ const form = ref({
   constraints: "",
 });
 
+// --- premium loading UX (status text + elapsed time)
+const startedAtMs = ref<number | null>(null);
+const elapsedSec = ref(0);
+let timer: number | null = null;
+
+const elapsedSeconds = computed(() => elapsedSec.value);
+
+const trainingSteps = [
+  "Locking inputs + split structure",
+  "Selecting exercises by equipment + goal",
+  "Building sets/reps + progression notes",
+  "Snapshotting version + preparing diffs",
+];
+
+watch(loading, (isLoading) => {
+  if (isLoading) {
+    startedAtMs.value = Date.now();
+    elapsedSec.value = 0;
+
+    if (timer != null) window.clearInterval(timer);
+    timer = window.setInterval(() => {
+      if (!startedAtMs.value) return;
+      elapsedSec.value = Math.floor((Date.now() - startedAtMs.value) / 1000);
+    }, 250);
+  } else {
+    if (timer != null) window.clearInterval(timer);
+    timer = null;
+  }
+});
+
+onBeforeUnmount(() => {
+  if (timer != null) window.clearInterval(timer);
+});
+
 async function onSubmit() {
   loading.value = true;
   error.value = null;
@@ -106,7 +151,6 @@ async function onSubmit() {
   try {
     const res = await generatePlan(form.value);
     result.value = res;
-    // ✅ route to details page once we create it
     router.push(`/plans/${res.id}`);
   } catch (e: any) {
     console.log(e);
@@ -120,6 +164,7 @@ async function onSubmit() {
   }
 }
 </script>
+
 
 <style scoped>
 /* Make the dark theme cover the entire app page */
@@ -240,6 +285,18 @@ textarea.form-input {
   background: var(--accent-dark);
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
 }
+
+.generate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Makes loading panel feel like part of the form flow */
+.generate-form :deep(.ll-loading) {
+  margin-top: 6px;
+}
+
 
 .generate-button:disabled {
   opacity: 0.5;

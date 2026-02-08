@@ -360,9 +360,20 @@
         </button>
       </div>
 
+      <!-- Premium loading panel (no spinner) -->
+      <LLLoadingPanel
+        v-if="nutritionLoading"
+        title="Generating nutrition"
+        subtitle="Fail-closed: diet + allergens enforced deterministically"
+        :elapsed="nutritionElapsedSeconds"
+        :steps="nutritionSteps"
+        hint="These are daily aims + an example plan (not food tracking). Same inputs → same output."
+      />
+
       <div v-if="nutritionError" style="color:#b00020; font-size: 13px; margin-top: 10px;">
         {{ nutritionError }}
       </div>
+
     </section>
 
         <!-- Generated meals -->
@@ -508,6 +519,22 @@
       </details>
     </section>
 
+    <!-- Skeleton Meal Plan while loading (only if no output yet) -->
+    <section v-else-if="nutritionLoading" class="ll-card">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom: 10px;">
+        <div style="font-weight: 800;">Meal Plan</div>
+        <div style="opacity: 0.7; font-size: 13px;">Preparing…</div>
+      </div>
+
+      <div class="ll-skel-meals">
+        <div class="ll-skel-row" />
+        <div class="ll-skel-row" />
+        <div class="ll-skel-row" />
+        <div class="ll-skel-row" />
+        <div class="ll-skel-row" />
+      </div>
+    </section>
+
 
     <!-- Diff / Explanations -->
     <section class="ll-card">
@@ -536,14 +563,49 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import NutritionDiff from "../components/NutritionDiff.vue";
+import LLLoadingPanel from "../components/LLLoadingPanel.vue";
 import { useNutritionApi, type NutritionTargets, type MacroCalcResponse } from "../../services/nutrition";
 
 const { generateNutrition, regenerateNutrition, macroCalc } = useNutritionApi();
 
 const showDebug = ref(false)
 const nutritionLoading = ref(false);
+// --- premium loading UX (status text + elapsed time)
+const nutritionStartedAtMs = ref<number | null>(null);
+const nutritionElapsedSec = ref(0);
+let nutritionTimer: number | null = null;
+
+const nutritionElapsedSeconds = computed(() => nutritionElapsedSec.value);
+
+const nutritionSteps = [
+  "Selecting meals for each slot",
+  "Enforcing diet + allergens (fail-closed)",
+  "Repairing calories (slot-aware boosters)",
+  "Snapshotting version + preparing diffs",
+];
+
+watch(nutritionLoading, (isLoading) => {
+  if (isLoading) {
+    nutritionStartedAtMs.value = Date.now();
+    nutritionElapsedSec.value = 0;
+
+    if (nutritionTimer != null) window.clearInterval(nutritionTimer);
+    nutritionTimer = window.setInterval(() => {
+      if (!nutritionStartedAtMs.value) return;
+      nutritionElapsedSec.value = Math.floor((Date.now() - nutritionStartedAtMs.value) / 1000);
+    }, 250);
+  } else {
+    if (nutritionTimer != null) window.clearInterval(nutritionTimer);
+    nutritionTimer = null;
+  }
+});
+
+onBeforeUnmount(() => {
+  if (nutritionTimer != null) window.clearInterval(nutritionTimer);
+});
+
 const nutritionError = ref<string | null>(null);
 const DEBUG_NUTRITION = false;
 
@@ -1363,4 +1425,30 @@ details summary {
     padding: 20px 16px;
   }
 }
+
+/* === Loading skeleton (meal plan placeholder) === */
+.ll-skel-meals {
+  display: grid;
+  gap: 10px;
+}
+
+.ll-skel-row {
+  height: 54px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.11),
+    rgba(255, 255, 255, 0.06)
+  );
+  background-size: 200% 100%;
+  animation: ll-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes ll-shimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
 </style>
