@@ -12,19 +12,19 @@
         <div class="form-grid">
           <label class="form-field">
             <span class="form-label">Goal</span>
-            <select v-model="form.goal" class="form-input" :disabled="loading">
-              <option value="hypertrophy">hypertrophy</option>
-              <option value="strength">strength</option>
-              <option value="fat_loss">fat_loss</option>
+            <select v-model="form.goal" class="form-input form-select" :disabled="loading">
+              <option value="hypertrophy">Hypertrophy</option>
+              <option value="strength">Strength</option>
+              <option value="fat_loss">Fat loss</option>
             </select>
           </label>
 
           <label class="form-field">
             <span class="form-label">Experience</span>
-            <select v-model="form.experience" class="form-input" :disabled="loading">
-              <option value="beginner">beginner</option>
-              <option value="intermediate">intermediate</option>
-              <option value="advanced">advanced</option>
+            <select v-model="form.experience" class="form-input form-select" :disabled="loading">
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
             </select>
           </label>
 
@@ -40,11 +40,11 @@
 
           <label class="form-field full-width">
             <span class="form-label">Equipment</span>
-            <select v-model="form.equipment" class="form-input" :disabled="loading">
-              <option value="full_gym">full_gym</option>
-              <option value="dumbbells">dumbbells</option>
-              <option value="home_gym">home_gym</option>
-              <option value="bodyweight">bodyweight</option>
+            <select v-model="form.equipment" class="form-input form-select" :disabled="loading">
+              <option value="full_gym">Full gym</option>
+              <option value="dumbbells">Dumbbells</option>
+              <option value="home_gym">Home gym</option>
+              <option value="bodyweight">Bodyweight</option>
             </select>
           </label>
         </div>
@@ -251,6 +251,33 @@ async function onSubmit() {
   font-size: 14px;
   font-family: inherit;
   transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.form-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 44px;
+  background-image:
+    linear-gradient(135deg, transparent 50%, rgba(226, 232, 240, 0.9) 50%),
+    linear-gradient(225deg, transparent 50%, rgba(226, 232, 240, 0.9) 50%),
+    linear-gradient(var(--surface-2), var(--surface-2));
+  background-position:
+    calc(100% - 18px) 52%,
+    calc(100% - 12px) 52%,
+    0 0;
+  background-size:
+    6px 6px,
+    6px 6px,
+    100% 100%;
+  background-repeat: no-repeat;
+}
+
+.form-select:disabled {
+  background-image:
+    linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, 0.7) 50%),
+    linear-gradient(225deg, transparent 50%, rgba(148, 163, 184, 0.7) 50%),
+    linear-gradient(var(--surface-2), var(--surface-2));
 }
 
 .form-input:focus {
