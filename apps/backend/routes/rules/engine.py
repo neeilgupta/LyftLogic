@@ -105,6 +105,22 @@ _SWAP = {
 CARDIO_WORDS = ("treadmill", "elliptical", "bike", "bicycle", "stair", "stepper", "rowing", "rower", "run", "jog")
 WARMUP_BAD_TOKENS = ("minute", "minutes", "sec", "seconds", "set", "sets", "rep", "reps")
 
+# -----------------------------
+# deterministic time model
+# -----------------------------
+# Working set time: fixed seconds per set
+WORK_SET_SECONDS = 35
+# Warm-up set time + rest before first working set
+WARMUP_SET_SECONDS = 20
+WARMUP_REST_COMPOUND = 60
+WARMUP_REST_ISO = 45
+# Transition buffer between exercises
+TRANSITION_SECONDS = 30
+# General warmup bullet estimate (if present)
+WARMUP_ITEM_SECONDS = 60
+# Under-target margin before adding volume
+UNDER_TARGET_MARGIN_SECONDS = 8 * 60
+
 def _lc(s: Optional[str]) -> str:
     return (s or "").strip().lower()
 
@@ -1008,6 +1024,110 @@ def _enforce_time_cap(day, session_minutes: int) -> None:
     if len(day.accessories) > allowed_accessories:
         day.accessories = day.accessories[:allowed_accessories]
 
+def _estimate_exercise_seconds(ex: ExerciseItem) -> int:
+    canon = _canon_like(ex.name) or ex.name
+    compound = is_compound(canon)
+    warmup_rest = WARMUP_REST_COMPOUND if compound else WARMUP_REST_ISO
+    warmup = WARMUP_SET_SECONDS + warmup_rest
+    working = ex.sets * WORK_SET_SECONDS
+    rest = max(0, ex.sets - 1) * ex.rest_seconds
+    return warmup + working + rest + TRANSITION_SECONDS
+
+def _estimate_day_seconds(day: DayPlan) -> int:
+    if not (day.main or day.accessories):
+        return 0
+
+    warmup_items = day.warmup or []
+    warmup_sec = len(warmup_items) * WARMUP_ITEM_SECONDS
+    ex_seconds = sum(_estimate_exercise_seconds(ex) for ex in (day.main + day.accessories))
+    return warmup_sec + ex_seconds
+
+def _estimate_day_minutes(day: DayPlan) -> int:
+    sec = _estimate_day_seconds(day)
+    if sec <= 0:
+        return 0
+    # deterministic ceiling to avoid under-reporting
+    return int((sec + 59) // 60)
+
+def _remove_optional_warmups(day: DayPlan) -> None:
+    if not day.warmup:
+        return
+    out = []
+    for w in day.warmup:
+        wl = _lc(w)
+        if "optional" in wl:
+            continue
+        out.append(w)
+    day.warmup = out
+
+def _enforce_session_minutes(day: DayPlan, req: GeneratePlanRequest) -> None:
+    target_sec = (req.session_minutes or 60) * 60
+    if not (day.main or day.accessories):
+        return
+
+    def estimate() -> int:
+        return _estimate_day_seconds(day)
+
+    # 1) If over target: remove lowest-priority accessories first
+    while day.accessories and estimate() > target_sec:
+        day.accessories.pop()
+
+    # 2) Reduce accessory sets down to floor
+    if day.accessories and estimate() > target_sec:
+        for ex in reversed(day.accessories):
+            while ex.sets > 1 and estimate() > target_sec:
+                ex.sets -= 1
+
+    # 3) Remove optional warmup bullets (if any are marked optional)
+    if estimate() > target_sec:
+        _remove_optional_warmups(day)
+
+    # 4) If under target by a large margin: add volume deterministically
+    if estimate() + UNDER_TARGET_MARGIN_SECONDS <= target_sec and day.accessories:
+        primary_count = max(1, len(day.accessories) // 2)
+        primary = day.accessories[:primary_count]
+        secondary = day.accessories[primary_count:]
+
+        def try_add_set(ex: ExerciseItem) -> bool:
+            if ex.sets >= 3:
+                return False
+            ex.sets += 1
+            if estimate() > target_sec:
+                ex.sets -= 1
+                return False
+            return True
+
+        for ex in primary:
+            if estimate() + UNDER_TARGET_MARGIN_SECONDS > target_sec:
+                break
+            try_add_set(ex)
+
+        for ex in secondary:
+            if estimate() + UNDER_TARGET_MARGIN_SECONDS > target_sec:
+                break
+            try_add_set(ex)
+
+        # Optional short finisher if equipment allows and within cap
+        if estimate() + UNDER_TARGET_MARGIN_SECONDS <= target_sec:
+            if req.equipment in ("full_gym", "dumbbells", "bodyweight"):
+                used = {normalize_name(e.name) for e in (day.main + day.accessories)}
+                pool = [n for n in get_isolations_for_focus(day.focus) if normalize_name(n) not in used]
+                if req.equipment == "bodyweight":
+                    pool = [n for n in pool if "hanging" in _lc(n) or "leg raise" in _lc(n)]
+
+                if pool:
+                    cand = pool[0]
+                    finisher = ExerciseItem(
+                        name=cand,
+                        sets=1,
+                        reps="8-12",
+                        rest_seconds=180,
+                        notes="Optional finisher if time permits.",
+                    )
+                    day.accessories.append(finisher)
+                    if estimate() > target_sec:
+                        day.accessories.pop()
+
 def _notes_flags(req) -> dict:
     text = (req.constraints or "").lower()
     avoid_tokens = {str(x).strip().lower() for x in (getattr(req, "avoid", None) or [])}
@@ -1217,8 +1337,12 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
         
         _enforce_avoid_shoulders(day, req)
         _dedupe_day(day)
-  
 
+        # Deterministic time enforcement against session_minutes
+        _enforce_session_minutes(day, req)
+        _dedupe_day(day)
+
+        
         
 
     # Notes (short, deterministic, matches your philosophy)
@@ -1261,5 +1385,14 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
             "Rest >=4 min on compounds and >=3 min on isolations."
         ]
 
+
+    # Attach deterministic time estimates
+    total_minutes = 0
+    for day in plan.weekly_split:
+        day.estimated_minutes = _estimate_day_minutes(day)
+        total_minutes += day.estimated_minutes
+
+    plan.estimated_minutes_total = total_minutes
+    plan.estimated_minutes_note = "Estimated using sets+rest model; enforced to fit session_minutes."
 
     return plan

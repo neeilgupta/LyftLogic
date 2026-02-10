@@ -43,6 +43,7 @@ class DayPlan(BaseModel):
     warmup: list[str] = Field(default_factory=list)
     main: list[ExerciseItem]
     accessories: list[ExerciseItem] = Field(default_factory=list)
+    estimated_minutes: int = 0
 
 
 class GeneratePlanResponse(BaseModel):
@@ -52,6 +53,8 @@ class GeneratePlanResponse(BaseModel):
     weekly_split: list[DayPlan]
     progression_notes: list[str] = Field(default_factory=list)
     safety_notes: list[str] = Field(default_factory=list)
+    estimated_minutes_total: int = 0
+    estimated_minutes_note: str = ""
 
 class EditPlanRequest(BaseModel):
     message: str
@@ -76,4 +79,3 @@ class EditPlanResponse(BaseModel):
 
 class RestorePlanRequest(BaseModel):
     version: Annotated[int, Field(ge=1)]
-

@@ -125,6 +125,39 @@ def generate_plan(req: GeneratePlanRequest):
 
     normalize_openai_json_schema(schema)
 
+    # Do not require runtime-estimated fields in LLM output
+    def strip_estimate_fields(node: dict) -> None:
+        if not isinstance(node, dict):
+            return
+
+        props = node.get("properties")
+        if isinstance(props, dict):
+            for k in ("estimated_minutes_total", "estimated_minutes_note"):
+                props.pop(k, None)
+                if "required" in node and k in node["required"]:
+                    node["required"].remove(k)
+
+            # nested weekly_split item
+            ws = props.get("weekly_split")
+            if isinstance(ws, dict) and "items" in ws:
+                item = ws["items"]
+                if isinstance(item, dict):
+                    item_props = item.get("properties")
+                    if isinstance(item_props, dict):
+                        item_props.pop("estimated_minutes", None)
+                        if "required" in item and "estimated_minutes" in item["required"]:
+                            item["required"].remove("estimated_minutes")
+
+        for v in node.values():
+            if isinstance(v, dict):
+                strip_estimate_fields(v)
+            elif isinstance(v, list):
+                for it in v:
+                    if isinstance(it, dict):
+                        strip_estimate_fields(it)
+
+    strip_estimate_fields(schema)
+
     # ensure an OpenAI client is available when we actually need it
     if not os.getenv("OPENAI_API_KEY"):
         # Keep server bootable without an API key — fail only at call-time
