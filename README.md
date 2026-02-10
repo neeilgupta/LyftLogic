@@ -283,22 +283,14 @@ npm run dev
 
 ---
 
-## 🗺️ Roadmap (Intentionally Staged)
+## Roadmap
+- ✅ v1: Deterministic training + nutrition generation (demo mode)
+- 🔜 Phase 5: Accounts + saved plans + version history
+- 🔜 Phase 6: Unified “My Plans” dashboard (training + nutrition)
 
-### Near-Term
-- Nutrition version persistence
-- Restore previous nutrition versions
-- Unified diff history view
+Design docs:
+- Phase 5: Accounts + Persistence — `docs/PHASE_5_ACCOUNTS_AND_PERSISTENCE.md`
 
-### Mid-Term
-- Nutrition chat → apply flow
-- Macro targets as first-class constraints
-- PDF / shareable exports
-
-### Long-Term
-- Exercise substitution memory
-- Workout logging
-- Performance analytics
 
 ---
 
