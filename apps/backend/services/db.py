@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Tuple
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 # .../apps/backend/services/db.py -> data/gymgpt.db
 DB_DIR = (Path(__file__).resolve().parent / ".." / ".." / "data").resolve()
@@ -69,7 +70,27 @@ def init_db() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_plan_versions_plan_id ON plan_versions(plan_id);"
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+            );
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sessions(
+                token TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+                expires_at TEXT
+            );
+            """
+        )
     migrate_add_diff_json()
+    migrate_add_plan_owner()
 
 def migrate_add_diff_json() -> None:
     """
@@ -79,6 +100,16 @@ def migrate_add_diff_json() -> None:
         cols = [r["name"] for r in conn.execute("PRAGMA table_info(plan_versions);")]
         if "diff_json" not in cols:
             conn.execute("ALTER TABLE plan_versions ADD COLUMN diff_json TEXT;")
+
+
+def migrate_add_plan_owner() -> None:
+    """
+    One-time safe migration to add owner_id to plans
+    """
+    with _conn() as conn:
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(plans);")]
+        if "owner_id" not in cols:
+            conn.execute("ALTER TABLE plans ADD COLUMN owner_id INTEGER NULL;")
 
 
 
@@ -181,12 +212,26 @@ def get_latest_by_exercise(limit_per_exercise: int = 3) -> Dict[str, List[Dict]]
                 )
         return tmp
     
-def add_plan(title: str, input_json: str, output_json: str) -> Dict:
+def add_plan(
+    title: str,
+    input_json: str,
+    output_json: str,
+    owner_id: Optional[int] = None,
+) -> Dict:
     with _conn() as conn:
-        cur = conn.execute(
-            "INSERT INTO plans(title, input_json, output_json) VALUES (?,?,?)",
-            (title, input_json, output_json),
-        )
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(plans);")]
+        if "owner_id" in cols:
+            cur = conn.execute(
+                "INSERT INTO plans(title, input_json, output_json, owner_id) VALUES (?,?,?,?)",
+                (title, input_json, output_json, owner_id),
+            )
+            select_cols = "id, created_at, title, input_json, output_json, owner_id"
+        else:
+            cur = conn.execute(
+                "INSERT INTO plans(title, input_json, output_json) VALUES (?,?,?)",
+                (title, input_json, output_json),
+            )
+            select_cols = "id, created_at, title, input_json, output_json"
         conn.commit()
         plan_id = cur.lastrowid
 
@@ -197,30 +242,57 @@ def add_plan(title: str, input_json: str, output_json: str) -> Dict:
         )
 
         row = conn.execute(
-            "SELECT id, created_at, title, input_json, output_json FROM plans WHERE id = ?",
+            f"SELECT {select_cols} FROM plans WHERE id = ?",
             (plan_id,),
         ).fetchone()
         return dict(row)
 
 
-def list_plans(limit: int = 20, offset: int = 0) -> List[Dict]:
+def list_plans(
+    limit: int = 20,
+    offset: int = 0,
+    owner_id: Optional[int] = None,
+) -> List[Dict]:
     with _conn() as conn:
-        cur = conn.execute(
-            """
-            SELECT id, created_at, title
-            FROM plans
-            ORDER BY id DESC
-            LIMIT ? OFFSET ?
-            """,
-            (limit, offset),
-        )
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(plans);")]
+        has_owner = "owner_id" in cols
+        if owner_id is not None:
+            if not has_owner:
+                return []
+            cur = conn.execute(
+                """
+                SELECT id, created_at, title, owner_id
+                FROM plans
+                WHERE owner_id = ?
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (owner_id, limit, offset),
+            )
+        else:
+            select_cols = "id, created_at, title"
+            if has_owner:
+                select_cols += ", owner_id"
+            cur = conn.execute(
+                f"""
+                SELECT {select_cols}
+                FROM plans
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (limit, offset),
+            )
         return [dict(r) for r in cur.fetchall()]
 
 def get_plan(plan_id: int) -> Optional[Dict]:
     with _conn() as conn:
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(plans);")]
+        select_cols = "id, created_at, title, input_json, output_json"
+        if "owner_id" in cols:
+            select_cols += ", owner_id"
         row = conn.execute(
-            """
-            SELECT id, created_at, title, input_json, output_json
+            f"""
+            SELECT {select_cols}
             FROM plans
             WHERE id = ?
             """,
@@ -308,3 +380,59 @@ def get_plan_version(plan_id: int, version: int) -> Optional[Dict[str, Any]]:
         d.pop("diff_json", None)
         return d
 
+
+def get_or_create_user(email: str) -> Dict[str, Any]:
+    with _conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO users(email) VALUES (?)",
+            (email,),
+        )
+        row = conn.execute(
+            "SELECT id, email FROM users WHERE email = ?",
+            (email,),
+        ).fetchone()
+        return dict(row)
+
+
+def create_session(user_id: int) -> str:
+    token = uuid4().hex
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=30)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    with _conn() as conn:
+        conn.execute(
+            "INSERT INTO sessions(token, user_id, expires_at) VALUES (?,?,?)",
+            (token, user_id, expires_at),
+        )
+    return token
+
+
+def get_user_by_session(token: str) -> Optional[Dict[str, Any]]:
+    with _conn() as conn:
+        row = conn.execute(
+            """
+            SELECT u.id, u.email, s.expires_at
+            FROM sessions s
+            JOIN users u ON u.id = s.user_id
+            WHERE s.token = ?
+            """,
+            (token,),
+        ).fetchone()
+        if not row:
+            return None
+
+        expires_at = row["expires_at"]
+        if expires_at:
+            expires_dt = datetime.strptime(expires_at, "%Y-%m-%dT%H:%M:%SZ").replace(
+                tzinfo=timezone.utc
+            )
+            if expires_dt <= datetime.now(timezone.utc):
+                conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+                return None
+
+        return {"id": row["id"], "email": row["email"]}
+
+
+def delete_session(token: str) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM sessions WHERE token = ?", (token,))

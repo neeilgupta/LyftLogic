@@ -807,7 +807,9 @@ async function fetchVersions(opts?: { keepSelection?: boolean }) {
   const token = ++versionsReqToken.value;
 
   try {
-    const res: any = await $fetch(`${apiBase}/plans/${id.value}/versions`);
+    const res: any = await $fetch(`${apiBase}/plans/${id.value}/versions`, {
+      credentials: "include",
+    });
     if (token !== versionsReqToken.value) return; // ignore stale response
 
     const items: VersionItem[] = res.items ?? res ?? [];
@@ -846,6 +848,7 @@ async function restoreSelected() {
     await $fetch(`${apiBase}/plans/${id.value}/restore`, {
       method: "POST",
       body: { version: v },
+      credentials: "include",
     });
 
     // 1) pull newest versions first (so we can select latest deterministically)

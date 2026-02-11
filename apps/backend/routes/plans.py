@@ -15,7 +15,8 @@ from services.db import (
 )
 
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from deps import get_optional_current_user
 from models.plans import (
     GeneratePlanRequest,
     GeneratePlanResponse,
@@ -104,7 +105,7 @@ Output requirements:
 
 
 @router.post("/generate")
-def generate_plan(req: GeneratePlanRequest):
+def generate_plan(req: GeneratePlanRequest, user=Depends(get_optional_current_user)):
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # Use JSON schema guidance via response_format with strict JSON
@@ -215,13 +216,21 @@ def generate_plan(req: GeneratePlanRequest):
             title=plan.title,
             input_json=json.dumps(input_state),
             output_json=plan.model_dump_json(),
+            owner_id=user["id"] if user else None,
         )
 
         # Effective constraints string that rules engine reads
         input_state["constraints"] = input_state["base_constraints_text"]
 
 
-        return {"id": saved["id"], "created_at": saved["created_at"], **plan.model_dump()}
+        return {
+            "id": saved["id"],
+            "plan_id": saved["id"],
+            "version": 1,
+            "output": plan.model_dump(),
+            "input": input_state,
+            "diff": None,
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Plan generation failed: {e}")
@@ -230,15 +239,30 @@ def generate_plan(req: GeneratePlanRequest):
 def list_saved_plans(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    mine: int | None = Query(None, description="Set to 1 to list only your plans"),
+    user=Depends(get_optional_current_user),
 ):
-    return {"items": list_plans(limit=limit, offset=offset), "limit": limit, "offset": offset}
+    if mine == 1:
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        items = list_plans(limit=limit, offset=offset, owner_id=user["id"])
+    else:
+        items = list_plans(limit=limit, offset=offset)
+    return {"items": items, "limit": limit, "offset": offset}
 
 
 @router.get("/{plan_id}", summary="Get a saved plan by id")
-def get_saved_plan(plan_id: int):
+def get_saved_plan(plan_id: int, user=Depends(get_optional_current_user)):
     row = get_plan(plan_id)
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
+
+    owner_id = row.get("owner_id")
+    if owner_id is not None:
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if user["id"] != owner_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
 
     latest = get_latest_plan_version(plan_id)
 
@@ -247,19 +271,33 @@ def get_saved_plan(plan_id: int):
         input_obj = latest["input"]
         output_obj = latest["output"]
         version = latest["version"]
+        diff = latest.get("diff")
     else:
         # fallback for older plans created before versioning existed
         input_obj = json.loads(row["input_json"])
         output_obj = json.loads(row["output_json"])
         version = 1
+        diff = None
+
+    restored_from = None
+    is_restored = False
+    if isinstance(diff, dict) and "restored_from" in diff:
+        try:
+            restored_from = int(diff["restored_from"])
+            is_restored = True
+        except Exception:
+            restored_from = None
+            is_restored = False
 
     return {
         "id": row["id"],
-        "created_at": row["created_at"],
-        "title": row["title"],
+        "plan_id": row["id"],
         "version": version,
         "input": input_obj,
         "output": output_obj,
+        "diff": diff,
+        "is_restored": is_restored,
+        "restored_from": restored_from,
     }
 
 
@@ -343,10 +381,17 @@ def edit_saved_plan(plan_id: int, body: EditPlanRequest) -> EditPlanResponse:
     )
 
 @router.get("/{plan_id}/versions", summary="List versions for a plan")
-def get_plan_versions(plan_id: int):
+def get_plan_versions(plan_id: int, user=Depends(get_optional_current_user)):
     row = get_plan(plan_id)
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
+
+    owner_id = row.get("owner_id")
+    if owner_id is not None:
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if user["id"] != owner_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
 
     items = list_plan_versions(plan_id)
 
@@ -487,10 +532,17 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
     return {"plan_id": plan_id, "version": new_version, "output": new_output, "diff": diff}
 
 @router.post("/{plan_id}/restore", summary="Restore a previous version by creating a new version snapshot")
-def restore_plan_version(plan_id: int, body: RestorePlanRequest):
+def restore_plan_version(plan_id: int, body: RestorePlanRequest, user=Depends(get_optional_current_user)):
     row = get_plan(plan_id)
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
+
+    owner_id = row.get("owner_id")
+    if owner_id is not None:
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if user["id"] != owner_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
 
     target = get_plan_version(plan_id, body.version)
     if not target:

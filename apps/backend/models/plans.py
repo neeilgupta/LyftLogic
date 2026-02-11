@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import List, Literal, Optional, Annotated, Dict, Any
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 class GeneratePlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -15,6 +15,17 @@ class GeneratePlanRequest(BaseModel):
     equipment: Literal["full_gym", "dumbbells", "bodyweight"] = "full_gym"
     soreness_notes: Optional[str] = None
     constraints: Optional[str] = Field(default="", description="Any injuries, preferences, dislikes.")
+
+    @field_validator("equipment", mode="before")
+    @classmethod
+    def normalize_equipment(cls, v):
+        if isinstance(v, str):
+            raw = v.strip().lower()
+            if raw in {"full gym", "full-gym", "fullgym"}:
+                return "full_gym"
+            if raw in {"body weight", "body-weight"}:
+                return "bodyweight"
+        return v
 
 
 class ExerciseItem(BaseModel):

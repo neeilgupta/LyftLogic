@@ -1,37 +1,321 @@
 <template>
-  <div style="padding: 20px; font-family: system-ui;">
-    <h1>LyftLogic</h1>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <p class="kicker">LyftLogic</p>
+        <h1>Plans</h1>
+        <p class="sub">Sign in to see your saved plans.</p>
+      </div>
+    </header>
 
-    <button @click="test" :disabled="loading" style="padding: 10px 14px;">
-      {{ loading ? "Loading..." : "Test GET /plans" }}
-    </button>
+    <section class="ll-card">
+      <div class="auth-row">
+        <div>
+          <p class="label">Account</p>
+          <p v-if="user" class="status">Logged in as {{ user.email }}</p>
+          <p v-else class="status muted">Not logged in</p>
+        </div>
 
-    <p v-if="error" style="color: red; margin-top: 12px;">{{ error }}</p>
+        <div class="auth-actions">
+          <input
+            v-model="email"
+            class="input"
+            type="email"
+            placeholder="you@example.com"
+            :disabled="authLoading || !!user"
+          />
+          <button class="btn" @click="onLogin" :disabled="authLoading || !!user || !email.trim()">
+            {{ authLoading ? "Signing in..." : "Login" }}
+          </button>
+          <button class="btn ghost" @click="onLogout" :disabled="authLoading || !user">
+            Logout
+          </button>
+        </div>
+      </div>
 
-    <pre style="margin-top: 12px; white-space: pre-wrap;">{{ data }}</pre>
+      <p v-if="authError" class="error">{{ authError }}</p>
+    </section>
+
+    <section class="ll-card">
+      <div class="section-head">
+        <h2>My Plans</h2>
+        <button class="btn ghost" @click="loadMine" :disabled="plansLoading || !user">
+          {{ plansLoading ? "Loading..." : "Refresh" }}
+        </button>
+      </div>
+
+      <p v-if="plansError" class="error">{{ plansError }}</p>
+      <p v-if="plansLoading && user" class="muted">Loading your plans…</p>
+      <p v-if="!plansLoading && user && plans.length === 0" class="empty">
+        No plans yet. Generate one and it will appear here.
+      </p>
+      <p v-if="!user" class="muted">Log in to see your plans.</p>
+
+      <div v-if="plans.length" class="plan-list">
+        <NuxtLink v-for="p in plans" :key="p.id" class="plan-row" :to="`/plans/${p.id}`">
+          <div>
+            <p class="plan-title">{{ p.title || "Untitled plan" }}</p>
+            <p class="plan-meta">Plan #{{ p.id }} • {{ p.created_at }}</p>
+          </div>
+          <span class="chev">→</span>
+        </NuxtLink>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { usePlans } from "../../../composables/usePlans";
+import { useAuth } from "../../../composables/useAuth";
 
-const { listPlans } = usePlans();
+type User = { id: number; email: string };
 
-const loading = ref(false);
-const error = ref<string | null>(null);
-const data = ref<any>(null);
+const { listMyPlans } = usePlans();
+const { login, logout, me } = useAuth();
 
-async function test() {
-  loading.value = true;
-  error.value = null;
+const user = ref<User | null>(null);
+const email = ref("");
+const authLoading = ref(false);
+const authError = ref<string | null>(null);
 
+const plans = ref<any[]>([]);
+const plansLoading = ref(false);
+const plansError = ref<string | null>(null);
+
+async function loadMine() {
+  if (!user.value) return;
+  plansLoading.value = true;
+  plansError.value = null;
   try {
-    data.value = await listPlans();
+    const res: any = await listMyPlans();
+    plans.value = res?.items ?? [];
   } catch (e: any) {
-    error.value = e?.data?.detail ?? e?.message ?? String(e);
+    plansError.value = e?.data?.detail ?? e?.message ?? String(e);
   } finally {
-    loading.value = false;
+    plansLoading.value = false;
   }
 }
+
+async function onLogin() {
+  authLoading.value = true;
+  authError.value = null;
+  try {
+    const res = await login(email.value.trim().toLowerCase());
+    user.value = res;
+    await loadMine();
+  } catch (e: any) {
+    authError.value = e?.data?.detail ?? e?.message ?? String(e);
+  } finally {
+    authLoading.value = false;
+  }
+}
+
+async function onLogout() {
+  authLoading.value = true;
+  authError.value = null;
+  try {
+    await logout();
+    user.value = null;
+    plans.value = [];
+  } catch (e: any) {
+    authError.value = e?.data?.detail ?? e?.message ?? String(e);
+  } finally {
+    authLoading.value = false;
+  }
+}
+
+onMounted(async () => {
+  authLoading.value = true;
+  try {
+    user.value = await me();
+    if (user.value) {
+      await loadMine();
+    }
+  } catch (e: any) {
+    authError.value = e?.data?.detail ?? e?.message ?? String(e);
+  } finally {
+    authLoading.value = false;
+  }
+});
 </script>
+
+<style scoped>
+.page {
+  padding: 28px 20px 80px;
+  color: #e5e7eb;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: radial-gradient(circle at top left, #2a1658 0%, #0b0b12 45%);
+  min-height: 100vh;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 18px;
+}
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 11px;
+  opacity: 0.7;
+  margin: 0 0 6px;
+}
+
+h1 {
+  font-size: 32px;
+  margin: 0 0 6px;
+}
+
+.sub {
+  margin: 0;
+  opacity: 0.75;
+}
+
+.ll-card {
+  background: rgba(16, 10, 32, 0.8);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  margin-bottom: 16px;
+}
+
+.auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.label {
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.status {
+  margin: 0;
+  font-size: 14px;
+}
+
+.muted {
+  opacity: 0.7;
+}
+
+.input {
+  background: rgba(12, 8, 26, 0.9);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  border-radius: 10px;
+  color: #e5e7eb;
+  padding: 10px 12px;
+  min-width: 220px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 58, 237, 0.6);
+  background: rgba(124, 58, 237, 0.2);
+  color: #e5e7eb;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.plan-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(20, 12, 40, 0.8);
+  color: inherit;
+  text-decoration: none;
+}
+
+.plan-title {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+
+.plan-meta {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.chev {
+  opacity: 0.6;
+  font-size: 18px;
+}
+
+.error {
+  color: #fca5a5;
+  margin-top: 12px;
+}
+
+.empty {
+  margin: 8px 0 0;
+  opacity: 0.8;
+}
+
+@media (max-width: 720px) {
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .auth-actions {
+    width: 100%;
+  }
+
+  .input {
+    flex: 1;
+    min-width: 180px;
+  }
+}
+</style>

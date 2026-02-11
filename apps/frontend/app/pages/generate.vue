@@ -82,7 +82,7 @@
       />
 
       <div v-if="error" class="error-message">{{ error }}</div>
-      <pre v-if="result" class="result-output">{{ result }}</pre>
+      <PlanViewer v-if="result?.output" :plan="result.output" />
     </form>
   </main>
 </template>
@@ -91,10 +91,13 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { usePlans } from "../../composables/usePlans";
+import { useAuth } from "../../composables/useAuth";
+import PlanViewer from "../components/PlanViewer.vue";
 import LLLoadingPanel from "../components/LLLoadingPanel.vue";
 
 const router = useRouter();
 const { generatePlan } = usePlans();
+const { me } = useAuth();
 
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -149,9 +152,14 @@ async function onSubmit() {
   result.value = null;
 
   try {
-    const res = await generatePlan(form.value);
+    const res: any = await generatePlan(form.value);
     result.value = res;
-    router.push(`/plans/${res.id}`);
+
+    const user = await me();
+    const planId = res?.plan_id ?? res?.id;
+    if (user && planId) {
+      router.push(`/plans/${planId}`);
+    }
   } catch (e: any) {
     console.log(e);
     error.value =
