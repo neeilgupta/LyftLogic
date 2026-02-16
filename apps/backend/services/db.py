@@ -95,6 +95,7 @@ def init_db() -> None:
     migrate_add_diff_json()
     migrate_add_plan_owner()
     migrate_session_expiry()
+    migrate_database_hardening()
 
 def migrate_add_diff_json() -> None:
     """
@@ -136,6 +137,49 @@ def migrate_session_expiry() -> None:
               AND expires_at <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
             """
         )
+
+
+def migrate_database_hardening() -> None:
+    """Add missing indexes and enforce NOT NULL on sessions.expires_at."""
+    with _conn() as conn:
+        # Index for "My Plans" queries (WHERE owner_id = ?)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_plans_owner_id ON plans(owner_id);"
+        )
+        # Index for session lookups by user
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);"
+        )
+
+        # Enforce NOT NULL on sessions.expires_at:
+        # After migrate_session_expiry(), no NULL rows should exist.
+        # SQLite requires table rebuild to add NOT NULL constraint.
+        cols = {r["name"]: r["notnull"] for r in conn.execute("PRAGMA table_info(sessions);")}
+        if cols.get("expires_at") == 0:
+            # Verify no NULLs remain before rebuilding
+            null_count = conn.execute(
+                "SELECT COUNT(*) FROM sessions WHERE expires_at IS NULL"
+            ).fetchone()[0]
+            if null_count == 0:
+                conn.execute(
+                    """
+                    CREATE TABLE sessions_new(
+                        token TEXT PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id),
+                        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+                        expires_at TEXT NOT NULL
+                    );
+                    """
+                )
+                conn.execute(
+                    "INSERT INTO sessions_new SELECT * FROM sessions;"
+                )
+                conn.execute("DROP TABLE sessions;")
+                conn.execute("ALTER TABLE sessions_new RENAME TO sessions;")
+                # Recreate index after table rebuild
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);"
+                )
 
 
 def add_log(
