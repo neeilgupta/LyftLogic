@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Optional, Dict, List, Any, Tuple
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
+import os
+
+SESSION_EXPIRY_DAYS = int(os.getenv("SESSION_EXPIRY_DAYS", "7"))
 
 # .../apps/backend/services/db.py -> data/gymgpt.db
 DB_DIR = (Path(__file__).resolve().parent / ".." / ".." / "data").resolve()
@@ -91,6 +94,7 @@ def init_db() -> None:
         )
     migrate_add_diff_json()
     migrate_add_plan_owner()
+    migrate_session_expiry()
 
 def migrate_add_diff_json() -> None:
     """
@@ -111,6 +115,27 @@ def migrate_add_plan_owner() -> None:
         if "owner_id" not in cols:
             conn.execute("ALTER TABLE plans ADD COLUMN owner_id INTEGER NULL;")
 
+
+def migrate_session_expiry() -> None:
+    """Backfill NULL expires_at with created_at + SESSION_EXPIRY_DAYS, delete already-expired."""
+    with _conn() as conn:
+        # Backfill any sessions that have NULL expires_at
+        conn.execute(
+            """
+            UPDATE sessions
+            SET expires_at = strftime('%%Y-%%m-%%dT%%H:%%M:%%SZ',
+                                     created_at, '+%d days')
+            WHERE expires_at IS NULL
+            """ % SESSION_EXPIRY_DAYS
+        )
+        # Purge sessions that are already expired
+        conn.execute(
+            """
+            DELETE FROM sessions
+            WHERE expires_at IS NOT NULL
+              AND expires_at <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+            """
+        )
 
 
 def add_log(
@@ -396,7 +421,7 @@ def get_or_create_user(email: str) -> Dict[str, Any]:
 
 def create_session(user_id: int) -> str:
     token = uuid4().hex
-    expires_at = (datetime.now(timezone.utc) + timedelta(days=30)).strftime(
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=SESSION_EXPIRY_DAYS)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
     with _conn() as conn:
@@ -422,13 +447,17 @@ def get_user_by_session(token: str) -> Optional[Dict[str, Any]]:
             return None
 
         expires_at = row["expires_at"]
-        if expires_at:
-            expires_dt = datetime.strptime(expires_at, "%Y-%m-%dT%H:%M:%SZ").replace(
-                tzinfo=timezone.utc
-            )
-            if expires_dt <= datetime.now(timezone.utc):
-                conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
-                return None
+        if not expires_at:
+            # Session without expiry is invalid — delete and reject
+            conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+            return None
+
+        expires_dt = datetime.strptime(expires_at, "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc
+        )
+        if expires_dt <= datetime.now(timezone.utc):
+            conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+            return None
 
         return {"id": row["id"], "email": row["email"]}
 

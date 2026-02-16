@@ -92,7 +92,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { usePlans } from "../../composables/usePlans";
 import { useAuth } from "../../composables/useAuth";
-import PlanViewer from "../components/PlanViewer.vue";
+import PlanViewer from "../../components/PlanViewer.vue";
 import LLLoadingPanel from "../components/LLLoadingPanel.vue";
 
 const router = useRouter();
@@ -156,7 +156,7 @@ async function onSubmit() {
     result.value = res;
 
     const user = await me();
-    const planId = res?.plan_id ?? res?.id;
+    const planId = res?.plan_id;
     if (user && planId) {
       router.push(`/plans/${planId}`);
     }

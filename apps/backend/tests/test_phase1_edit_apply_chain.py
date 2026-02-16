@@ -33,8 +33,8 @@ def _maybe_generate_plan_id() -> int:
     r = client.post("/plans/generate", json=payload)
     assert r.status_code == 200, r.text
     data = r.json()
-    assert "id" in data, data
-    return data["id"]
+    assert "plan_id" in data, data
+    return data["plan_id"]
 
 def test_edit_apply_chain_three_times():
     plan_id = _maybe_generate_plan_id()

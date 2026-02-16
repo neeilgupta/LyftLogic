@@ -19,6 +19,8 @@
       </div>
     </div>
 
+    <slot name="after-notes" />
+
     <div class="ll-card">
       <div class="day-tabs">
         <a

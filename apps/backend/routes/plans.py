@@ -24,6 +24,8 @@ from models.plans import (
     EditPlanResponse,
     PlanEditPatch,
     RestorePlanRequest,
+    PlanResponse,
+    extract_restore_meta,
 )
 
 
@@ -223,14 +225,12 @@ def generate_plan(req: GeneratePlanRequest, user=Depends(get_optional_current_us
         input_state["constraints"] = input_state["base_constraints_text"]
 
 
-        return {
-            "id": saved["id"],
-            "plan_id": saved["id"],
-            "version": 1,
-            "output": plan.model_dump(),
-            "input": input_state,
-            "diff": None,
-        }
+        return PlanResponse(
+            plan_id=saved["id"],
+            version=1,
+            input=input_state,
+            output=plan.model_dump(),
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Plan generation failed: {e}")
@@ -245,9 +245,16 @@ def list_saved_plans(
     if mine == 1:
         if not user:
             raise HTTPException(status_code=401, detail="Not authenticated")
-        items = list_plans(limit=limit, offset=offset, owner_id=user["id"])
+        rows = list_plans(limit=limit, offset=offset, owner_id=user["id"])
     else:
-        items = list_plans(limit=limit, offset=offset)
+        rows = list_plans(limit=limit, offset=offset)
+
+    items = []
+    for r in rows:
+        item = dict(r)
+        item["plan_id"] = item.pop("id")
+        items.append(item)
+
     return {"items": items, "limit": limit, "offset": offset}
 
 
@@ -279,26 +286,17 @@ def get_saved_plan(plan_id: int, user=Depends(get_optional_current_user)):
         version = 1
         diff = None
 
-    restored_from = None
-    is_restored = False
-    if isinstance(diff, dict) and "restored_from" in diff:
-        try:
-            restored_from = int(diff["restored_from"])
-            is_restored = True
-        except Exception:
-            restored_from = None
-            is_restored = False
+    is_restored, restored_from = extract_restore_meta(diff)
 
-    return {
-        "id": row["id"],
-        "plan_id": row["id"],
-        "version": version,
-        "input": input_obj,
-        "output": output_obj,
-        "diff": diff,
-        "is_restored": is_restored,
-        "restored_from": restored_from,
-    }
+    return PlanResponse(
+        plan_id=row["id"],
+        version=version,
+        input=input_obj,
+        output=output_obj,
+        diff=diff,
+        is_restored=is_restored,
+        restored_from=restored_from,
+    )
 
 
 
@@ -395,20 +393,8 @@ def get_plan_versions(plan_id: int, user=Depends(get_optional_current_user)):
 
     items = list_plan_versions(plan_id)
 
-    # Add restore metadata (additive, backward-compatible)
     for it in items:
-        diff = it.get("diff")
-        restored_from = None
-        is_restored = False
-
-        if isinstance(diff, dict) and "restored_from" in diff:
-            try:
-                restored_from = int(diff["restored_from"])
-                is_restored = True
-            except Exception:
-                restored_from = None
-                is_restored = False
-
+        is_restored, restored_from = extract_restore_meta(it.get("diff"))
         it["is_restored"] = is_restored
         it["restored_from"] = restored_from
 
@@ -529,7 +515,13 @@ def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
         "created_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     })
     create_plan_version(plan_id, new_version, new_input, new_output, diff=diff)
-    return {"plan_id": plan_id, "version": new_version, "output": new_output, "diff": diff}
+    return PlanResponse(
+        plan_id=plan_id,
+        version=new_version,
+        input=new_input,
+        output=new_output,
+        diff=diff,
+    )
 
 @router.post("/{plan_id}/restore", summary="Restore a previous version by creating a new version snapshot")
 def restore_plan_version(plan_id: int, body: RestorePlanRequest, user=Depends(get_optional_current_user)):
@@ -560,9 +552,12 @@ def restore_plan_version(plan_id: int, body: RestorePlanRequest, user=Depends(ge
 
     create_plan_version(plan_id, new_version, restored_input, restored_output, diff=diff)
 
-    return {
-        "plan_id": plan_id,
-        "version": new_version,
-        "output": restored_output,
-        "diff": diff,
-    }
+    return PlanResponse(
+        plan_id=plan_id,
+        version=new_version,
+        input=restored_input,
+        output=restored_output,
+        diff=diff,
+        is_restored=True,
+        restored_from=body.version,
+    )

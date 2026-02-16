@@ -90,3 +90,24 @@ class EditPlanResponse(BaseModel):
 
 class RestorePlanRequest(BaseModel):
     version: Annotated[int, Field(ge=1)]
+
+
+class PlanResponse(BaseModel):
+    """Standardized response shape for all plan-related endpoints that return plan data."""
+    plan_id: int
+    version: int
+    input: Any
+    output: Any
+    diff: Optional[Any] = None
+    is_restored: bool = False
+    restored_from: Optional[int] = None
+
+
+def extract_restore_meta(diff: Any) -> tuple[bool, int | None]:
+    """Extract is_restored and restored_from from a diff dict. Single source of truth."""
+    if isinstance(diff, dict) and "restored_from" in diff:
+        try:
+            return True, int(diff["restored_from"])
+        except Exception:
+            pass
+    return False, None

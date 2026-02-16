@@ -33,8 +33,8 @@ def _generate_plan_id() -> int:
     r = client.post("/plans/generate", json=payload)
     assert r.status_code == 200, r.text
     data = r.json()
-    assert "id" in data, data
-    return data["id"]
+    assert "plan_id" in data, data
+    return data["plan_id"]
 
 def _get_or_create_plan_id() -> int:
     global _cached_plan_id

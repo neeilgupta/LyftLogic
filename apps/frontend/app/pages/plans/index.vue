@@ -52,10 +52,10 @@
       <p v-if="!user" class="muted">Log in to see your plans.</p>
 
       <div v-if="plans.length" class="plan-list">
-        <NuxtLink v-for="p in plans" :key="p.id" class="plan-row" :to="`/plans/${p.id}`">
+        <NuxtLink v-for="p in plans" :key="p.plan_id" class="plan-row" :to="`/plans/${p.plan_id}`">
           <div>
             <p class="plan-title">{{ p.title || "Untitled plan" }}</p>
-            <p class="plan-meta">Plan #{{ p.id }} • {{ p.created_at }}</p>
+            <p class="plan-meta">Plan #{{ p.plan_id }} • {{ p.created_at }}</p>
           </div>
           <span class="chev">→</span>
         </NuxtLink>

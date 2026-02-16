@@ -67,194 +67,97 @@
       <div style="display: flex; gap: 14px; align-items: flex-start;">
         <!-- LEFT -->
         <div style="flex: 1; min-width: 0;">
-      <h1 style="margin: 0 0 8px;">{{ selectedOutput.title }}</h1>
+      <PlanViewer :plan="selectedOutput">
+        <template #after-notes>
+          <!-- Input / constraints / preferences (text only) -->
+          <div
+            v-if="inputConstraints.length || preferenceLines.length || constraintTokens.length || preferenceTokens.length"
+            class="notes-card"
+          >
+            <h3 style="margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;">
+              Preferences (informational)
+            </h3>
 
+            <div v-if="constraintTokens.length" style="margin-bottom: 8px;">
+              <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Constraint Tokens</div>
+              <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                <li v-for="(c, i) in constraintTokens" :key="`ct-${i}`">{{ c }}</li>
+              </ul>
+            </div>
 
-      <p style="margin: 0 0 18px; opacity: 0.85;">{{ selectedOutput.summary }}</p>
+            <div v-if="preferenceTokens.length" style="margin-bottom: 8px;">
+              <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Preference Tokens</div>
+              <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                <li v-for="(p, i) in preferenceTokens" :key="`pt-${i}`">{{ p }}</li>
+              </ul>
+            </div>
 
-      <!-- Global notes -->
-      <div class="notes-card">
-        <div v-if="selectedOutput.progression_notes?.length" style="margin-bottom: 10px;">
-          <h3
-  style="
-    margin: 0 0 6px;
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    opacity: 0.8;
-  "
->
-  Training Notes
-</h3>
-          <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-            <li v-for="(n, i) in selectedOutput.progression_notes" :key="`pn-${i}`">{{ n }}</li>
-          </ul>
-        </div>
+            <div v-if="inputConstraints.length" style="margin-bottom: 8px;">
+              <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Constraints (raw)</div>
+              <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                <li v-for="(c, i) in inputConstraints" :key="`c-${i}`">{{ c }}</li>
+              </ul>
+            </div>
 
-        <div v-if="selectedOutput.safety_notes?.length">
-          <h3
-  style="
-    margin: 0 0 6px;
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    opacity: 0.8;
-  "
->
-            Safety Notes
-          </h3>
-          <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-            <li v-for="(n, i) in selectedOutput.safety_notes" :key="`sn-${i}`">{{ n }}</li>
-          </ul>
-        </div>
-
-        <!-- Input / constraints / preferences (text only) -->
-        <div
-          v-if="inputConstraints.length || preferenceLines.length || constraintTokens.length || preferenceTokens.length"
-          style="margin-top: 12px;"
-        >
-          <h3 style="margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;">
-            Preferences (informational)
-          </h3>
-
-          <!-- ✅ Tokens from backend -->
-          <div v-if="constraintTokens.length" style="margin-bottom: 8px;">
-            <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Constraint Tokens</div>
-            <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-              <li v-for="(c, i) in constraintTokens" :key="`ct-${i}`">{{ c }}</li>
-            </ul>
+            <div v-if="preferenceLines.length">
+              <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Flags</div>
+              <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                <li v-for="(p, i) in preferenceLines" :key="`p-${i}`">{{ p }}</li>
+              </ul>
+            </div>
           </div>
 
-          <div v-if="preferenceTokens.length" style="margin-bottom: 8px;">
-            <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Preference Tokens</div>
-            <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-              <li v-for="(p, i) in preferenceTokens" :key="`pt-${i}`">{{ p }}</li>
-            </ul>
-          </div>
+          <!-- What changed (diff) -->
+          <div
+            v-if="displayDiff !== null"
+            class="diff-card"
+          >
+            <div style="font-weight: 800; margin-bottom: 6px;">What changed</div>
 
-          <!-- Existing: raw constraints text -->
-          <div v-if="inputConstraints.length" style="margin-bottom: 8px;">
-            <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Constraints (raw)</div>
-            <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-              <li v-for="(c, i) in inputConstraints" :key="`c-${i}`">{{ c }}</li>
-            </ul>
-          </div>
+            <div v-if="displayDiff.replaced_exercises?.length">
+              <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">Replaced</div>
+              <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                <li v-for="(r, i) in displayDiff.replaced_exercises" :key="`rep-${i}`">
+                  Day {{ (r.day ?? 0) + 1 }}
+                  ({{ r.block }} #{{ (r.slot ?? 0) + 1 }}):
+                  <code>{{ r.from }}</code> → <code>{{ r.to }}</code>
+                </li>
+              </ul>
+            </div>
 
-          <!-- Existing: flags -->
-          <div v-if="preferenceLines.length">
-            <div style="opacity: 0.8; font-size: 13px; margin-bottom: 4px;">Flags</div>
-            <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-              <li v-for="(p, i) in preferenceLines" :key="`p-${i}`">{{ p }}</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      <!-- ========================= -->
-      <!-- What changed (diff) -->
-      <!-- ========================= -->
-      <div
-        v-if="displayDiff !== null"
+            <div v-if="displayDiff.added_exercises?.length">
+              <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">Added</div>
+              <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                <li v-for="(a, i) in displayDiff.added_exercises" :key="`add-${i}`">
+                  Day {{ (a.day ?? 0) + 1 }} ({{ a.block }} #{{ (a.slot ?? 0) + 1 }}):
+                  <code>{{ a.name }}</code>
+                </li>
+              </ul>
+            </div>
 
-        class="diff-card"
-      >
-        <div style="font-weight: 800; margin-bottom: 6px;">What changed</div>
+            <div v-if="displayDiff.removed_exercises?.length">
+              <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">Removed</div>
+              <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
+                <li v-for="(r, i) in displayDiff.removed_exercises" :key="`rem-${i}`">
+                  Day {{ (r.day ?? 0) + 1 }} ({{ r.block }} #{{ (r.slot ?? 0) + 1 }}):
+                  <code>{{ r.name }}</code>
+                </li>
+              </ul>
+            </div>
 
-        <div v-if="displayDiff.replaced_exercises?.length">
-          <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">
-            Replaced
-          </div>
-          <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-            <li
-              v-for="(r, i) in displayDiff.replaced_exercises"
-              :key="`rep-${i}`"
+            <div
+              v-if="
+                !displayDiff.replaced_exercises?.length &&
+                !displayDiff.removed_exercises?.length &&
+                !displayDiff.added_exercises?.length
+              "
+              style="opacity: 0.7; font-size: 13px;"
             >
-              Day {{ (r.day ?? 0) + 1 }}
-              ({{ r.block }} #{{ (r.slot ?? 0) + 1 }}):
-              <code>{{ r.from }}</code> → <code>{{ r.to }}</code>
-            </li>
-          </ul>
-        </div>
-
-        <div v-if="displayDiff.added_exercises?.length">
-          <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">
-            Added
+              No changes detected.
+            </div>
           </div>
-          <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-            <li v-for="(a, i) in displayDiff.added_exercises" :key="`add-${i}`">
-              Day {{ (a.day ?? 0) + 1 }} ({{ a.block }} #{{ (a.slot ?? 0) + 1 }}):
-              <code>{{ a.name }}</code>
-            </li>
-          </ul>
-        </div>
-
-        <div v-if="displayDiff.removed_exercises?.length">
-          <div style="font-weight: 700; font-size: 13px; margin: 8px 0 4px;">
-            Removed
-          </div>
-          <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">
-            <li v-for="(r, i) in displayDiff.removed_exercises" :key="`rem-${i}`">
-              Day {{ (r.day ?? 0) + 1 }} ({{ r.block }} #{{ (r.slot ?? 0) + 1 }}):
-              <code>{{ r.name }}</code>
-            </li>
-          </ul>
-        </div>
-
-        <div
-          v-if="
-            !displayDiff.replaced_exercises?.length &&
-            !displayDiff.removed_exercises?.length &&
-            !displayDiff.added_exercises?.length
-          "
-          style="opacity: 0.7; font-size: 13px;"
-        >
-          No changes detected.
-        </div>
-      </div>
-
-      <!-- simple day nav -->
-      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
-        <a
-          v-for="(day, i) in selectedOutput.weekly_split"
-          :key="i"
-          :href="`#day-${i}`"
-          style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 999px; text-decoration: none;"
-        >
-          {{ dayChipLabel(day) }}
-        </a>
-      </div>
-
-      <article
-        v-for="(day, i) in selectedOutput.weekly_split"
-        :key="i"
-        :id="`day-${i}`"
-        class="day-card"
-      >
-        <h2 style="margin: 0 0 6px; font-weight: 600;">
-          {{ day.day }} — {{ isRestDay(day) ? "Rest Day" : day.focus }}
-
-        </h2>
-
-        
-
-        <!-- REST DAY -->
-        <div
-          v-if="isRestDay(day)"
-          style="margin-top: 10px; padding: 12px; border: 1px dashed #ddd; border-radius: 10px; opacity: 0.85;"
-        >
-          <strong>Rest Day</strong>
-          <div style="margin-top: 6px;">
-            No lifting today. Optional: light walking and mobility.
-          </div>
-        </div>
-
-        <!-- TRAINING DAY -->
-        <template v-else>
-          <TableSection title="Main" :lifts="normalizeToLifts(day.main)" />
-          <TableSection title="Accessories" :lifts="normalizeToLifts(day.accessories)" />
         </template>
-      </article>
+      </PlanViewer>
     </div>
 
     <!-- RIGHT -->
@@ -335,45 +238,31 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: "plan" });
-import { computed, defineComponent, h, ref, watch } from "vue";
-import type { PropType } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { usePlans } from "../../../composables/usePlans";
 import { useRuntimeConfig } from "#imports";
-
-
-
-type Lift = {
-  name: string;
-  sets?: number;
-  reps?: string;
-  rest_seconds?: number | null;
-  notes?: string;
-};
-
-type Day = {
-  day: string;
-  focus: string;
-  warmup?: any[];
-  main?: any[];
-  accessories?: any[];
-};
+import PlanViewer from "../../../components/PlanViewer.vue";
 
 type PlanOutput = {
   title: string;
   summary: string;
-  weekly_split: Day[];
+  weekly_split: any[];
   progression_notes?: string[];
   safety_notes?: string[];
 };
 
 type PlanDetail = {
-  id: number;
-  created_at?: string;
+  plan_id: number;
+  version: number;
   input?: any;
   output?: PlanOutput;
+  diff?: any;
+  is_restored?: boolean;
+  restored_from?: number | null;
+  created_at?: string;
   summary?: string;
-  weekly_split?: Day[];
+  weekly_split?: any[];
   title?: string;
 };
 
@@ -510,191 +399,6 @@ const preferenceLines = computed<string[]>(() => {
 
 
   return out;
-});
-
-/** Warmup list rendering: stringy bullets */
-function normalizeToStrings(items: any[] | undefined) {
-  if (!items?.length) return [];
-  if (items.every((x) => typeof x === "string")) return items as string[];
-
-  return items.map((x) => {
-    if (typeof x === "string") return x;
-    if (x && typeof x === "object") {
-      if ("text" in x && typeof x.text === "string") return x.text;
-      if ("name" in x && typeof x.name === "string") return x.name; // fallback
-      return JSON.stringify(x);
-    }
-    return String(x);
-  });
-}
-
-/** Main/accessories rendering: turn anything into lift rows */
-function normalizeToLifts(items: any[] | undefined): Lift[] {
-  if (!items?.length) return [];
-
-  // If strings, treat as "name-only" lifts
-  if (items.every((x) => typeof x === "string")) {
-    return (items as string[]).map((s) => ({ name: s }));
-  }
-
-  // If lift-like objects
-  if (items.every((x) => x && typeof x === "object" && "name" in x)) {
-    return (items as any[]).map((x) => ({
-      name: String(x.name ?? ""),
-      sets: x.sets ?? undefined,
-      reps: x.reps ?? undefined,
-      rest_seconds: x.rest_seconds ?? null,
-      notes: x.notes ?? "",
-    }));
-  }
-
-  // Fallback: stringify
-  return items.map((x) => ({
-    name:
-      typeof x === "string"
-        ? x
-        : x && typeof x === "object"
-          ? JSON.stringify(x)
-          : String(x),
-  }));
-}
-
-function isRestDay(day: Day) {
-  const focus = String(day.focus ?? "").toLowerCase();
-  const label = String(day.day ?? "").toLowerCase();
-
-  // Strong signals
-  if (focus.includes("rest")) return true;
-  if (label.includes("rest")) return true;
-
-  // Treat "no lifts" as rest
-  const hasAny = (arr: any[] | undefined) =>
-    Array.isArray(arr) && arr.some((x) => {
-      if (!x) return false;
-      if (typeof x === "string") return x.trim().length > 0;
-      if (typeof x === "object") {
-        // lift-like objects might exist with empty name
-        const n = (x as any).name;
-        return typeof n === "string" ? n.trim().length > 0 : true;
-      }
-      return true;
-    });
-
-  const hasWarmup = hasAny(day.warmup);
-  const hasMain = hasAny(day.main);
-  const hasAcc = hasAny(day.accessories);
-
-  return !(hasWarmup || hasMain || hasAcc);
-}
-
-function dayChipLabel(day: Day) {
-  return isRestDay(day) ? `${day.day} (Rest)` : day.day;
-}
-
-const ListSection = defineComponent({
-  props: {
-    title: { type: String, required: true },
-    items: { type: Array as PropType<string[]>, default: () => [] },
-  },
-  setup(props) {
-    return () =>
-      props.items?.length
-        ? h("section", { style: "margin-top: 12px;" }, [
-            h(
-              "h3",
-              {
-                style:
-                  "margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;",
-              },
-              props.title
-            ),
-            h(
-              "ul",
-              { style: "margin: 0; padding-left: 18px; line-height: 1.6;" },
-              props.items.map((it) => h("li", it))
-            ),
-          ])
-        : null;
-  },
-});
-
-const TableSection = defineComponent({
-  props: {
-    title: { type: String, required: true },
-    lifts: { type: Array as PropType<Lift[]>, default: () => [] },
-  },
-  setup(props) {
-    return () => {
-      if (!props.lifts?.length) return null;
-
-      const showNotes = props.lifts.some((l) => !!(l.notes && String(l.notes).trim().length));
-
-      const thStyle =
-        "text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; padding: 8px 10px; border-bottom: 1px solid #eee;";
-      const tdStyle = "padding: 8px 10px; border-bottom: 1px solid #f3f3f3; vertical-align: top;";
-
-      return h("section", { style: "margin-top: 12px;" }, [
-        h(
-          "h3",
-          {
-            style:
-              "margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;",
-          },
-          props.title
-        ),
-        h(
-          "div",
-          { style: "overflow-x: auto; border: 1px solid #eee; border-radius: 10px;" },
-          [
-            h(
-  "table",
-  {
-    style:
-      "width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed;",
-  },
-  [
-    h("colgroup", [
-      h("col", { style: "width: 45%;" }), // Exercise
-      h("col", { style: "width: 15%;" }), // Sets
-      h("col", { style: "width: 15%;" }), // Reps
-      h("col", { style: "width: 15%;" }), // Rest
-      ...(showNotes ? [h("col", { style: "width: 10%;" })] : []), // Notes
-    ]),
-
-    h("thead", [
-      h("tr", [
-        h("th", { style: thStyle }, "Exercise"),
-        h("th", { style: thStyle }, "Sets"),
-        h("th", { style: thStyle }, "Reps"),
-        h("th", { style: thStyle }, "Rest"),
-        ...(showNotes ? [h("th", { style: thStyle }, "Notes")] : []),
-      ]),
-    ]),
-
-    h(
-      "tbody",
-      props.lifts.map((l, idx) =>
-        h("tr", { key: `${props.title}-${idx}` }, [
-          h("td", { style: tdStyle }, l.name ?? ""),
-          h("td", { style: tdStyle }, l.sets != null ? String(l.sets) : ""),
-          h("td", { style: tdStyle }, l.reps ?? ""),
-          h(
-            "td",
-            { style: tdStyle },
-            l.rest_seconds != null ? `${l.rest_seconds}s` : ""
-          ),
-          ...(showNotes ? [h("td", { style: tdStyle }, l.notes ?? "")] : []),
-        ])
-      )
-    ),
-  ]
-),
-
-          ]
-        ),
-      ]);
-    };
-  },
 });
 
 type EditPlanResponseT = {
