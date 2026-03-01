@@ -302,10 +302,17 @@ def get_saved_plan(plan_id: int, user=Depends(get_optional_current_user)):
 
 
 @router.post("/{plan_id}/edit", summary="Propose an edit to a saved plan", response_model=EditPlanResponse)
-def edit_saved_plan(plan_id: int, body: EditPlanRequest) -> EditPlanResponse:
+def edit_saved_plan(plan_id: int, body: EditPlanRequest, user=Depends(get_optional_current_user)) -> EditPlanResponse:
     row = get_plan(plan_id)
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
+
+    owner_id = row.get("owner_id")
+    if owner_id is not None:
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if user["id"] != owner_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
 
     msg = (body.message or "").strip().lower()
     _PENDING_EDIT_MESSAGE[plan_id] = (body.message or "").strip()
@@ -406,10 +413,17 @@ def get_plan_versions(plan_id: int, user=Depends(get_optional_current_user)):
 # - enforcement of avoid / emphasis happens in Phase 2
 
 @router.post("/{plan_id}/apply", summary="Apply a proposed patch to a saved plan (deterministic)")
-def apply_plan_patch(plan_id: int, patch: PlanEditPatch):
+def apply_plan_patch(plan_id: int, patch: PlanEditPatch, user=Depends(get_optional_current_user)):
     row = get_plan(plan_id)
     if not row:
         raise HTTPException(status_code=404, detail="Plan not found")
+
+    owner_id = row.get("owner_id")
+    if owner_id is not None:
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if user["id"] != owner_id:
+            raise HTTPException(status_code=403, detail="Forbidden")
 
     latest = get_latest_plan_version(plan_id)
     if not latest:
