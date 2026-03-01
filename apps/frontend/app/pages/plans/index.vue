@@ -17,17 +17,41 @@
         </div>
 
         <div class="auth-actions">
-          <input
-            v-model="email"
-            class="input"
-            type="email"
-            placeholder="you@example.com"
-            :disabled="authLoading || !!user"
-          />
-          <button class="btn" @click="onLogin" :disabled="authLoading || !!user || !email.trim()">
-            {{ authLoading ? "Signing in..." : "Login" }}
-          </button>
-          <button class="btn ghost" @click="onLogout" :disabled="authLoading || !user">
+          <!-- Step 1: enter email -->
+          <template v-if="!user && authStep === 'idle'">
+            <input
+              v-model="email"
+              class="input"
+              type="email"
+              placeholder="you@example.com"
+              :disabled="authLoading"
+            />
+            <button class="btn" @click="onRequestCode" :disabled="authLoading || !email.trim()">
+              {{ authLoading ? "Sending..." : "Send Code" }}
+            </button>
+          </template>
+
+          <!-- Step 2: enter OTP code -->
+          <template v-else-if="!user && authStep === 'code_sent'">
+            <input
+              v-model="code"
+              class="input"
+              type="text"
+              inputmode="numeric"
+              placeholder="6-digit code"
+              maxlength="6"
+              :disabled="authLoading"
+            />
+            <button class="btn" @click="onVerifyCode" :disabled="authLoading || code.trim().length < 6">
+              {{ authLoading ? "Verifying..." : "Verify" }}
+            </button>
+            <button class="btn ghost" @click="authStep = 'idle'" :disabled="authLoading">
+              Back
+            </button>
+          </template>
+
+          <!-- Logged in -->
+          <button v-if="user" class="btn ghost" @click="onLogout" :disabled="authLoading">
             Logout
           </button>
         </div>
@@ -72,10 +96,12 @@ import { useAuth } from "../../../composables/useAuth";
 type User = { id: number; email: string };
 
 const { listMyPlans } = usePlans();
-const { login, logout, me } = useAuth();
+const { requestCode, verifyCode, logout, me } = useAuth();
 
 const user = ref<User | null>(null);
 const email = ref("");
+const code = ref("");
+const authStep = ref<"idle" | "code_sent">("idle");
 const authLoading = ref(false);
 const authError = ref<string | null>(null);
 
@@ -97,12 +123,27 @@ async function loadMine() {
   }
 }
 
-async function onLogin() {
+async function onRequestCode() {
   authLoading.value = true;
   authError.value = null;
   try {
-    const res = await login(email.value.trim().toLowerCase());
+    await requestCode(email.value.trim().toLowerCase());
+    authStep.value = "code_sent";
+  } catch (e: any) {
+    authError.value = e?.data?.detail ?? e?.message ?? String(e);
+  } finally {
+    authLoading.value = false;
+  }
+}
+
+async function onVerifyCode() {
+  authLoading.value = true;
+  authError.value = null;
+  try {
+    const res = await verifyCode(email.value.trim().toLowerCase(), code.value.trim());
     user.value = res;
+    authStep.value = "idle";
+    code.value = "";
     await loadMine();
   } catch (e: any) {
     authError.value = e?.data?.detail ?? e?.message ?? String(e);

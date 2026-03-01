@@ -8,12 +8,21 @@ export function useAuth() {
   const config = useRuntimeConfig();
   const baseURL = String((config.public as any).apiBase || "http://localhost:8000");
 
-  const login = async (email: string): Promise<User> => {
-    return await $fetch("/auth/login", {
+  const requestCode = async (email: string): Promise<{ detail: string }> => {
+    return await $fetch("/auth/request-code", {
       baseURL,
       method: "POST",
       credentials: "include",
       body: { email },
+    });
+  };
+
+  const verifyCode = async (email: string, code: string): Promise<User> => {
+    return await $fetch("/auth/verify-code", {
+      baseURL,
+      method: "POST",
+      credentials: "include",
+      body: { email, code },
     });
   };
 
@@ -39,5 +48,5 @@ export function useAuth() {
     }
   };
 
-  return { login, logout, me };
+  return { requestCode, verifyCode, logout, me };
 }
