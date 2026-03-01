@@ -9,6 +9,7 @@ from uuid import uuid4
 import os
 
 SESSION_EXPIRY_DAYS = int(os.getenv("SESSION_EXPIRY_DAYS", "7"))
+OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "15"))
 
 # .../apps/backend/services/db.py -> data/gymgpt.db
 DB_DIR = (Path(__file__).resolve().parent / ".." / ".." / "data").resolve()
@@ -91,6 +92,21 @@ def init_db() -> None:
                 expires_at TEXT
             );
             """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS login_codes(
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                email      TEXT NOT NULL,
+                code_hash  TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+                expires_at TEXT NOT NULL,
+                used       INTEGER NOT NULL DEFAULT 0
+            );
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_login_codes_email ON login_codes(email);"
         )
     migrate_add_diff_json()
     migrate_add_plan_owner()
@@ -509,3 +525,48 @@ def get_user_by_session(token: str) -> Optional[Dict[str, Any]]:
 def delete_session(token: str) -> None:
     with _conn() as conn:
         conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+
+
+def create_login_code(email: str, code_hash: str) -> None:
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with _conn() as conn:
+        conn.execute(
+            "INSERT INTO login_codes(email, code_hash, expires_at) VALUES (?,?,?)",
+            (email, code_hash, expires_at),
+        )
+
+
+def verify_login_code(email: str, code_hash: str) -> bool:
+    with _conn() as conn:
+        row = conn.execute(
+            """
+            SELECT id FROM login_codes
+            WHERE email     = ?
+              AND code_hash = ?
+              AND used      = 0
+              AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ','now')
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (email, code_hash),
+        ).fetchone()
+        if not row:
+            return False
+        conn.execute(
+            "UPDATE login_codes SET used = 1 WHERE id = ?",
+            (row["id"],),
+        )
+        return True
+
+
+def purge_expired_login_codes() -> None:
+    with _conn() as conn:
+        conn.execute(
+            """
+            DELETE FROM login_codes
+            WHERE expires_at <= strftime('%Y-%m-%dT%H:%M:%SZ','now')
+               OR used = 1
+            """
+        )
