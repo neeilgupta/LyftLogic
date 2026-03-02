@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from services.nutrition.generate import GenerationRequest, generate_safe_meals
 from services.nutrition.regenerate import regenerate_nutrition_v1
@@ -23,6 +23,7 @@ from models.nutrition import (
     MacroCalcResponse,
 )
 from services.nutrition.boosters import apply_calorie_fill_boosters
+from deps import get_current_user
 
 
 
@@ -172,7 +173,7 @@ def _constraints_snapshot(req: NutritionGenerateRequest | NutritionRegenerateReq
 
 
 @router.post("/generate", response_model=NutritionGenerateResponse)
-def nutrition_generate(req: NutritionGenerateRequest):
+def nutrition_generate(req: NutritionGenerateRequest, _=Depends(get_current_user)):
     targets: NutritionTargets = req.targets.model_dump()
     selected_target = _selected_target_from_req(req, targets)
 
@@ -235,7 +236,7 @@ def nutrition_generate(req: NutritionGenerateRequest):
     return NutritionGenerateResponse(output=output, version_snapshot=snap)
 
 @router.post("/regenerate", response_model=NutritionRegenerateResponse)
-def nutrition_regenerate(req: NutritionRegenerateRequest):
+def nutrition_regenerate(req: NutritionRegenerateRequest, _=Depends(get_current_user)):
     targets: NutritionTargets = req.targets.model_dump()
     selected_target = _selected_target_from_req(req, targets)
     tc = float(selected_target) if selected_target is not None else _infer_target_calories(targets)
@@ -311,7 +312,7 @@ def nutrition_regenerate(req: NutritionRegenerateRequest):
         explanations=explanations,
     )
 @router.post("/macro-calc", response_model=MacroCalcResponse)
-def macro_calc(req: MacroCalcRequest):
+def macro_calc(req: MacroCalcRequest, _=Depends(get_current_user)):
     # Fail-closed validation (keep deterministic + explicit)
     if req.sex is None:
         raise HTTPException(status_code=422, detail="sex is required")

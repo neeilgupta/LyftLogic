@@ -317,10 +317,9 @@ def add_plan(
                 (title, input_json, output_json),
             )
             select_cols = "id, created_at, title, input_json, output_json"
-        conn.commit()
         plan_id = cur.lastrowid
 
-        # ✅ create v1 plan version
+        # Insert v1 version in the same transaction — both commit together or neither does.
         conn.execute(
             "INSERT INTO plan_versions(plan_id, version, input_json, output_json) VALUES (?,?,?,?)",
             (plan_id, 1, input_json, output_json),
