@@ -1,17 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes.plans import router as plans_router
-from routes.auth import router as auth_router
 from dotenv import load_dotenv
 from services.db import init_db
 
-
-init_db()
 load_dotenv()
+init_db()
 
 app = FastAPI()
 
-# ✅ CORS (THIS FIXES THE UI ERROR)
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -34,6 +31,9 @@ def health():
 from routes.plans import router as plans_router
 from routes.nutrition import router as nutrition_router
 from routes.auth import router as auth_router
+from routes.logs import router as logs_router
+
 app.include_router(plans_router)
 app.include_router(nutrition_router)
 app.include_router(auth_router)
+app.include_router(logs_router, prefix="/logs")

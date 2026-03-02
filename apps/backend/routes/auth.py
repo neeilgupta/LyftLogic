@@ -17,9 +17,12 @@ from services.db import (
     purge_expired_login_codes,
 )
 from deps import get_current_user
+from routes.dependencies import otp_rate_limit
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+COOKIE_SECURE = os.getenv("ENV") == "production"
 
 
 class LoginRequest(BaseModel):
@@ -66,7 +69,7 @@ def _send_otp(email: str, code: str) -> None:
 
 
 @router.post("/request-code", status_code=202)
-def request_code(req: RequestCodeRequest):
+async def request_code(req: RequestCodeRequest, _=Depends(otp_rate_limit)):
     email = req.email.strip().lower()
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
@@ -110,7 +113,7 @@ def verify_code(req: VerifyCodeRequest):
         token,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=COOKIE_SECURE,
         path="/",
     )
     return resp
@@ -149,7 +152,7 @@ if os.getenv("ALLOW_INSECURE_LOGIN", "0") == "1":
             token,
             httponly=True,
             samesite="lax",
-            secure=False,
+            secure=COOKIE_SECURE,
             path="/",
         )
         return resp
