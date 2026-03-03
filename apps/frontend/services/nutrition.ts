@@ -70,6 +70,7 @@ export function useNutritionApi() {
     return await $fetch<NutritionGenerateResponse>("/nutrition/generate", {
       baseURL,
       method: "POST",
+      credentials: "include",
       body: payload,
     });
   }
@@ -78,14 +79,16 @@ export function useNutritionApi() {
     return await $fetch<NutritionRegenerateResponse>("/nutrition/regenerate", {
       baseURL,
       method: "POST",
+      credentials: "include",
       body: payload,
     });
   }
-  
+
   async function macroCalc(payload: MacroCalcRequest) {
     return await $fetch<MacroCalcResponse>("/nutrition/macro-calc", {
       baseURL,
       method: "POST",
+      credentials: "include",
       body: payload,
     });
   }

@@ -42,14 +42,17 @@ useHead({
 
       <div class="hero-stats">
         <div class="stat">
+          <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
           <div class="stat-k">Clear structure</div>
           <div class="stat-v">No overwhelm, just the plan</div>
         </div>
         <div class="stat">
+          <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
           <div class="stat-k">Built for real life</div>
           <div class="stat-v">Simple choices you can repeat</div>
         </div>
         <div class="stat">
+          <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
           <div class="stat-k">Easy to improve</div>
           <div class="stat-v">Adjust and keep moving forward</div>
         </div>
@@ -59,6 +62,7 @@ useHead({
     <!-- FEATURES -->
     <section class="grid">
       <article class="ll-card">
+        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
         <div class="card-title">Workout Plan</div>
         <div class="card-sub">
           A training plan that fits your schedule and goal, with a clean day-by-day layout.
@@ -76,6 +80,7 @@ useHead({
       </article>
 
       <article class="ll-card">
+        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
         <div class="card-title">Nutrition Plan</div>
         <div class="card-sub">
           Meal ideas that match your calorie goal and preferences, without feeling restrictive.
@@ -96,6 +101,7 @@ useHead({
     <!-- ABOUT -->
     <section class="about">
       <article class="ll-card">
+        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
         <div class="card-title">What this is</div>
         <p class="p">
           LyftLogic is a planning tool that turns your goal into something actionable: a workout plan,
@@ -104,6 +110,7 @@ useHead({
       </article>
 
       <article class="ll-card ll-card-muted">
+        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
         <div class="card-title">Who made it</div>
         <p class="p">
           I’m Neeil. I built LyftLogic because I wanted a plan that feels clear and realistic—not
@@ -222,6 +229,7 @@ useHead({
 }
 
 .stat {
+  position: relative;
   border: 1px solid var(--border);
   background: rgba(17, 24, 39, 0.55);
   border-radius: 14px;
@@ -242,6 +250,7 @@ useHead({
 
 /* CARDS + GRID */
 .ll-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;

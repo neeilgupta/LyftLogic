@@ -12,11 +12,13 @@ from services.db import (
     list_plan_versions,
     create_plan_version,
     get_plan_version,
+    set_active_plan,
+    get_user_active_plan,
 )
 
 
 from fastapi import APIRouter, HTTPException, Query, Depends
-from deps import get_optional_current_user
+from deps import get_optional_current_user, get_current_user
 from models.plans import (
     GeneratePlanRequest,
     GeneratePlanResponse,
@@ -239,15 +241,10 @@ def generate_plan(req: GeneratePlanRequest, user=Depends(get_optional_current_us
 def list_saved_plans(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    mine: int | None = Query(None, description="Set to 1 to list only your plans"),
-    user=Depends(get_optional_current_user),
+    user=Depends(get_current_user),
 ):
-    if mine == 1:
-        if not user:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-        rows = list_plans(limit=limit, offset=offset, owner_id=user["id"])
-    else:
-        rows = list_plans(limit=limit, offset=offset)
+    rows = list_plans(limit=limit, offset=offset, owner_id=user["id"])
+    active_plan_id = get_user_active_plan(user["id"])
 
     items = []
     for r in rows:
@@ -255,7 +252,7 @@ def list_saved_plans(
         item["plan_id"] = item.pop("id")
         items.append(item)
 
-    return {"items": items, "limit": limit, "offset": offset}
+    return {"items": items, "limit": limit, "offset": offset, "active_plan_id": active_plan_id}
 
 
 @router.get("/{plan_id}", summary="Get a saved plan by id")
@@ -575,3 +572,17 @@ def restore_plan_version(plan_id: int, body: RestorePlanRequest, user=Depends(ge
         is_restored=True,
         restored_from=body.version,
     )
+
+
+@router.post("/{plan_id}/activate", summary="Set a plan as the active plan for the current user")
+def activate_plan(plan_id: int, user=Depends(get_current_user)):
+    row = get_plan(plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    owner_id = row.get("owner_id")
+    if owner_id is None or user["id"] != owner_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    set_active_plan(user_id=user["id"], plan_id=plan_id)
+    return {"active_plan_id": plan_id}

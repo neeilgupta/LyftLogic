@@ -8,10 +8,6 @@ export function usePlans() {
   const baseURL = String((config.public as any).apiBase || "http://localhost:8000");
 
 
-  const listPlans = async () => {
-    return await $fetch("/plans", { baseURL, method: "GET", credentials: "include" });
-  };
-
   async function getPlan(id: string) {
     const n = Number(id);
     if (!Number.isFinite(n) || n <= 0) {
@@ -33,8 +29,8 @@ export function usePlans() {
   };
 
   const listMyPlans = async () => {
-    return await $fetch("/plans?mine=1", { baseURL, method: "GET", credentials: "include" });
+    return await $fetch("/plans", { baseURL, method: "GET", credentials: "include" });
   };
 
-  return { listPlans, listMyPlans, getPlan, generatePlan };
+  return { listMyPlans, getPlan, generatePlan };
 }

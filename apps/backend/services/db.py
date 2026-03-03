@@ -112,6 +112,7 @@ def init_db() -> None:
     migrate_add_plan_owner()
     migrate_session_expiry()
     migrate_database_hardening()
+    migrate_add_active_plan_id()
 
 def migrate_add_diff_json() -> None:
     """
@@ -153,6 +154,16 @@ def migrate_session_expiry() -> None:
               AND expires_at <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
             """
         )
+
+
+def migrate_add_active_plan_id() -> None:
+    """One-time safe migration to add active_plan_id to users."""
+    with _conn() as conn:
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(users);")]
+        if "active_plan_id" not in cols:
+            conn.execute(
+                "ALTER TABLE users ADD COLUMN active_plan_id INTEGER NULL REFERENCES plans(id);"
+            )
 
 
 def migrate_database_hardening() -> None:
@@ -569,3 +580,20 @@ def purge_expired_login_codes() -> None:
                OR used = 1
             """
         )
+
+
+def set_active_plan(user_id: int, plan_id: int) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET active_plan_id = ? WHERE id = ?",
+            (plan_id, user_id),
+        )
+
+
+def get_user_active_plan(user_id: int) -> Optional[int]:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT active_plan_id FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        return row["active_plan_id"] if row else None
