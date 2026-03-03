@@ -27,3 +27,4 @@ apps/data/*.db-wal
 apps/data/*.db-shm.vscode/
 .vscode/
 apps/backend/scripts/
+CLAUDE.md
