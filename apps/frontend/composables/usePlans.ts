@@ -32,5 +32,15 @@ export function usePlans() {
     return await $fetch("/plans", { baseURL, method: "GET", credentials: "include" });
   };
 
-  return { listMyPlans, getPlan, generatePlan };
+  const listMyNutritionPlans = async () => {
+    return await $fetch("/nutrition/plans", { baseURL, method: "GET", credentials: "include" });
+  };
+
+  const getNutritionPlan = async (id: string | number) => {
+    const n = Number(id);
+    if (!Number.isFinite(n) || n <= 0) throw new Error(`Invalid nutrition plan id: ${String(id)}`);
+    return await $fetch(`/nutrition/plans/${n}`, { baseURL, method: "GET", credentials: "include" });
+  };
+
+  return { listMyPlans, getPlan, generatePlan, listMyNutritionPlans, getNutritionPlan };
 }
