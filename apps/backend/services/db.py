@@ -108,6 +108,21 @@ def init_db() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_login_codes_email ON login_codes(email);"
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS nutrition_plans(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                title TEXT NOT NULL,
+                input_json TEXT NOT NULL,
+                output_json TEXT NOT NULL,
+                owner_id INTEGER NOT NULL REFERENCES users(id)
+            );
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_nutrition_plans_owner_id ON nutrition_plans(owner_id);"
+        )
     migrate_add_diff_json()
     migrate_add_plan_owner()
     migrate_session_expiry()
@@ -391,6 +406,48 @@ def get_plan(plan_id: int) -> Optional[Dict]:
             FROM plans
             WHERE id = ?
             """,
+            (plan_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def add_nutrition_plan(
+    title: str,
+    input_json: str,
+    output_json: str,
+    owner_id: int,
+) -> Dict:
+    with _conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO nutrition_plans(title, input_json, output_json, owner_id) VALUES (?,?,?,?)",
+            (title, input_json, output_json, owner_id),
+        )
+        row = conn.execute(
+            "SELECT id, created_at, title, input_json, output_json, owner_id FROM nutrition_plans WHERE id = ?",
+            (cur.lastrowid,),
+        ).fetchone()
+        return dict(row)
+
+
+def list_nutrition_plans(owner_id: int, limit: int = 20, offset: int = 0) -> List[Dict]:
+    with _conn() as conn:
+        cur = conn.execute(
+            """
+            SELECT id, created_at, title, owner_id
+            FROM nutrition_plans
+            WHERE owner_id = ?
+            ORDER BY id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (owner_id, limit, offset),
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+
+def get_nutrition_plan(plan_id: int) -> Optional[Dict]:
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT id, created_at, title, input_json, output_json, owner_id FROM nutrition_plans WHERE id = ?",
             (plan_id,),
         ).fetchone()
         return dict(row) if row else None
