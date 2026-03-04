@@ -173,7 +173,7 @@ def _constraints_snapshot(req: NutritionGenerateRequest | NutritionRegenerateReq
 
 
 @router.post("/generate", response_model=NutritionGenerateResponse)
-def nutrition_generate(req: NutritionGenerateRequest, _=Depends(get_current_user)):
+def nutrition_generate(req: NutritionGenerateRequest, user=Depends(get_current_user)):
     targets: NutritionTargets = req.targets.model_dump()
     selected_target = _selected_target_from_req(req, targets)
 
@@ -233,7 +233,18 @@ def nutrition_generate(req: NutritionGenerateRequest, _=Depends(get_current_user
         "targets": targets,
     }
 
-    return NutritionGenerateResponse(output=output, version_snapshot=snap)
+    import json as _json
+    from services import db as _db
+    diet_label = f"{req.diet} · " if req.diet else ""
+    title = f"Nutrition — {diet_label}{int(tc)} kcal"
+    saved = _db.add_nutrition_plan(
+        title=title,
+        input_json=_json.dumps(req.model_dump()),
+        output_json=_json.dumps(output),
+        owner_id=user["id"],
+    )
+
+    return NutritionGenerateResponse(output=output, version_snapshot=snap, plan_id=saved["id"])
 
 @router.post("/regenerate", response_model=NutritionRegenerateResponse)
 def nutrition_regenerate(req: NutritionRegenerateRequest, _=Depends(get_current_user)):
@@ -359,3 +370,18 @@ def macro_calc(req: MacroCalcRequest, _=Depends(get_current_user)):
         macros=payload,
     )
 
+
+@router.get("/plans")
+def list_my_nutrition_plans(user=Depends(get_current_user)):
+    from services import db as _db
+    items = _db.list_nutrition_plans(owner_id=user["id"])
+    return {"items": items}
+
+
+@router.get("/plans/{plan_id}")
+def get_my_nutrition_plan(plan_id: int, user=Depends(get_current_user)):
+    from services import db as _db
+    plan = _db.get_nutrition_plan(plan_id)
+    if not plan or plan["owner_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Not found")
+    return plan

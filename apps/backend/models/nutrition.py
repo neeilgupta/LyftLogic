@@ -49,6 +49,7 @@ class NutritionGenerateResponse(BaseModel):
 
     output: Dict[str, Any]
     version_snapshot: NutritionVersionV1
+    plan_id: int
 
 
 class NutritionRegenerateRequest(BaseModel):
