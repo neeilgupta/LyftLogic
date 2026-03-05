@@ -48,5 +48,23 @@ export function useAuth() {
     }
   };
 
-  return { requestCode, verifyCode, logout, me };
+  const register = async (email: string, password: string): Promise<User> => {
+    return await $fetch("/auth/register", {
+      baseURL,
+      method: "POST",
+      credentials: "include",
+      body: { email, password },
+    });
+  };
+
+  const passwordLogin = async (email: string, password: string): Promise<User> => {
+    return await $fetch("/auth/password-login", {
+      baseURL,
+      method: "POST",
+      credentials: "include",
+      body: { email, password },
+    });
+  };
+
+  return { requestCode, verifyCode, logout, me, register, passwordLogin };
 }

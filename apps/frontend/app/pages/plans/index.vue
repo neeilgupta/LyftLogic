@@ -62,7 +62,7 @@
 
     <section class="ll-card">
       <div class="section-head">
-        <h2>My Plans</h2>
+        <h2>Workout Plans</h2>
         <button class="btn ghost" @click="loadMine" :disabled="plansLoading || !user">
           {{ plansLoading ? "Loading..." : "Refresh" }}
         </button>
@@ -71,7 +71,7 @@
       <p v-if="plansError" class="error">{{ plansError }}</p>
       <p v-if="plansLoading && user" class="muted">Loading your plans…</p>
       <p v-if="!plansLoading && user && plans.length === 0" class="empty">
-        No plans yet. Generate one and it will appear here.
+        No workout plans yet. Generate one and it will appear here.
       </p>
       <p v-if="!user" class="muted">Log in to see your plans.</p>
 
@@ -80,6 +80,29 @@
           <div>
             <p class="plan-title">{{ p.title || "Untitled plan" }}</p>
             <p class="plan-meta">Plan #{{ p.plan_id }} • {{ p.created_at }}</p>
+          </div>
+          <span class="chev">→</span>
+        </NuxtLink>
+      </div>
+    </section>
+
+    <section class="ll-card">
+      <div class="section-head">
+        <h2>Nutrition Plans</h2>
+      </div>
+
+      <p v-if="nutritionError" class="error">{{ nutritionError }}</p>
+      <p v-if="plansLoading && user" class="muted">Loading your plans…</p>
+      <p v-if="!plansLoading && user && nutritionPlans.length === 0" class="empty">
+        No nutrition plans yet. Generate one and it will appear here.
+      </p>
+      <p v-if="!user" class="muted">Log in to see your plans.</p>
+
+      <div v-if="nutritionPlans.length" class="plan-list">
+        <NuxtLink v-for="p in nutritionPlans" :key="p.id" class="plan-row" :to="`/plans/nutrition/${p.id}`">
+          <div>
+            <p class="plan-title">{{ p.title || "Untitled nutrition plan" }}</p>
+            <p class="plan-meta">Plan #{{ p.id }} • {{ p.created_at }}</p>
           </div>
           <span class="chev">→</span>
         </NuxtLink>
@@ -95,7 +118,7 @@ import { useAuth } from "../../../composables/useAuth";
 
 type User = { id: number; email: string };
 
-const { listMyPlans } = usePlans();
+const { listMyPlans, listMyNutritionPlans } = usePlans();
 const { requestCode, verifyCode, logout, me } = useAuth();
 
 const user = ref<User | null>(null);
@@ -106,16 +129,23 @@ const authLoading = ref(false);
 const authError = ref<string | null>(null);
 
 const plans = ref<any[]>([]);
+const nutritionPlans = ref<any[]>([]);
 const plansLoading = ref(false);
 const plansError = ref<string | null>(null);
+const nutritionError = ref<string | null>(null);
 
 async function loadMine() {
   if (!user.value) return;
   plansLoading.value = true;
   plansError.value = null;
+  nutritionError.value = null;
   try {
-    const res: any = await listMyPlans();
-    plans.value = res?.items ?? [];
+    const [workoutRes, nutritionRes]: any[] = await Promise.all([
+      listMyPlans(),
+      listMyNutritionPlans(),
+    ]);
+    plans.value = workoutRes?.items ?? [];
+    nutritionPlans.value = nutritionRes?.items ?? [];
   } catch (e: any) {
     plansError.value = e?.data?.detail ?? e?.message ?? String(e);
   } finally {

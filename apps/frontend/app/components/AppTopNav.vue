@@ -48,6 +48,9 @@
     <NuxtLink to="/roadmap" style="color: rgba(255,255,255,0.9); text-decoration: none; font-weight: 650; white-space: nowrap;">
       Roadmap
     </NuxtLink>
+    <NuxtLink to="/login" style="color: rgba(167,139,250,1); text-decoration: none; font-weight: 700; white-space: nowrap;">
+      Sign in
+    </NuxtLink>
     <NuxtLink
       to="/plans"
       style="
