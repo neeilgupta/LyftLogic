@@ -128,6 +128,8 @@ def init_db() -> None:
     migrate_session_expiry()
     migrate_database_hardening()
     migrate_add_active_plan_id()
+    migrate_add_password_hash()
+    migrate_add_email_verified()
 
 def migrate_add_diff_json() -> None:
     """
@@ -179,6 +181,22 @@ def migrate_add_active_plan_id() -> None:
             conn.execute(
                 "ALTER TABLE users ADD COLUMN active_plan_id INTEGER NULL REFERENCES plans(id);"
             )
+
+
+def migrate_add_password_hash() -> None:
+    """One-time safe migration to add password_hash to users (nullable — OTP users have NULL)."""
+    with _conn() as conn:
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(users);")]
+        if "password_hash" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT NULL;")
+
+
+def migrate_add_email_verified() -> None:
+    """One-time safe migration to add email_verified flag to users. Defaults to 0 (unverified)."""
+    with _conn() as conn:
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(users);")]
+        if "email_verified" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0;")
 
 
 def migrate_database_hardening() -> None:
@@ -544,6 +562,39 @@ def get_or_create_user(email: str) -> Dict[str, Any]:
             (email,),
         ).fetchone()
         return dict(row)
+
+
+def set_email_verified(user_id: int) -> None:
+    """Mark a user's email as verified (called after successful OTP verify)."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET email_verified = 1 WHERE id = ?",
+            (user_id,),
+        )
+
+
+def create_user_with_password(email: str, password_hash: str) -> Dict[str, Any]:
+    """Create a new user with a bcrypt password hash. Raises IntegrityError if email already exists."""
+    with _conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO users(email, password_hash) VALUES (?, ?)",
+            (email, password_hash),
+        )
+        row = conn.execute(
+            "SELECT id, email FROM users WHERE id = ?",
+            (cur.lastrowid,),
+        ).fetchone()
+        return dict(row)
+
+
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    """Fetch a user row including password_hash for credential verification."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT id, email, password_hash FROM users WHERE email = ?",
+            (email,),
+        ).fetchone()
+        return dict(row) if row else None
 
 
 def create_session(user_id: int) -> str:
