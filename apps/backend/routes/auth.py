@@ -2,14 +2,19 @@ import os
 import secrets
 import hashlib
 import smtplib
+import sqlite3
 from email.message import EmailMessage
 
+import bcrypt
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from services.db import (
     get_or_create_user,
+    create_user_with_password,
+    get_user_by_email,
+    set_email_verified,
     create_session,
     delete_session,
     create_login_code,
@@ -27,6 +32,16 @@ COOKIE_SECURE = os.getenv("ENV") == "production"
 
 class LoginRequest(BaseModel):
     email: str
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+
+class PasswordLoginRequest(BaseModel):
+    email: str
+    password: str
 
 
 class RequestCodeRequest(BaseModel):
@@ -105,6 +120,7 @@ def verify_code(req: VerifyCodeRequest):
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
     user = get_or_create_user(email)
+    set_email_verified(user["id"])
     token = create_session(user["id"])
 
     resp = JSONResponse({"id": user["id"], "email": user["email"]})
@@ -133,6 +149,69 @@ def logout(request: Request):
 @router.get("/me")
 def me(user=Depends(get_current_user)):
     return {"id": user["id"], "email": user["email"]}
+
+
+@router.post("/register", status_code=201)
+def register(req: RegisterRequest):
+    email = req.email.strip().lower()
+    password = req.password
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+    try:
+        user = create_user_with_password(email, password_hash)
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="An account with that email already exists")
+
+    token = create_session(user["id"])
+
+    resp = JSONResponse({"id": user["id"], "email": user["email"]}, status_code=201)
+    resp.set_cookie(
+        "ll_session",
+        token,
+        httponly=True,
+        samesite="lax",
+        secure=COOKIE_SECURE,
+        path="/",
+    )
+    return resp
+
+
+@router.post("/password-login")
+def password_login(req: PasswordLoginRequest):
+    email = req.email.strip().lower()
+    password = req.password
+
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email and password are required")
+
+    user = get_user_by_email(email)
+
+    # Constant-time guard: run checkpw even on miss to prevent timing attacks
+    dummy_hash = b"$2b$12$invalidhashpadding000000000000000000000000000000000000u"
+    stored = user["password_hash"].encode() if (user and user.get("password_hash")) else dummy_hash
+    match = bcrypt.checkpw(password.encode(), stored)
+
+    if not user or not user.get("password_hash") or not match:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = create_session(user["id"])
+
+    resp = JSONResponse({"id": user["id"], "email": user["email"]})
+    resp.set_cookie(
+        "ll_session",
+        token,
+        httponly=True,
+        samesite="lax",
+        secure=COOKIE_SECURE,
+        path="/",
+    )
+    return resp
 
 
 # Dev/CI bypass — allows instant login without OTP. NEVER enable in production.
