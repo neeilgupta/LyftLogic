@@ -4,7 +4,8 @@ import { useRouter } from "vue-router";
 import { useAuth } from "../../composables/useAuth";
 
 const router = useRouter();
-const { requestCode, verifyCode, register, passwordLogin } = useAuth();
+const { requestCode, verifyCode, register, passwordLogin, me } = useAuth();
+const user = useState<{ id: number; email: string } | null>('user', () => null);
 
 // "password" | "register" | "otp"
 const mode = ref<"password" | "register" | "otp">("password");
@@ -44,6 +45,7 @@ async function handlePasswordLogin() {
   loading.value = true;
   try {
     await passwordLogin(email.value.trim().toLowerCase(), password.value);
+    user.value = await me();
     router.push("/plans");
   } catch (e: any) {
     error.value = e?.data?.detail ?? e?.message ?? "Login failed";
@@ -69,6 +71,7 @@ async function handleRegister() {
   loading.value = true;
   try {
     await register(email.value.trim().toLowerCase(), password.value);
+    user.value = await me();
     router.push("/plans");
   } catch (e: any) {
     error.value = e?.data?.detail ?? e?.message ?? "Registration failed";
@@ -103,6 +106,7 @@ async function handleVerifyCode() {
   loading.value = true;
   try {
     await verifyCode(email.value.trim().toLowerCase(), code.value.trim());
+    user.value = await me();
     router.push("/plans");
   } catch (e: any) {
     error.value = e?.data?.detail ?? e?.message ?? "Invalid or expired code";

@@ -1,3 +1,20 @@
+<script setup>
+import { useAuth } from "../../composables/useAuth"
+
+const { me, logout } = useAuth()
+const user = useState('user', () => null)
+
+onMounted(async () => {
+  user.value = await me()
+})
+
+async function handleLogout() {
+  await logout()
+  user.value = null
+  navigateTo('/login')
+}
+</script>
+
 <template>
   <header
     style="
@@ -48,7 +65,14 @@
     <NuxtLink to="/roadmap" style="color: rgba(255,255,255,0.9); text-decoration: none; font-weight: 650; white-space: nowrap;">
       Roadmap
     </NuxtLink>
-    <NuxtLink to="/login" style="color: rgba(167,139,250,1); text-decoration: none; font-weight: 700; white-space: nowrap;">
+    <template v-if="user">
+      <span style="color: rgba(255,255,255,0.5); font-size: 13px; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis;">{{ user.email }}</span>
+      <button
+        @click="handleLogout"
+        style="background: none; border: 1px solid rgba(124,58,237,0.5); color: rgba(167,139,250,1); font-weight: 700; font-size: 14px; padding: 4px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; font-family: inherit;"
+      >Sign out</button>
+    </template>
+    <NuxtLink v-else to="/login" style="color: rgba(167,139,250,1); text-decoration: none; font-weight: 700; white-space: nowrap;">
       Sign in
     </NuxtLink>
     <NuxtLink
