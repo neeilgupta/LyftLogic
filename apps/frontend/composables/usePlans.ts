@@ -42,5 +42,13 @@ export function usePlans() {
     return await $fetch(`/nutrition/plans/${n}`, { baseURL, method: "GET", credentials: "include" });
   };
 
-  return { listMyPlans, getPlan, generatePlan, listMyNutritionPlans, getNutritionPlan };
+  const renamePlan = async (id: number, title: string) => {
+    return await $fetch(`/plans/${id}/rename`, { baseURL, method: "PATCH", credentials: "include", body: { title } });
+  };
+
+  const renameNutritionPlan = async (id: number, title: string) => {
+    return await $fetch(`/nutrition/plans/${id}/rename`, { baseURL, method: "PATCH", credentials: "include", body: { title } });
+  };
+
+  return { listMyPlans, getPlan, generatePlan, listMyNutritionPlans, getNutritionPlan, renamePlan, renameNutritionPlan };
 }

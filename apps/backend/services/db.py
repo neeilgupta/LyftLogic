@@ -376,6 +376,15 @@ def add_plan(
         return dict(row)
 
 
+def update_plan_title(plan_id: int, new_title: str, owner_id: int) -> bool:
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE plans SET title = ? WHERE id = ? AND owner_id = ?",
+            (new_title.strip(), plan_id, owner_id),
+        )
+        return cur.rowcount == 1
+
+
 def list_plans(
     limit: int = 20,
     offset: int = 0,
@@ -445,6 +454,15 @@ def add_nutrition_plan(
             (cur.lastrowid,),
         ).fetchone()
         return dict(row)
+
+
+def update_nutrition_plan_title(plan_id: int, new_title: str, owner_id: int) -> bool:
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE nutrition_plans SET title = ? WHERE id = ? AND owner_id = ?",
+            (new_title.strip(), plan_id, owner_id),
+        )
+        return cur.rowcount == 1
 
 
 def list_nutrition_plans(owner_id: int, limit: int = 20, offset: int = 0) -> List[Dict]:

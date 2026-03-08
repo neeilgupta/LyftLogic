@@ -14,10 +14,12 @@ from services.db import (
     get_plan_version,
     set_active_plan,
     get_user_active_plan,
+    update_plan_title,
 )
 
 
 from fastapi import APIRouter, HTTPException, Query, Depends
+from pydantic import BaseModel
 from deps import get_optional_current_user, get_current_user
 from models.plans import (
     GeneratePlanRequest,
@@ -572,6 +574,20 @@ def restore_plan_version(plan_id: int, body: RestorePlanRequest, user=Depends(ge
         is_restored=True,
         restored_from=body.version,
     )
+
+
+class RenamePlanRequest(BaseModel):
+    title: str
+
+@router.patch("/{plan_id}/rename", summary="Rename a saved plan")
+def rename_plan(plan_id: int, body: RenamePlanRequest, user=Depends(get_current_user)):
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Title cannot be empty")
+    ok = update_plan_title(plan_id, title, user["id"])
+    if not ok:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return {"plan_id": plan_id, "title": title}
 
 
 @router.post("/{plan_id}/activate", summary="Set a plan as the active plan for the current user")

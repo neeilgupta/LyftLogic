@@ -76,13 +76,29 @@
       <p v-if="!user" class="muted">Log in to see your plans.</p>
 
       <div v-if="plans.length" class="plan-list">
-        <NuxtLink v-for="p in plans" :key="p.plan_id" class="plan-row" :to="`/plans/${p.plan_id}`">
-          <div>
-            <p class="plan-title">{{ p.title || "Untitled plan" }}</p>
-            <p class="plan-meta">Plan #{{ p.plan_id }} • {{ p.created_at }}</p>
+        <div v-for="p in plans" :key="p.plan_id" class="plan-row-wrap">
+          <NuxtLink v-if="editingId !== `w-${p.plan_id}`" class="plan-row" :to="`/plans/${p.plan_id}`">
+            <div>
+              <p class="plan-title">{{ p.title || "Untitled plan" }}</p>
+              <p class="plan-meta">Plan #{{ p.plan_id }} • {{ p.created_at }}</p>
+            </div>
+            <span class="chev">→</span>
+          </NuxtLink>
+          <div v-else class="plan-row editing">
+            <input
+              v-model="editingTitle"
+              class="rename-input"
+              @keydown.enter="submitRename(p, 'workout')"
+              @keydown.escape="cancelRename"
+              autofocus
+            />
+            <div class="rename-actions">
+              <button class="btn rename-save" @click="submitRename(p, 'workout')">Save</button>
+              <button class="btn ghost rename-cancel" @click="cancelRename">Cancel</button>
+            </div>
           </div>
-          <span class="chev">→</span>
-        </NuxtLink>
+          <button class="rename-btn" title="Rename" @click.prevent.stop="startRename(`w-${p.plan_id}`, p.title || '')">✎</button>
+        </div>
       </div>
     </section>
 
@@ -99,13 +115,29 @@
       <p v-if="!user" class="muted">Log in to see your plans.</p>
 
       <div v-if="nutritionPlans.length" class="plan-list">
-        <NuxtLink v-for="p in nutritionPlans" :key="p.id" class="plan-row" :to="`/plans/nutrition/${p.id}`">
-          <div>
-            <p class="plan-title">{{ p.title || "Untitled nutrition plan" }}</p>
-            <p class="plan-meta">Plan #{{ p.id }} • {{ p.created_at }}</p>
+        <div v-for="p in nutritionPlans" :key="p.id" class="plan-row-wrap">
+          <NuxtLink v-if="editingId !== `n-${p.id}`" class="plan-row" :to="`/plans/nutrition/${p.id}`">
+            <div>
+              <p class="plan-title">{{ p.title || "Untitled nutrition plan" }}</p>
+              <p class="plan-meta">Plan #{{ p.id }} • {{ p.created_at }}</p>
+            </div>
+            <span class="chev">→</span>
+          </NuxtLink>
+          <div v-else class="plan-row editing">
+            <input
+              v-model="editingTitle"
+              class="rename-input"
+              @keydown.enter="submitRename(p, 'nutrition')"
+              @keydown.escape="cancelRename"
+              autofocus
+            />
+            <div class="rename-actions">
+              <button class="btn rename-save" @click="submitRename(p, 'nutrition')">Save</button>
+              <button class="btn ghost rename-cancel" @click="cancelRename">Cancel</button>
+            </div>
           </div>
-          <span class="chev">→</span>
-        </NuxtLink>
+          <button class="rename-btn" title="Rename" @click.prevent.stop="startRename(`n-${p.id}`, p.title || '')">✎</button>
+        </div>
       </div>
     </section>
   </div>
@@ -118,7 +150,7 @@ import { useAuth } from "../../../composables/useAuth";
 
 type User = { id: number; email: string };
 
-const { listMyPlans, listMyNutritionPlans } = usePlans();
+const { listMyPlans, listMyNutritionPlans, renamePlan, renameNutritionPlan } = usePlans();
 const { requestCode, verifyCode, logout, me } = useAuth();
 
 const user = ref<User | null>(null);
@@ -133,6 +165,10 @@ const nutritionPlans = ref<any[]>([]);
 const plansLoading = ref(false);
 const plansError = ref<string | null>(null);
 const nutritionError = ref<string | null>(null);
+
+const editingId = ref<string | null>(null);
+const editingTitle = ref("");
+const renameError = ref<string | null>(null);
 
 async function loadMine() {
   if (!user.value) return;
@@ -193,6 +229,34 @@ async function onLogout() {
     authError.value = e?.data?.detail ?? e?.message ?? String(e);
   } finally {
     authLoading.value = false;
+  }
+}
+
+function startRename(key: string, currentTitle: string) {
+  editingId.value = key;
+  editingTitle.value = currentTitle;
+  renameError.value = null;
+}
+
+function cancelRename() {
+  editingId.value = null;
+  editingTitle.value = "";
+}
+
+async function submitRename(plan: any, type: "workout" | "nutrition") {
+  const title = editingTitle.value.trim();
+  if (!title) return;
+  try {
+    if (type === "workout") {
+      await renamePlan(plan.plan_id, title);
+      plan.title = title;
+    } else {
+      await renameNutritionPlan(plan.id, title);
+      plan.title = title;
+    }
+    editingId.value = null;
+  } catch (err: any) {
+    renameError.value = err?.data?.detail ?? "Rename failed";
   }
 }
 
@@ -361,6 +425,70 @@ h2 {
 .chev {
   opacity: 0.6;
   font-size: 18px;
+}
+
+.plan-row-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plan-row-wrap .plan-row {
+  flex: 1;
+}
+
+.plan-row.editing {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rename-input {
+  flex: 1;
+  min-width: 160px;
+  background: rgba(12, 8, 26, 0.9);
+  border: 1px solid rgba(124, 58, 237, 0.6);
+  border-radius: 8px;
+  color: #e5e7eb;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+}
+
+.rename-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.rename-save {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.rename-cancel {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.rename-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: rgba(167, 139, 250, 0.5);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.rename-btn:hover {
+  color: rgba(167, 139, 250, 1);
 }
 
 .error {

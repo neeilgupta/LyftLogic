@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from services.nutrition.generate import GenerationRequest, generate_safe_meals
 from services.nutrition.regenerate import regenerate_nutrition_v1
@@ -385,3 +386,18 @@ def get_my_nutrition_plan(plan_id: int, user=Depends(get_current_user)):
     if not plan or plan["owner_id"] != user["id"]:
         raise HTTPException(status_code=404, detail="Not found")
     return plan
+
+
+class RenameNutritionPlanRequest(BaseModel):
+    title: str
+
+@router.patch("/plans/{plan_id}/rename", summary="Rename a nutrition plan")
+def rename_nutrition_plan(plan_id: int, body: RenameNutritionPlanRequest, user=Depends(get_current_user)):
+    from services import db as _db
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Title cannot be empty")
+    ok = _db.update_nutrition_plan_title(plan_id, title, user["id"])
+    if not ok:
+        raise HTTPException(status_code=404, detail="Nutrition plan not found")
+    return {"plan_id": plan_id, "title": title}
