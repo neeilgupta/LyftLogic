@@ -2,6 +2,8 @@
 from __future__ import annotations
 import sqlite3
 import json
+import secrets
+import hashlib
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Tuple
 from datetime import datetime, timedelta, timezone
@@ -10,6 +12,8 @@ import os
 
 SESSION_EXPIRY_DAYS = int(os.getenv("SESSION_EXPIRY_DAYS", "7"))
 OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "15"))
+EMAIL_VERIFICATION_EXPIRY_HOURS = int(os.getenv("EMAIL_VERIFICATION_EXPIRY_HOURS", "24"))
+PASSWORD_RESET_EXPIRY_HOURS = int(os.getenv("PASSWORD_RESET_EXPIRY_HOURS", "1"))
 
 # .../apps/backend/services/db.py -> data/gymgpt.db
 DB_DIR = (Path(__file__).resolve().parent / ".." / ".." / "data").resolve()
@@ -122,6 +126,36 @@ def init_db() -> None:
         )
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_nutrition_plans_owner_id ON nutrition_plans(owner_id);"
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS email_verification_tokens(
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+                expires_at TEXT NOT NULL,
+                used       INTEGER NOT NULL DEFAULT 0
+            );
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_evt_user_id ON email_verification_tokens(user_id);"
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS password_reset_tokens(
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+                expires_at TEXT NOT NULL,
+                used       INTEGER NOT NULL DEFAULT 0
+            );
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_prt_user_id ON password_reset_tokens(user_id);"
         )
     migrate_add_diff_json()
     migrate_add_plan_owner()
@@ -606,11 +640,21 @@ def create_user_with_password(email: str, password_hash: str) -> Dict[str, Any]:
 
 
 def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
-    """Fetch a user row including password_hash for credential verification."""
+    """Fetch a user row including password_hash and email_verified for credential verification."""
     with _conn() as conn:
         row = conn.execute(
-            "SELECT id, email, password_hash FROM users WHERE email = ?",
+            "SELECT id, email, password_hash, email_verified FROM users WHERE email = ?",
             (email,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
+    """Fetch a user row by primary key."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT id, email, email_verified FROM users WHERE id = ?",
+            (user_id,),
         ).fetchone()
         return dict(row) if row else None
 
@@ -702,6 +746,138 @@ def purge_expired_login_codes() -> None:
         conn.execute(
             """
             DELETE FROM login_codes
+            WHERE expires_at <= strftime('%Y-%m-%dT%H:%M:%SZ','now')
+               OR used = 1
+            """
+        )
+
+
+# ---------------------------------------------------------------------------
+# Email verification tokens
+# ---------------------------------------------------------------------------
+
+def create_email_verification_token(user_id: int) -> str:
+    """Generate, store (hashed), and return the plaintext token.
+    Invalidates any prior unused tokens for this user first."""
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(hours=EMAIL_VERIFICATION_EXPIRY_HOURS)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with _conn() as conn:
+        # Invalidate prior unused tokens to prevent link sprawl
+        conn.execute(
+            "UPDATE email_verification_tokens SET used = 1 WHERE user_id = ? AND used = 0",
+            (user_id,),
+        )
+        conn.execute(
+            "INSERT INTO email_verification_tokens(user_id, token_hash, expires_at) VALUES (?,?,?)",
+            (user_id, token_hash, expires_at),
+        )
+    return token
+
+
+def consume_email_verification_token(token: str) -> Optional[int]:
+    """Verify token, mark used atomically, return user_id on success or None on failure."""
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    with _conn() as conn:
+        row = conn.execute(
+            """
+            SELECT id, user_id FROM email_verification_tokens
+            WHERE token_hash = ?
+              AND used = 0
+              AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ','now')
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (token_hash,),
+        ).fetchone()
+        if not row:
+            return None
+        conn.execute(
+            "UPDATE email_verification_tokens SET used = 1 WHERE id = ?",
+            (row["id"],),
+        )
+        return row["user_id"]
+
+
+def purge_expired_verification_tokens() -> None:
+    with _conn() as conn:
+        conn.execute(
+            """
+            DELETE FROM email_verification_tokens
+            WHERE expires_at <= strftime('%Y-%m-%dT%H:%M:%SZ','now')
+               OR used = 1
+            """
+        )
+
+
+# ---------------------------------------------------------------------------
+# Password reset tokens
+# ---------------------------------------------------------------------------
+
+def create_password_reset_token(user_id: int) -> str:
+    """Generate, store (hashed), and return the plaintext reset token.
+    Invalidates any prior unused tokens for this user first."""
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(hours=PASSWORD_RESET_EXPIRY_HOURS)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE password_reset_tokens SET used = 1 WHERE user_id = ? AND used = 0",
+            (user_id,),
+        )
+        conn.execute(
+            "INSERT INTO password_reset_tokens(user_id, token_hash, expires_at) VALUES (?,?,?)",
+            (user_id, token_hash, expires_at),
+        )
+    return token
+
+
+def consume_password_reset_token(token: str) -> Optional[int]:
+    """Verify token, mark used atomically, return user_id on success or None on failure."""
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    with _conn() as conn:
+        row = conn.execute(
+            """
+            SELECT id, user_id FROM password_reset_tokens
+            WHERE token_hash = ?
+              AND used = 0
+              AND expires_at > strftime('%Y-%m-%dT%H:%M:%SZ','now')
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (token_hash,),
+        ).fetchone()
+        if not row:
+            return None
+        conn.execute(
+            "UPDATE password_reset_tokens SET used = 1 WHERE id = ?",
+            (row["id"],),
+        )
+        return row["user_id"]
+
+
+def update_password_hash(user_id: int, new_hash: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (new_hash, user_id),
+        )
+
+
+def delete_all_sessions_for_user(user_id: int) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+
+
+def purge_expired_reset_tokens() -> None:
+    with _conn() as conn:
+        conn.execute(
+            """
+            DELETE FROM password_reset_tokens
             WHERE expires_at <= strftime('%Y-%m-%dT%H:%M:%SZ','now')
                OR used = 1
             """
