@@ -266,10 +266,14 @@ def password_login(req: PasswordLoginRequest):
 
     user = get_user_by_email(email)
 
-    # Constant-time guard: run checkpw even on miss to prevent timing attacks
-    dummy_hash = b"$2b$12$invalidhashpadding000000000000000000000000000000000000u"
-    stored = user["password_hash"].encode() if (user and user.get("password_hash")) else dummy_hash
-    match = bcrypt.checkpw(password.encode(), stored)
+    # Constant-time guard: run checkpw even on miss to prevent timing attacks.
+    # Dummy hash is a valid 60-char bcrypt hash so checkpw never raises ValueError.
+    _DUMMY_HASH = b"$2b$12$vJa6dzmDB5EA0NqSA9ltJeBNo0idlFKEuxf3zIC8b3RTur0KJgY2C"
+    stored = user["password_hash"].encode() if (user and user.get("password_hash")) else _DUMMY_HASH
+    try:
+        match = bcrypt.checkpw(password.encode(), stored)
+    except ValueError:
+        match = False
 
     if not user or not user.get("password_hash") or not match:
         raise HTTPException(status_code=401, detail="Invalid email or password")
