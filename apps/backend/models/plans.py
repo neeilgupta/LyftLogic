@@ -15,6 +15,7 @@ class GeneratePlanRequest(BaseModel):
     equipment: Literal["full_gym", "dumbbells", "bodyweight"] = "full_gym"
     soreness_notes: Optional[str] = None
     constraints: Optional[str] = Field(default="", description="Any injuries, preferences, dislikes.")
+    focus_muscles: Optional[List[str]] = Field(default=None)
 
     @field_validator("equipment", mode="before")
     @classmethod

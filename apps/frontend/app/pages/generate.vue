@@ -52,6 +52,24 @@
       </section>
 
       <section class="ll-card">
+        <div class="card-heading">
+          Focus Muscles
+          <span class="card-heading-optional">(optional)</span>
+        </div>
+        <p class="focus-hint">Selected muscles are trained first each session and prioritised in exercise selection.</p>
+        <div class="muscle-chips">
+          <button
+            v-for="m in MUSCLE_OPTIONS"
+            :key="m.value"
+            type="button"
+            :class="['muscle-chip', { 'muscle-chip--active': form.focus_muscles.includes(m.value) }]"
+            :disabled="loading"
+            @click="toggleMuscle(m.value)"
+          >{{ m.label }}</button>
+        </div>
+      </section>
+
+      <section class="ll-card">
         <label class="form-field">
           <span class="form-label">Notes / Preferences</span>
           <textarea
@@ -112,7 +130,37 @@ const form = ref({
   session_minutes: 60,
   equipment: "full_gym",
   constraints: "",
+  focus_muscles: [] as string[],
 });
+
+const MUSCLE_OPTIONS: { label: string; value: string }[] = [
+  { label: "Chest",       value: "chest" },
+  { label: "Back",        value: "back" },
+  { label: "Lats",        value: "lats" },
+  { label: "Shoulders",   value: "shoulders" },
+  { label: "Front Delts", value: "front_delts" },
+  { label: "Side Delts",  value: "side_delts" },
+  { label: "Rear Delts",  value: "rear_delts" },
+  { label: "Biceps",      value: "biceps" },
+  { label: "Triceps",     value: "triceps" },
+  { label: "Upper Back",  value: "upper_back" },
+  { label: "Quads",       value: "quads" },
+  { label: "Hamstrings",  value: "hamstrings" },
+  { label: "Glutes",      value: "glutes" },
+  { label: "Calves",      value: "calves" },
+  { label: "Abs",         value: "abs" },
+  { label: "Adductors",   value: "adductors" },
+  { label: "Abductors",   value: "abductors" },
+];
+
+function toggleMuscle(value: string) {
+  const idx = form.value.focus_muscles.indexOf(value);
+  if (idx === -1) {
+    form.value.focus_muscles.push(value);
+  } else {
+    form.value.focus_muscles.splice(idx, 1);
+  }
+}
 
 // --- premium loading UX (status text + elapsed time)
 const startedAtMs = ref<number | null>(null);
@@ -389,6 +437,58 @@ textarea.form-input {
   font-family: 'DM Mono', monospace;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.card-heading-optional {
+  font-weight: 400;
+  opacity: 0.45;
+  text-transform: none;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.focus-hint {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: rgba(240, 237, 230, 0.3);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.muscle-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.muscle-chip {
+  padding: 5px 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: rgba(240, 237, 230, 0.55);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  user-select: none;
+}
+
+.muscle-chip:hover:not(:disabled) {
+  border-color: rgba(124, 58, 237, 0.5);
+  color: #f0ede6;
+}
+
+.muscle-chip--active {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.15);
+  color: #c4b5fd;
+}
+
+.muscle-chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 @media (max-width: 900px) {

@@ -709,29 +709,47 @@ def _canon_name(name: str) -> Optional[str]:
     return None
 
 
-def _pick_first_valid(priority: List[str], banned: set[str], prefer_machines: bool = False, prefer_cables: bool = False) -> Optional[str]:
-    ordered = priority
-    if prefer_machines or prefer_cables:
-        def score(n: str) -> int:
-            nl = n.lower()
+def _pick_first_valid(
+    priority: List[str],
+    banned: set[str],
+    prefer_machines: bool = False,
+    prefer_cables: bool = False,
+    focus_muscles: Optional[List[str]] = None,
+) -> Optional[str]:
+    has_equip_pref = prefer_machines or prefer_cables
+    has_focus = bool(focus_muscles)
 
-            # prefer_machines wins over prefer_cables if both present
+    if has_equip_pref or has_focus:
+        focus_set = {m.lower() for m in focus_muscles} if has_focus else set()
+
+        def equip_score(n: str) -> int:
+            nl = n.lower()
             if prefer_machines:
                 if "machine" in nl: return 0
-                if "smith" in nl: return 1
-                if "cable" in nl: return 2
+                if "smith"   in nl: return 1
+                if "cable"   in nl: return 2
                 if "dumbbell" in nl: return 3
                 return 4
+            if prefer_cables:
+                if "cable"    in nl: return 0
+                if "machine"  in nl: return 1
+                if "smith"    in nl: return 2
+                if "dumbbell" in nl: return 3
+                return 4
+            return 0
 
-            # prefer_cables mode
-            if "cable" in nl: return 0
-            if "machine" in nl: return 1
-            if "smith" in nl: return 2
-            if "dumbbell" in nl: return 3
-            return 4
+        def focus_score(n: str) -> int:
+            if not focus_set:
+                return 0
+            cn = _canon_name(n)
+            meta = EXERCISES.get(cn) if cn else None
+            if meta and any(t in focus_set for t in meta.tags):
+                return 0
+            return 1
 
-        ordered = sorted(priority, key=score)
-
+        ordered = sorted(priority, key=lambda n: (focus_score(n), equip_score(n)))
+    else:
+        ordered = priority
 
     for raw in ordered:
         cn = _canon_name(raw)
@@ -936,6 +954,20 @@ def _triceps_slots_for_day(template_key: str, has_sharms: bool) -> list[list[str
         return [TRI_SIDES]  # FB_C default
     return []
 
+def _prioritize_focus_exercises(day: DayPlan, focus_muscles: List[str]) -> None:
+    """Move exercises targeting focus_muscles to the front of main and accessories.
+    Stable sort — relative order within each group is preserved.
+    """
+    focus_set = {m.lower() for m in focus_muscles}
+
+    def is_focused(ex: ExerciseItem) -> bool:
+        meta = EXERCISES.get(normalize_name(ex.name))
+        return bool(meta and any(t in focus_set for t in meta.tags))
+
+    day.main[:] = sorted(day.main, key=lambda ex: 0 if is_focused(ex) else 1)
+    day.accessories[:] = sorted(day.accessories, key=lambda ex: 0 if is_focused(ex) else 1)
+
+
 def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, has_sharms: bool) -> None:
     main_slots, acc_slots = _template_slots(template_key, req)
     acc_slots = list(acc_slots)  # in case it's a tuple
@@ -955,6 +987,7 @@ def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, h
                 banned=banned,
                 prefer_machines=flags["prefer_machines"],
                 prefer_cables=flags.get("prefer_cables", False),
+                focus_muscles=req.focus_muscles,
             )
             if not pick:
                 continue
@@ -1310,6 +1343,8 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
             day.accessories = []
             continue
         _apply_template(day, req, template_key, has_sharms)
+        if req.focus_muscles:
+            _prioritize_focus_exercises(day, req.focus_muscles)
         _enforce_equipment_from_notes(day, req)
         _enforce_prefer_cables(day, req)
 

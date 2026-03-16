@@ -49,7 +49,6 @@
         </div>
 
         <template v-else>
-          <TableSection title="Warmup" :lifts="normalizeToLifts(day.warmup)" />
           <TableSection title="Main" :lifts="normalizeToLifts(day.main)" />
           <TableSection title="Accessories" :lifts="normalizeToLifts(day.accessories)" />
         </template>
