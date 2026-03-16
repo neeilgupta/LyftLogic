@@ -1181,10 +1181,6 @@ async function onNutritionGenerate() {
 
   try {
     const base = buildNutritionBaseRequest(currentInputs());
-    console.log(
-      "[BLOCK 0] Nutrition Generate — payload sent to backend",
-      JSON.parse(JSON.stringify(base))
-    );
     const res = await generateNutrition(base);
     nutritionSnapshot.value = res.version_snapshot;
     nutritionOutput.value = res.output ?? null;

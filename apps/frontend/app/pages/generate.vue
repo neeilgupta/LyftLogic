@@ -32,12 +32,12 @@
 
           <label class="form-field">
             <span class="form-label">Days per week</span>
-            <input v-model.number="form.days_per_week" type="number" min="1" max="7" class="form-input" :disabled="loading" />
+            <input v-model.number="form.days_per_week" type="number" min="1" max="6" class="form-input" :disabled="loading" />
           </label>
 
           <label class="form-field">
             <span class="form-label">Session minutes</span>
-            <input v-model.number="form.session_minutes" type="number" min="20" max="180" class="form-input" :disabled="loading" />
+            <input v-model.number="form.session_minutes" type="number" min="20" max="120" class="form-input" :disabled="loading" />
           </label>
 
           <label class="form-field full-width">
@@ -45,7 +45,6 @@
             <select v-model="form.equipment" class="form-input form-select" :disabled="loading">
               <option value="full_gym">Full gym</option>
               <option value="dumbbells">Dumbbells</option>
-              <option value="home_gym">Home gym</option>
               <option value="bodyweight">Bodyweight</option>
             </select>
           </label>
@@ -164,7 +163,6 @@ async function onSubmit() {
       router.push(`/plans/${planId}`);
     }
   } catch (e: any) {
-    console.log(e);
     error.value =
       e?.data?.detail ??
       e?.data?.message ??
