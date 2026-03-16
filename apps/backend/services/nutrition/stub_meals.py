@@ -89,31 +89,30 @@ def _round1(x: float) -> float:
 
 
 def _meal_macros_from_pantry(ingredients: list[dict[str, Any]], debug_meta: dict[str, Any] | None = None) -> dict[str, float]:
-    cals = p = c = f = 0.0
+    p = c = f = 0.0
     for ing in ingredients:
         name = ing["name"]
         grams = float(ing.get("grams", 0.0))
-        
+
         # Try alias first, then direct lookup
         canonical_name = _canonical_pantry_key(name)
         per100 = INGREDIENT_PANTRY_PER_100G.get(canonical_name)
-        
+
         # Track missing lookups for instrumentation
         if not per100 and debug_meta is not None and grams > 0:
             if "missing_ingredients" not in debug_meta:
                 debug_meta["missing_ingredients"] = []
             if canonical_name not in debug_meta["missing_ingredients"]:
                 debug_meta["missing_ingredients"].append(canonical_name)
-        
+
         if not per100 or grams <= 0:
             continue
         factor = grams / 100.0
-        cals += per100.get("calories", 0.0) * factor
         p += per100.get("protein_g", 0.0) * factor
         c += per100.get("carbs_g", 0.0) * factor
         f += per100.get("fat_g", 0.0) * factor
     return {
-        "calories": _round1(cals),
+        "calories": _round1(p * 4 + c * 4 + f * 9),
         "protein_g": _round1(p),
         "carbs_g": _round1(c),
         "fat_g": _round1(f),

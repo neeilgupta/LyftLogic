@@ -86,6 +86,24 @@ def _meal_calories(meal: dict) -> int:
 
 
 
+def _macros_reconciled(meal: dict, tolerance_kcal: int = 10) -> bool:
+    """Reject meals where protein*4 + carbs*4 + fat*9 diverges from stated calories."""
+    macros = meal.get("macros")
+    if not isinstance(macros, dict):
+        return True  # no macro block; let allergen/calorie guards handle it
+    try:
+        protein  = float(macros.get("protein_g", 0))
+        carbs    = float(macros.get("carbs_g", 0))
+        fat      = float(macros.get("fat_g", 0))
+        calories = float(macros.get("calories", 0))
+    except (TypeError, ValueError):
+        return True  # unparseable fields; fail open
+    if calories == 0:
+        return True  # no calorie data to validate against
+    computed = protein * 4 + carbs * 4 + fat * 9
+    return abs(computed - calories) <= tolerance_kcal
+
+
 def generate_safe_meals(
     req: GenerationRequest,
     llm_generate: LLMGenerator,
@@ -184,6 +202,13 @@ def generate_safe_meals(
             sig = _template_sig(meal)
             # hard guard: never accept the same template twice
             if sig and sig in accepted_templates:
+                continue
+
+            # macro consistency guard
+            if not _macros_reconciled(meal):
+                m = dict(meal) if isinstance(meal, dict) else {"raw": str(meal)}
+                m["rejection_reason"] = "macro_mismatch"
+                rejected.append(m)
                 continue
 
             accepted.append(meal)
