@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useAuth } from "../../composables/useAuth";
 
 const router = useRouter();
-const { requestCode, verifyCode, register, passwordLogin, me } = useAuth();
+const route = useRoute();
+const { requestCode, verifyCode, register, passwordLogin, me, resendVerification } = useAuth();
 const user = useState<{ id: number; email: string } | null>('user', () => null);
 
 // "password" | "register" | "otp"
@@ -19,9 +20,17 @@ const loading = ref(false);
 const password = ref("");
 const confirmPassword = ref("");
 
+// Post-register state
+const registered = ref(false);
+const resendLoading = ref(false);
+const resendSent = ref(false);
+
 // OTP fields
 const codeSent = ref(false);
 const code = ref("");
+
+// Banner for successful password reset redirect
+const resetSuccess = route.query.reset === "1";
 
 function resetState() {
   error.value = null;
@@ -29,6 +38,8 @@ function resetState() {
   confirmPassword.value = "";
   codeSent.value = false;
   code.value = "";
+  registered.value = false;
+  resendSent.value = false;
 }
 
 function switchMode(m: "password" | "register" | "otp") {
@@ -71,12 +82,24 @@ async function handleRegister() {
   loading.value = true;
   try {
     await register(email.value.trim().toLowerCase(), password.value);
-    user.value = await me();
-    router.push("/plans");
+    registered.value = true;
   } catch (e: any) {
     error.value = e?.data?.detail ?? e?.message ?? "Registration failed";
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleResendVerification() {
+  resendSent.value = false;
+  resendLoading.value = true;
+  try {
+    await resendVerification(email.value.trim().toLowerCase());
+    resendSent.value = true;
+  } catch (e: any) {
+    error.value = e?.data?.detail ?? e?.message ?? "Failed to resend link";
+  } finally {
+    resendLoading.value = false;
   }
 }
 
@@ -119,8 +142,18 @@ async function handleVerifyCode() {
 <template>
   <div class="page">
     <div class="card">
-      <h1 class="title">LyftLogic</h1>
-      <p class="sub">Sign in to your account</p>
+      <div class="brand">
+        <h1 class="wordmark">Lyft<span class="accent">Logic</span></h1>
+        <p class="sub">
+          <template v-if="mode === 'register'">Create your account</template>
+          <template v-else-if="mode === 'otp'">Sign in with a magic link</template>
+          <template v-else>Sign in to your account</template>
+        </p>
+      </div>
+
+      <div v-if="resetSuccess" class="banner success-banner">
+        Password reset — sign in with your new password.
+      </div>
 
       <!-- Tab strip -->
       <div class="tabs">
@@ -129,14 +162,14 @@ async function handleVerifyCode() {
           :class="{ active: mode === 'password' || mode === 'register' }"
           @click="switchMode('password')"
         >
-          Email + Password
+          Password
         </button>
         <button
           class="tab"
           :class="{ active: mode === 'otp' }"
           @click="switchMode('otp')"
         >
-          Magic Link
+          Magic link
         </button>
       </div>
 
@@ -167,60 +200,79 @@ async function handleVerifyCode() {
           />
         </div>
 
-        <div v-if="error" class="error">{{ error }}</div>
+        <div v-if="error" class="error-msg">{{ error }}</div>
 
         <button class="btn-primary" :disabled="loading" @click="handlePasswordLogin">
-          {{ loading ? "Signing in…" : "Sign in" }}
+          <span class="btn-text">{{ loading ? "Signing in…" : "Sign in" }}</span>
+          <span v-if="loading" class="btn-spinner"></span>
         </button>
 
-        <p class="switch-link">
-          Don't have an account?
-          <button class="link-btn" @click="switchMode('register')">Create one</button>
-        </p>
+        <div class="links-row">
+          <NuxtLink to="/forgot-password" class="link-btn">Forgot password?</NuxtLink>
+          <span class="links-sep">·</span>
+          <button class="link-btn" @click="switchMode('register')">Create account</button>
+        </div>
       </template>
 
       <!-- Register -->
       <template v-else-if="mode === 'register'">
-        <div class="field">
-          <label class="label">Password</label>
-          <input
-            v-model="password"
-            type="password"
-            class="input"
-            placeholder="Min. 8 characters"
-            autocomplete="new-password"
-          />
-        </div>
-        <div class="field">
-          <label class="label">Confirm password</label>
-          <input
-            v-model="confirmPassword"
-            type="password"
-            class="input"
-            placeholder="••••••••"
-            autocomplete="new-password"
-            @keydown.enter="handleRegister"
-          />
-        </div>
+        <template v-if="registered">
+          <div class="state-box">
+            <div class="state-icon">✉</div>
+            <p class="state-title">Check your inbox</p>
+            <p class="state-text">We sent a verification link to <strong>{{ email }}</strong>. Click it to activate your account.</p>
+            <div v-if="error" class="error-msg">{{ error }}</div>
+            <p class="state-text">
+              Didn't get it?
+              <button class="link-btn" :disabled="resendLoading" @click="handleResendVerification">
+                {{ resendLoading ? "Sending…" : resendSent ? "Sent!" : "Resend link" }}
+              </button>
+            </p>
+          </div>
+        </template>
+        <template v-else>
+          <div class="field">
+            <label class="label">Password</label>
+            <input
+              v-model="password"
+              type="password"
+              class="input"
+              placeholder="Min. 8 characters"
+              autocomplete="new-password"
+            />
+          </div>
+          <div class="field">
+            <label class="label">Confirm password</label>
+            <input
+              v-model="confirmPassword"
+              type="password"
+              class="input"
+              placeholder="••••••••"
+              autocomplete="new-password"
+              @keydown.enter="handleRegister"
+            />
+          </div>
 
-        <div v-if="error" class="error">{{ error }}</div>
+          <div v-if="error" class="error-msg">{{ error }}</div>
 
-        <button class="btn-primary" :disabled="loading" @click="handleRegister">
-          {{ loading ? "Creating account…" : "Create account" }}
-        </button>
+          <button class="btn-primary" :disabled="loading" @click="handleRegister">
+            <span class="btn-text">{{ loading ? "Creating account…" : "Create account" }}</span>
+            <span v-if="loading" class="btn-spinner"></span>
+          </button>
 
-        <p class="switch-link">
-          Already have an account?
-          <button class="link-btn" @click="switchMode('password')">Sign in</button>
-        </p>
+          <div class="links-row">
+            <button class="link-btn" @click="switchMode('password')">Already have an account?</button>
+          </div>
+        </template>
       </template>
 
       <!-- OTP -->
       <template v-else-if="mode === 'otp'">
         <template v-if="!codeSent">
-          <div v-if="error" class="error">{{ error }}</div>
+          <div v-if="error" class="error-msg">{{ error }}</div>
           <button class="btn-primary" :disabled="loading" @click="handleRequestCode">
-            {{ loading ? "Sending…" : "Send magic link" }}
+            <span class="btn-text">{{ loading ? "Sending…" : "Send magic link" }}</span>
+            <span v-if="loading" class="btn-spinner"></span>
           </button>
         </template>
         <template v-else>
@@ -229,7 +281,7 @@ async function handleVerifyCode() {
             <input
               v-model="code"
               type="text"
-              class="input"
+              class="input input-code"
               placeholder="123456"
               inputmode="numeric"
               maxlength="6"
@@ -237,16 +289,17 @@ async function handleVerifyCode() {
               @keydown.enter="handleVerifyCode"
             />
           </div>
-          <p class="hint">Code sent to {{ email }}. Check your inbox.</p>
-          <div v-if="error" class="error">{{ error }}</div>
+          <p class="hint">Code sent to {{ email }}</p>
+          <div v-if="error" class="error-msg">{{ error }}</div>
           <button class="btn-primary" :disabled="loading" @click="handleVerifyCode">
-            {{ loading ? "Verifying…" : "Verify code" }}
+            <span class="btn-text">{{ loading ? "Verifying…" : "Verify code" }}</span>
+            <span v-if="loading" class="btn-spinner"></span>
           </button>
-          <p class="switch-link">
+          <div class="links-row">
             <button class="link-btn" @click="codeSent = false; error = null">
-              ← Use a different email
+              ← Different email
             </button>
-          </p>
+          </div>
         </template>
       </template>
     </div>
@@ -254,158 +307,310 @@ async function handleVerifyCode() {
 </template>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;900&family=DM+Mono:ital,wght@0,400;0,500&family=DM+Sans:wght@400;500;600&display=swap');
+
+:root {
+  --amber: #7c3aed;
+  --amber-dim: rgba(124, 58, 237, 0.12);
+  --amber-glow: rgba(124, 58, 237, 0.07);
+  --bg: #090907;
+  --surface: #111110;
+  --surface-2: #191917;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text: #f0ede6;
+  --text-dim: rgba(240, 237, 230, 0.42);
+  --error-color: #f87171;
+  --success-color: #4ade80;
+}
+
 .page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: radial-gradient(circle at top left, #2a1658 0%, #0b0b12 50%);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  color: #e5e7eb;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(124, 58, 237, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
 }
 
 .card {
   width: 100%;
-  max-width: 400px;
-  background: rgba(16, 10, 32, 0.85);
-  border: 1px solid rgba(124, 58, 237, 0.3);
-  border-radius: 16px;
-  padding: 32px 28px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
+  border-radius: 4px;
+  padding: 36px 32px;
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0,0,0,0.4);
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.title {
-  font-size: 24px;
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.brand {
+  margin-bottom: 28px;
+}
+
+.wordmark {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px;
   font-weight: 900;
+  letter-spacing: -0.03em;
   margin: 0 0 4px;
-  text-align: center;
+  color: var(--text);
+  line-height: 1;
+}
+
+.accent {
+  color: var(--amber);
 }
 
 .sub {
-  text-align: center;
-  opacity: 0.55;
-  font-size: 14px;
-  margin: 0 0 24px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0;
+  letter-spacing: 0.02em;
 }
 
+/* Tab strip */
 .tabs {
   display: flex;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 3px;
-  margin-bottom: 22px;
-  gap: 3px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
 }
 
 .tab {
   flex: 1;
-  padding: 8px 0;
+  padding: 9px 0;
   border: none;
-  border-radius: 8px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: transparent;
-  color: rgba(229, 231, 235, 0.55);
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--text-dim);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: color 0.15s, border-color 0.15s;
 }
 
 .tab.active {
-  background: rgba(124, 58, 237, 0.25);
-  color: rgba(167, 139, 250, 1);
+  color: var(--amber);
+  border-bottom-color: var(--amber);
 }
 
 .tab:hover:not(.active) {
-  color: rgba(229, 231, 235, 0.85);
+  color: rgba(240, 237, 230, 0.7);
 }
 
+/* Fields */
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   margin-bottom: 14px;
 }
 
 .label {
-  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.6;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
 }
 
 .input {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(124, 58, 237, 0.3);
-  border-radius: 9px;
-  padding: 10px 13px;
-  color: #e5e7eb;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 11px 14px;
+  color: var(--text);
   font-size: 15px;
+  font-family: 'DM Sans', sans-serif;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .input:focus {
-  border-color: rgba(124, 58, 237, 0.7);
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-glow);
 }
 
 .input::placeholder {
-  opacity: 0.35;
+  color: var(--text-dim);
+  opacity: 0.6;
 }
 
+.input-code {
+  font-family: 'DM Mono', monospace;
+  font-size: 20px;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+/* Button */
 .btn-primary {
   width: 100%;
-  padding: 11px;
-  background: rgba(124, 58, 237, 0.85);
+  padding: 12px;
+  background: var(--amber);
   border: none;
-  border-radius: 10px;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
+  border-radius: 3px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   cursor: pointer;
   margin-top: 4px;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.1s, opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: rgba(124, 58, 237, 1);
+  background: #6d28d9;
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.99);
 }
 
 .btn-primary:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-.error {
-  color: #fca5a5;
-  font-size: 13px;
-  margin-bottom: 10px;
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid rgba(10,10,8,0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Messages */
+.error-msg {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--error-color);
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: rgba(248, 113, 113, 0.07);
+  border-left: 2px solid var(--error-color);
+  border-radius: 0 3px 3px 0;
 }
 
 .hint {
   font-size: 13px;
-  opacity: 0.6;
-  margin: 0 0 12px;
+  color: var(--text-dim);
+  margin: 0 0 14px;
 }
 
-.switch-link {
-  text-align: center;
+.banner {
   font-size: 13px;
-  opacity: 0.65;
-  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 3px;
+  margin-bottom: 18px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.success-banner {
+  background: rgba(74, 222, 128, 0.07);
+  border-left: 2px solid var(--success-color);
+  color: #86efac;
+}
+
+/* Links */
+.links-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.links-sep {
+  color: var(--border-strong);
+  font-size: 14px;
 }
 
 .link-btn {
   background: none;
   border: none;
-  color: rgba(167, 139, 250, 1);
-  font-size: 13px;
+  color: var(--amber);
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.03em;
   cursor: pointer;
   padding: 0;
-  font-weight: 600;
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.15s;
 }
 
 .link-btn:hover {
+  opacity: 1;
   text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* State box (post-register, etc.) */
+.state-box {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.state-icon {
+  font-size: 28px;
+  margin-bottom: 12px;
+  opacity: 0.75;
+  font-style: normal;
+}
+
+.state-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.state-text {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0 0 10px;
+  line-height: 1.55;
 }
 </style>

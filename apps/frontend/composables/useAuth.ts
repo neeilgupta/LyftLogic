@@ -48,7 +48,7 @@ export function useAuth() {
     }
   };
 
-  const register = async (email: string, password: string): Promise<User> => {
+  const register = async (email: string, password: string): Promise<{ detail: string }> => {
     return await $fetch("/auth/register", {
       baseURL,
       method: "POST",
@@ -66,5 +66,52 @@ export function useAuth() {
     });
   };
 
-  return { requestCode, verifyCode, logout, me, register, passwordLogin };
+  const verifyEmail = async (token: string): Promise<User> => {
+    return await $fetch("/auth/verify-email", {
+      baseURL,
+      method: "GET",
+      credentials: "include",
+      params: { token },
+    });
+  };
+
+  const resendVerification = async (email: string): Promise<{ detail: string }> => {
+    return await $fetch("/auth/resend-verification", {
+      baseURL,
+      method: "POST",
+      credentials: "include",
+      body: { email },
+    });
+  };
+
+  const forgotPassword = async (email: string): Promise<{ detail: string }> => {
+    return await $fetch("/auth/forgot-password", {
+      baseURL,
+      method: "POST",
+      credentials: "include",
+      body: { email },
+    });
+  };
+
+  const resetPassword = async (token: string, password: string): Promise<{ detail: string }> => {
+    return await $fetch("/auth/reset-password", {
+      baseURL,
+      method: "POST",
+      credentials: "include",
+      body: { token, password },
+    });
+  };
+
+  return {
+    requestCode,
+    verifyCode,
+    logout,
+    me,
+    register,
+    passwordLogin,
+    verifyEmail,
+    resendVerification,
+    forgotPassword,
+    resetPassword,
+  };
 }
