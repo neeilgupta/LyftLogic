@@ -309,42 +309,27 @@ async function handleVerifyCode() {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;900&family=DM+Mono:ital,wght@0,400;0,500&family=DM+Sans:wght@400;500;600&display=swap');
 
-:root {
-  --amber: #7c3aed;
-  --amber-dim: rgba(124, 58, 237, 0.12);
-  --amber-glow: rgba(124, 58, 237, 0.07);
-  --bg: #090907;
-  --surface: #111110;
-  --surface-2: #191917;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --text: #f0ede6;
-  --text-dim: rgba(240, 237, 230, 0.42);
-  --error-color: #f87171;
-  --success-color: #4ade80;
-}
-
 .page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background-color: var(--bg);
+  background-color: #090907;
   background-image:
     linear-gradient(rgba(124, 58, 237, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(124, 58, 237, 0.025) 1px, transparent 1px);
   background-size: 44px 44px;
   font-family: 'DM Sans', sans-serif;
-  color: var(--text);
+  color: #f0ede6;
 }
 
 .card {
   width: 100%;
   max-width: 420px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--amber);
+  background: #111110;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid #7c3aed;
   border-radius: 4px;
   padding: 36px 32px;
   box-shadow: 0 32px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0,0,0,0.4);
@@ -366,18 +351,18 @@ async function handleVerifyCode() {
   font-weight: 900;
   letter-spacing: -0.03em;
   margin: 0 0 4px;
-  color: var(--text);
+  color: #f0ede6;
   line-height: 1;
 }
 
 .accent {
-  color: var(--amber);
+  color: #7c3aed;
 }
 
 .sub {
   font-family: 'DM Mono', monospace;
   font-size: 12px;
-  color: var(--text-dim);
+  color: rgba(240, 237, 230, 0.42);
   margin: 0;
   letter-spacing: 0.02em;
 }
@@ -385,7 +370,7 @@ async function handleVerifyCode() {
 /* Tab strip */
 .tabs {
   display: flex;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   margin-bottom: 24px;
 }
 
@@ -396,7 +381,7 @@ async function handleVerifyCode() {
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   background: transparent;
-  color: var(--text-dim);
+  color: rgba(240, 237, 230, 0.42);
   font-family: 'DM Mono', monospace;
   font-size: 11px;
   font-weight: 500;
@@ -407,8 +392,8 @@ async function handleVerifyCode() {
 }
 
 .tab.active {
-  color: var(--amber);
-  border-bottom-color: var(--amber);
+  color: #7c3aed;
+  border-bottom-color: #7c3aed;
 }
 
 .tab:hover:not(.active) {
@@ -429,15 +414,15 @@ async function handleVerifyCode() {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--text-dim);
+  color: rgba(240, 237, 230, 0.42);
 }
 
 .input {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: #191917;
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 3px;
   padding: 11px 14px;
-  color: var(--text);
+  color: #f0ede6;
   font-size: 15px;
   font-family: 'DM Sans', sans-serif;
   outline: none;
@@ -447,12 +432,12 @@ async function handleVerifyCode() {
 }
 
 .input:focus {
-  border-color: var(--amber);
-  box-shadow: 0 0 0 3px var(--amber-glow);
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.07);
 }
 
 .input::placeholder {
-  color: var(--text-dim);
+  color: rgba(240, 237, 230, 0.42);
   opacity: 0.6;
 }
 
@@ -467,7 +452,7 @@ async function handleVerifyCode() {
 .btn-primary {
   width: 100%;
   padding: 12px;
-  background: var(--amber);
+  background: #7c3aed;
   border: none;
   border-radius: 3px;
   color: #ffffff;
@@ -517,22 +502,21 @@ async function handleVerifyCode() {
 .error-msg {
   font-family: 'DM Mono', monospace;
   font-size: 12px;
-  color: var(--error-color);
+  color: #f87171;
   margin-bottom: 12px;
   padding: 10px 12px;
   background: rgba(248, 113, 113, 0.07);
-  border-left: 2px solid var(--error-color);
+  border-left: 2px solid #f87171;
   border-radius: 0 3px 3px 0;
 }
 
 .hint {
   font-size: 13px;
-  color: var(--text-dim);
+  color: rgba(240, 237, 230, 0.42);
   margin: 0 0 14px;
 }
 
 .banner {
-  font-size: 13px;
   padding: 10px 14px;
   border-radius: 3px;
   margin-bottom: 18px;
@@ -543,7 +527,7 @@ async function handleVerifyCode() {
 
 .success-banner {
   background: rgba(74, 222, 128, 0.07);
-  border-left: 2px solid var(--success-color);
+  border-left: 2px solid #4ade80;
   color: #86efac;
 }
 
@@ -557,14 +541,14 @@ async function handleVerifyCode() {
 }
 
 .links-sep {
-  color: var(--border-strong);
+  color: rgba(255, 255, 255, 0.12);
   font-size: 14px;
 }
 
 .link-btn {
   background: none;
   border: none;
-  color: var(--amber);
+  color: #7c3aed;
   font-size: 12px;
   font-family: 'DM Mono', monospace;
   letter-spacing: 0.03em;
@@ -604,12 +588,12 @@ async function handleVerifyCode() {
   font-size: 17px;
   font-weight: 700;
   margin: 0 0 10px;
-  color: var(--text);
+  color: #f0ede6;
 }
 
 .state-text {
   font-size: 13px;
-  color: var(--text-dim);
+  color: rgba(240, 237, 230, 0.42);
   margin: 0 0 10px;
   line-height: 1.55;
 }
