@@ -15,121 +15,165 @@ useHead({
   <main class="home-page">
     <!-- HERO -->
     <section class="hero">
-      <div class="badge">Simple • Consistent • Made for progress</div>
+      <div class="hero-eyebrow">
+        <span class="eyebrow-dot"></span>
+        <span>Deterministic · Versioned · No randomness</span>
+      </div>
 
-      <h1 class="title">
-        LyftLogic
-        <span class="title-accent">Workout + Nutrition</span>
-        planning that you’ll actually stick to.
+      <h1 class="hero-title">
+        Training plans.<br>
+        Nutrition plans.<br>
+        <span class="hero-accent">Built without guessing.</span>
       </h1>
 
-      <p class="subtitle">
-        Get a clear plan for training and meals based on your goals—built to feel realistic,
-        repeatable, and easy to follow day-to-day.
+      <p class="hero-sub">
+        A rules-based engine that turns your goals into a structured plan.
+        Same inputs, same output — every time.
       </p>
 
       <div class="cta-row">
-        <NuxtLink to="/generate" class="btn btn-primary">
-          Build my workout
-        </NuxtLink>
-        <NuxtLink to="/nutrition" class="btn btn-secondary">
-          Build my nutrition
-        </NuxtLink>
-        <NuxtLink to="/roadmap" class="btn btn-ghost">
-          See what’s next
-        </NuxtLink>
+        <NuxtLink to="/generate" class="btn btn-primary">Build workout plan</NuxtLink>
+        <NuxtLink to="/nutrition" class="btn btn-outline">Build nutrition plan</NuxtLink>
+        <NuxtLink to="/roadmap" class="btn btn-ghost">Roadmap →</NuxtLink>
       </div>
 
       <div class="hero-stats">
         <div class="stat">
-          <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
-          <div class="stat-k">Clear structure</div>
-          <div class="stat-v">No overwhelm, just the plan</div>
+          <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="2" />
+          <div class="stat-label">Deterministic</div>
+          <div class="stat-value">Same inputs → same plan, always</div>
         </div>
         <div class="stat">
-          <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
-          <div class="stat-k">Built for real life</div>
-          <div class="stat-v">Simple choices you can repeat</div>
+          <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="2" />
+          <div class="stat-label">Versioned</div>
+          <div class="stat-value">Every edit creates a snapshot + diff</div>
         </div>
         <div class="stat">
-          <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
-          <div class="stat-k">Easy to improve</div>
-          <div class="stat-v">Adjust and keep moving forward</div>
+          <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="2" />
+          <div class="stat-label">Rules-based</div>
+          <div class="stat-value">No AI hallucinations in the output</div>
         </div>
       </div>
     </section>
 
-    <!-- FEATURES -->
-    <section class="grid">
-      <article class="ll-card">
-        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
-        <div class="card-title">Workout Plan</div>
-        <div class="card-sub">
-          A training plan that fits your schedule and goal, with a clean day-by-day layout.
+    <!-- SCROLL ANIMATION DEMO -->
+    <section class="scroll-section">
+      <ContainerScrollAnimation>
+        <template #title>
+          <p class="scroll-eyebrow">Output preview</p>
+          <h2 class="scroll-title">
+            Your plan, structured.<br>
+            <span class="hero-accent">No guesswork in the output.</span>
+          </h2>
+        </template>
+
+        <!-- Static mockup of a generated workout plan -->
+        <div class="plan-mock">
+          <div class="plan-mock__header">
+            <span class="plan-mock__tag">Training</span>
+            <span class="plan-mock__meta">Hypertrophy · Intermediate · 4 days/week</span>
+          </div>
+
+          <div class="plan-mock__day">
+            <div class="plan-mock__day-label">Week 1 · Day 1 · Upper</div>
+            <div class="plan-mock__exercises">
+              <div class="plan-mock__ex">
+                <span class="plan-mock__ex-name">Barbell Bench Press</span>
+                <span class="plan-mock__ex-detail">3 × 8–12 · 120s rest</span>
+              </div>
+              <div class="plan-mock__ex">
+                <span class="plan-mock__ex-name">Cable Row (Seated)</span>
+                <span class="plan-mock__ex-detail">3 × 8–12 · 90s rest</span>
+              </div>
+              <div class="plan-mock__ex">
+                <span class="plan-mock__ex-name">Overhead Press</span>
+                <span class="plan-mock__ex-detail">3 × 8–12 · 120s rest</span>
+              </div>
+              <div class="plan-mock__ex">
+                <span class="plan-mock__ex-name">Lat Pulldown</span>
+                <span class="plan-mock__ex-detail">3 × 8–12 · 90s rest</span>
+              </div>
+              <div class="plan-mock__ex">
+                <span class="plan-mock__ex-name">Cable Lateral Raise</span>
+                <span class="plan-mock__ex-detail">2 × 12–15 · 60s rest</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="plan-mock__footer">
+            <span>Rules engine</span>
+            <span class="plan-mock__sep">·</span>
+            <span>100% deterministic</span>
+            <span class="plan-mock__sep">·</span>
+            <span>v1 snapshot</span>
+          </div>
         </div>
+      </ContainerScrollAnimation>
+    </section>
 
-        <ul class="bullets">
-          <li>Built around your goal</li>
-          <li>Easy-to-follow days and exercises</li>
-          <li>Consistent structure you can stick with</li>
+    <!-- FEATURE CARDS -->
+    <section class="grid-2col">
+      <article class="feature-card">
+        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="2" />
+        <div class="feature-tag">Training</div>
+        <div class="feature-title">Workout Plan</div>
+        <div class="feature-sub">
+          A training split built around your goal, schedule, and equipment.
+          Day-by-day, no ambiguity.
+        </div>
+        <ul class="feature-list">
+          <li>FB / Upper-Lower / PPL splits</li>
+          <li>Equipment-aware exercise selection</li>
+          <li>Versioned edits with full diff history</li>
         </ul>
-
-        <NuxtLink to="/generate" class="btn btn-primary" style="margin-top: 14px;">
-          Open workout
-        </NuxtLink>
+        <NuxtLink to="/generate" class="btn btn-primary feature-btn">Open workout →</NuxtLink>
       </article>
 
-      <article class="ll-card">
-        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
-        <div class="card-title">Nutrition Plan</div>
-        <div class="card-sub">
-          Meal ideas that match your calorie goal and preferences, without feeling restrictive.
+      <article class="feature-card">
+        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="2" />
+        <div class="feature-tag">Nutrition</div>
+        <div class="feature-title">Nutrition Plan</div>
+        <div class="feature-sub">
+          Meal templates scaled to your calorie target, diet, and allergy constraints.
+          Deterministic macro math.
         </div>
-
-        <ul class="bullets">
-          <li>Diet preferences and allergies supported</li>
-          <li>Simple, repeatable meals</li>
-          <li>Made to help you stay on track</li>
+        <ul class="feature-list">
+          <li>Mifflin-St Jeor BMR + TDEE</li>
+          <li>Diet + allergen enforcement (fail-closed)</li>
+          <li>Slot-based meal generation</li>
         </ul>
-
-        <NuxtLink to="/nutrition" class="btn btn-secondary" style="margin-top: 14px;">
-          Open nutrition
-        </NuxtLink>
+        <NuxtLink to="/nutrition" class="btn btn-outline feature-btn">Open nutrition →</NuxtLink>
       </article>
     </section>
 
     <!-- ABOUT -->
-    <section class="about">
-      <article class="ll-card">
-        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
-        <div class="card-title">What this is</div>
-        <p class="p">
-          LyftLogic is a planning tool that turns your goal into something actionable: a workout plan,
-          a nutrition plan, and a simple structure you can follow week after week.
+    <section class="grid-about">
+      <article class="about-card about-card-wide">
+        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="2" />
+        <div class="about-label">What this is</div>
+        <p class="about-p">
+          LyftLogic is a planning engine — not a chatbot. It turns a fixed set of inputs
+          into a structured workout or nutrition plan through deterministic rule trees.
+          The same request always produces the same result.
         </p>
       </article>
 
-      <article class="ll-card ll-card-muted">
-        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="3" />
-        <div class="card-title">Who made it</div>
-        <p class="p">
-          I’m Neeil. I built LyftLogic because I wanted a plan that feels clear and realistic—not
-          confusing, not random, and not hard to follow.
+      <article class="about-card">
+        <GlowingEffect :spread="40" :glow="true" :disabled="false" :proximity="64" :inactive-zone="0.01" :border-width="2" />
+        <div class="about-label">Who built it</div>
+        <p class="about-p">
+          Built by Neeil — a tool for plans that feel clear and
+          repeatable, not random.
         </p>
-
-        <div class="mini-cta">
-          <NuxtLink to="/roadmap" class="link">
-            See what’s coming →
-          </NuxtLink>
-        </div>
+        <NuxtLink to="/roadmap" class="roadmap-link">See what's coming →</NuxtLink>
       </article>
     </section>
 
     <!-- FOOTER -->
     <footer class="footer">
-      <div class="footer-line"></div>
-      <div style="opacity: 0.75;">
-        A cleaner way to plan training and nutrition—built for consistency.
+      <div class="footer-rule"></div>
+      <div class="footer-text">
+        Lyft<span class="accent">Logic</span> — a deterministic fitness planning engine
       </div>
     </footer>
   </main>
@@ -137,266 +181,476 @@ useHead({
 
 
 <style scoped>
-/* Keep consistent app background */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
 :global(html),
 :global(body) {
-  background: #0b0f19;
+  background: #090907;
   margin: 0;
 }
 
 :global(#__nuxt) {
-  background: #0b0f19;
+  background: #090907;
   min-height: 100vh;
 }
 
 .home-page {
-  --accent: #7c3aed;
-  --accent-dark: #6d28d9;
-  --ink: #f8fafc;
-  --muted: #a1a1aa;
-  --page: #0b0f19;
-  --surface: #111827;
-  --surface-2: #0f172a;
-  --border: rgba(255, 255, 255, 0.1);
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-
-  background: radial-gradient(1100px 500px at 20% 0%, rgba(124, 58, 237, 0.18), rgba(0, 0, 0, 0)),
-    var(--page);
-  color: var(--ink);
+  background-color: #090907;
+  background-image:
+    linear-gradient(rgba(124, 58, 237, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  color: #f0ede6;
   min-height: 100vh;
-  padding: 36px 48px 28px;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  padding: 48px 48px 28px;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .home-page > * {
-  max-width: 980px;
+  max-width: 960px;
   margin-left: auto;
   margin-right: auto;
 }
 
 /* HERO */
 .hero {
-  padding: 6px 0 18px;
+  padding: 16px 0 24px;
 }
 
-.badge {
+.hero-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(17, 24, 39, 0.55);
-  box-shadow: var(--shadow);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  color: rgba(255, 255, 255, 0.9);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: rgba(240, 237, 230, 0.4);
+  text-transform: uppercase;
+  margin-bottom: 20px;
 }
 
-.title {
-  margin: 14px 0 10px;
-  font-size: 40px;
-  line-height: 1.08;
-  font-weight: 950;
+.eyebrow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #7c3aed;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 52px;
+  font-weight: 900;
+  line-height: 1.05;
   letter-spacing: -0.03em;
-}
-
-.title-accent {
-  color: rgba(167, 139, 250, 1);
-}
-
-.subtitle {
   margin: 0 0 18px;
-  opacity: 0.85;
-  font-size: 15.5px;
-  line-height: 1.6;
-  max-width: 820px;
+  color: #f0ede6;
 }
 
+.hero-accent {
+  color: #7c3aed;
+}
+
+.hero-sub {
+  font-size: 16px;
+  line-height: 1.65;
+  color: rgba(240, 237, 230, 0.6);
+  max-width: 580px;
+  margin: 0 0 28px;
+}
+
+/* CTA */
 .cta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin: 14px 0 18px;
+  gap: 10px;
+  margin-bottom: 32px;
 }
 
-.hero-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.stat {
-  position: relative;
-  border: 1px solid var(--border);
-  background: rgba(17, 24, 39, 0.55);
-  border-radius: 14px;
-  padding: 14px;
-  box-shadow: var(--shadow);
-}
-
-.stat-k {
-  font-weight: 900;
-  font-size: 13px;
-  margin-bottom: 6px;
-}
-
-.stat-v {
-  font-size: 13px;
-  opacity: 0.8;
-}
-
-/* CARDS + GRID */
-.ll-card {
-  position: relative;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: var(--shadow);
-}
-
-.ll-card-muted {
-  background: rgba(17, 24, 39, 0.55);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.about {
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 14px;
-  margin-top: 14px;
-}
-
-.card-title {
-  font-weight: 900;
-  font-size: 16px;
-  margin-bottom: 8px;
-  letter-spacing: -0.01em;
-}
-
-.card-sub {
-  opacity: 0.82;
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 10px;
-}
-
-.p {
-  margin: 0;
-  opacity: 0.85;
-  line-height: 1.6;
-  font-size: 14px;
-}
-
-.bullets {
-  margin: 10px 0 0;
-  padding-left: 18px;
-  opacity: 0.9;
-  line-height: 1.6;
-  font-size: 14px;
-}
-
-.mini-cta {
-  margin-top: 12px;
-}
-
-.link {
-  color: rgba(167, 139, 250, 1);
-  text-decoration: none;
-  font-weight: 800;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
-/* BUTTONS */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 11px 16px;
-  border-radius: 10px;
-  font-weight: 800;
-  font-size: 14px;
+  padding: 11px 20px;
+  border-radius: 3px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   text-decoration: none;
   border: 1px solid transparent;
-  transition: background 140ms ease, box-shadow 140ms ease, opacity 140ms ease, transform 140ms ease;
-  width: fit-content;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #ffffff;
 }
 
 .btn-primary:hover {
-  background: var(--accent-dark);
+  background: #6d28d9;
   transform: translateY(-1px);
 }
 
-.btn-secondary {
-  background: rgba(124, 58, 237, 0.12);
-  border-color: rgba(124, 58, 237, 0.35);
-  color: rgba(255, 255, 255, 0.92);
+.btn-outline {
+  background: rgba(124, 58, 237, 0.06);
+  border-color: rgba(124, 58, 237, 0.3);
+  color: rgba(124, 58, 237, 0.85);
 }
 
-.btn-secondary:hover {
-  background: rgba(124, 58, 237, 0.18);
+.btn-outline:hover {
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.55);
+  color: #7c3aed;
   transform: translateY(-1px);
 }
 
 .btn-ghost {
   background: transparent;
-  border-color: rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.88);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(240, 237, 230, 0.6);
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(240, 237, 230, 0.9);
   transform: translateY(-1px);
+}
+
+/* HERO STATS */
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.stat {
+  position: relative;
+  background: #111110;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  padding: 16px 18px;
+}
+
+.stat-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7c3aed;
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-size: 13px;
+  color: rgba(240, 237, 230, 0.6);
+  line-height: 1.4;
+}
+
+/* FEATURE CARDS */
+.grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.feature-card {
+  position: relative;
+  background: #111110;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid #7c3aed;
+  border-radius: 4px;
+  padding: 24px 22px;
+}
+
+.feature-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(124, 58, 237, 0.6);
+  margin-bottom: 10px;
+}
+
+.feature-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: #f0ede6;
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+}
+
+.feature-sub {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(240, 237, 230, 0.55);
+  margin-bottom: 16px;
+}
+
+.feature-list {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feature-list li {
+  font-size: 13px;
+  color: rgba(240, 237, 230, 0.7);
+  padding-left: 16px;
+  position: relative;
+}
+
+.feature-list li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: #7c3aed;
+  opacity: 0.5;
+  font-size: 11px;
+}
+
+.feature-btn {
+  margin-top: auto;
+}
+
+/* ABOUT */
+.grid-about {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.about-card {
+  position: relative;
+  background: #111110;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  padding: 22px 22px;
+}
+
+.about-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(240, 237, 230, 0.35);
+  margin-bottom: 12px;
+}
+
+.about-p {
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(240, 237, 230, 0.65);
+  margin: 0 0 12px;
+}
+
+.roadmap-link {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: #7c3aed;
+  text-decoration: none;
+  opacity: 0.8;
+  letter-spacing: 0.03em;
+  transition: opacity 0.15s;
+}
+
+.roadmap-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* FOOTER */
 .footer {
-  margin-top: 22px;
-  padding-top: 18px;
-  padding-bottom: 6px;
+  margin-top: 28px;
+  padding-bottom: 10px;
 }
 
-.footer-line {
+.footer-rule {
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   margin-bottom: 14px;
+}
+
+.footer-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(240, 237, 230, 0.25);
+}
+
+.accent {
+  color: #7c3aed;
+}
+
+/* SCROLL ANIMATION SECTION */
+.scroll-section {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.scroll-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(124, 58, 237, 0.6);
+  margin: 0 0 14px;
+}
+
+.scroll-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0;
+  color: #f0ede6;
+}
+
+@media (min-width: 768px) {
+  .scroll-title {
+    font-size: 48px;
+  }
+}
+
+/* Plan mockup inside the scroll card */
+.plan-mock {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 24px;
+  font-family: 'DM Mono', monospace;
+  color: #f0ede6;
+}
+
+@media (min-width: 768px) {
+  .plan-mock {
+    padding: 28px 32px;
+  }
+}
+
+.plan-mock__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.plan-mock__tag {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: rgba(124, 58, 237, 0.07);
+  color: rgba(124, 58, 237, 0.85);
+}
+
+.plan-mock__meta {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(240, 237, 230, 0.35);
+}
+
+.plan-mock__day {
+  flex: 1;
+}
+
+.plan-mock__day-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7c3aed;
+  margin-bottom: 14px;
+}
+
+.plan-mock__exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plan-mock__ex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 2px solid rgba(124, 58, 237, 0.3);
+  border-radius: 3px;
+}
+
+.plan-mock__ex-name {
+  font-size: 13px;
+  color: rgba(240, 237, 230, 0.88);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.plan-mock__ex-detail {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(240, 237, 230, 0.38);
+  white-space: nowrap;
+}
+
+.plan-mock__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(240, 237, 230, 0.2);
+}
+
+.plan-mock__sep {
+  color: rgba(124, 58, 237, 0.3);
 }
 
 /* RESPONSIVE */
 @media (max-width: 860px) {
   .home-page {
-    padding: 28px 18px 24px;
+    padding: 32px 20px 24px;
   }
-  .title {
-    font-size: 34px;
+
+  .hero-title {
+    font-size: 38px;
   }
+
   .hero-stats {
     grid-template-columns: 1fr;
   }
-  .grid {
+
+  .grid-2col {
     grid-template-columns: 1fr;
   }
-  .about {
+
+  .grid-about {
     grid-template-columns: 1fr;
   }
 }

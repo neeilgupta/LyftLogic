@@ -459,13 +459,13 @@
                   <span v-else>—</span>
 
                   <div v-if="boosterIngredientNames(meal).length" style="margin-top: 6px; font-size: 12px; opacity: 0.75;">
-                    <span style="font-weight: 700; color: rgba(167, 139, 250, 1);">Adjustments:</span>
+                    <span style="font-weight: 700; color: #7c3aed;">Adjustments:</span>
                     <span>{{ boosterIngredientNames(meal).join(", ") }}</span>
                   </div>
                 </div>
 
 
-                <details style="margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px;">
+                <details style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 8px; border: none; background: none; border-radius: 0; padding: 0; margin-top: 10px;">
                 <summary style="cursor: pointer; font-size: 12px; font-weight: 600; opacity: 0.7;">
                     View ingredients & macros
                 </summary>
@@ -1230,203 +1230,306 @@ async function onNutritionRegenerate() {
 </script>
 
 <style scoped>
-/* Make the dark theme cover the entire app page, not just the centered container */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
 :global(html),
 :global(body) {
-  background: #0b0f19;
+  background: #090907;
   margin: 0;
 }
 
-/* Also force Nuxt root container to match (removes the white frame/border) */
 :global(#__nuxt) {
-  background: #0b0f19;
+  background: #090907;
   min-height: 100vh;
 }
 
-/* === Theme tokens (purple / black / silver-grey) === */
 .nutrition-page {
-  --accent: #7c3aed;         /* purple */
-  --accent-dark: #6d28d9;
-  --ink: #f8fafc;            /* light text */
-  --muted: #a1a1aa;          /* muted text */
-  --page: #0b0f19;           /* near-black background */
-  --surface: #111827;        /* card surface */
-  --surface-2: #0f172a;      /* muted card surface */
-  --border: rgba(255,255,255,0.10);
-  --shadow: 0 10px 30px rgba(0,0,0,0.35);
+  --amber: #7c3aed;
+  --bg: #090907;
+  --surface: #111110;
+  --surface-2: #191917;
+  --border: rgba(255, 255, 255, 0.07);
+  --text: #f0ede6;
+  --text-dim: rgba(240, 237, 230, 0.42);
 
-  background: var(--page);
-  color: var(--ink);
-  padding: 32px 48px;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  max-width: none;
-  margin: 0;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(124, 58, 237, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  color: var(--text);
+  padding: 40px 48px;
+  font-family: 'DM Sans', sans-serif;
   min-height: 100vh;
 }
 
-/* Widen centered content rail */
 .nutrition-page > * {
-  max-width: 1500px;
+  max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* Page heading override */
+.nutrition-page > h1 {
+  font-family: 'Syne', sans-serif !important;
+  font-size: 32px !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--text) !important;
+}
+
+.nutrition-page > p {
+  font-family: 'DM Mono', monospace !important;
+  font-size: 12px !important;
+  color: var(--text-dim) !important;
+  opacity: 1 !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* === CRITICAL: Override all white-background inline-styled form elements === */
+.nutrition-page input,
+.nutrition-page select,
+.nutrition-page textarea {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  border-radius: 3px !important;
+  font-family: 'DM Sans', sans-serif !important;
+}
+
+.nutrition-page input:focus,
+.nutrition-page select:focus,
+.nutrition-page textarea:focus {
+  border-color: var(--amber) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.07) !important;
+}
+
+.nutrition-page input:disabled,
+.nutrition-page select:disabled,
+.nutrition-page textarea:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+.nutrition-page input::placeholder,
+.nutrition-page textarea::placeholder {
+  color: rgba(240, 237, 230, 0.25) !important;
+}
+
+.nutrition-page option {
+  background: #191917;
+  color: #f0ede6;
 }
 
 /* Card wrapper */
 .ll-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
+  border-left: 3px solid rgba(124, 58, 237, 0.35);
+  border-radius: 4px;
+  padding: 18px 20px;
   margin-bottom: 14px;
-  box-shadow: var(--shadow);
 }
 
 .ll-card-muted {
-  background: var(--surface-2);
+  background: #0f0f0d;
+  border-left-color: rgba(124, 58, 237, 0.12);
+}
+
+/* Card section headings with inline font-weight: 800 */
+.ll-card > div[style*="font-weight: 800"],
+.ll-card > div[style*="font-weight:800"] {
+  font-family: 'DM Mono', monospace !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  color: var(--text-dim) !important;
+  margin-bottom: 14px !important;
+}
+
+/* Inline span labels (font-size: 12px; opacity: 0.75) */
+.nutrition-page span[style*="opacity: 0.75"],
+.nutrition-page span[style*="opacity:0.75"] {
+  font-family: 'DM Mono', monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+  color: var(--text-dim) !important;
+}
+
+/* Maintenance link */
+.ll-card a[href] {
+  color: var(--amber) !important;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+
+.ll-card a[href]:hover {
+  opacity: 1;
+}
+
+/* Error text inline style */
+.nutrition-page div[style*="color:#b00020"],
+.nutrition-page div[style*="color: #b00020"] {
+  color: #f87171 !important;
+  font-family: 'DM Mono', monospace !important;
+  font-size: 12px !important;
+  padding: 10px 12px !important;
+  background: rgba(248, 113, 113, 0.07) !important;
+  border-left: 2px solid #f87171 !important;
+  border-radius: 0 3px 3px 0 !important;
+  margin-top: 12px !important;
 }
 
 /* Meal cards */
 .meal-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
-  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+  border-radius: 4px;
+  padding: 14px;
+  transition: border-color 0.15s, transform 0.12s;
+}
+
+.meal-card:hover {
+  border-color: rgba(124, 58, 237, 0.35);
+  transform: translateY(-1px);
 }
 
 .booster-badge {
   font-size: 10px;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(167, 139, 250, 0.45);
-  background: rgba(124, 58, 237, 0.12);
-  color: rgba(167, 139, 250, 1);
-  letter-spacing: 0.2px;
+  font-weight: 500;
+  font-family: 'DM Mono', monospace;
+  padding: 2px 7px;
+  border-radius: 2px;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: rgba(124, 58, 237, 0.06);
+  color: rgba(124, 58, 237, 0.8);
+  letter-spacing: 0.04em;
 }
 
-.meal-card:hover {
-  border-color: rgba(124, 58, 237, 0.45);
-  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.10);
-  transform: translateY(-1px);
-}
-
-/* Sub-panels inside meal-card <details> (Macros / Ingredients chips) */
 .meal-card__detail-panel {
   background: var(--surface-2);
-  border-radius: 8px;
-  padding: 8px;
+  border-radius: 3px;
+  padding: 10px;
 }
 
-/* === Buttons — override ONLY buttons using buttonStyle() === */
+/* === Buttons using buttonStyle() — override via attribute selector === */
 .nutrition-page button[style] {
-  background: var(--accent) !important;
-  border-color: var(--accent) !important;
-  color: #fff !important;
-  font-weight: 600;
-  font-size: 13px;
-  transition: background 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+  background: var(--amber) !important;
+  border: none !important;
+  border-radius: 3px !important;
+  color: #ffffff !important;
+  font-family: 'DM Mono', monospace !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase !important;
+  padding: 9px 16px !important;
+  transition: background 0.15s, opacity 0.15s !important;
 }
 
 .nutrition-page button[style]:hover:not(:disabled) {
-  background: var(--accent-dark) !important;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
-}
-
-.nutrition-page button[style]:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  background: #6d28d9 !important;
 }
 
 .nutrition-page button[style]:disabled {
-  background: var(--accent) !important;
-  opacity: 0.45 !important;
+  background: var(--amber) !important;
+  opacity: 0.4 !important;
   cursor: not-allowed !important;
-  box-shadow: none;
 }
 
-.totals-bar{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  padding: 12px 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(17, 24, 39, 0.55);
-  border-radius: 14px;
+/* Totals bar */
+.totals-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid rgba(124, 58, 237, 0.12);
+  background: rgba(124, 58, 237, 0.03);
+  border-radius: 4px;
   margin: 10px 0 14px;
 }
 
-.totals-title{
-  font-weight: 900;
-  font-size: 13px;
-  margin-bottom: 4px;
-  letter-spacing: 0.2px;
+.totals-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
 }
 
-.totals-sub{
+.totals-sub {
   font-size: 13px;
-  opacity: 0.9;
-  line-height: 1.6;
+  color: var(--text);
+  line-height: 1.7;
 }
 
-.pill{
-  display:inline-flex;
-  align-items:center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(167, 139, 250, 0.30);
-  background: rgba(124, 58, 237, 0.10);
-  font-weight: 900;
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 2px;
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  background: rgba(124, 58, 237, 0.06);
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.02em;
   margin: 0 2px;
 }
 
-.debug-toggle{
-  appearance:none;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(255,255,255,0.04);
-  color: rgba(255,255,255,0.88);
-  padding: 9px 12px;
-  border-radius: 10px;
-  font-weight: 800;
-  font-size: 12.5px;
+.debug-toggle {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(240, 237, 230, 0.45);
+  padding: 7px 12px;
+  border-radius: 3px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: transform 140ms ease, background 140ms ease;
+  transition: background 0.15s, color 0.15s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.debug-toggle:hover{
-  background: rgba(255,255,255,0.07);
-  transform: translateY(-1px);
+.debug-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(240, 237, 230, 0.85);
 }
 
-
-/* === Section header spacing — normalize standalone headers === */
-/* Bare card headers (not inside a flex row) use scattered 6–8px margins inline.
-   This brings them to a uniform 10px to match the flex-row headers. */
-.ll-card > div[style*="font-weight: 800"] {
-  margin-bottom: 10px !important;
-}
-
-/* Details styling (keeps your existing <details> nice) */
+/* Details/summary global */
 details {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 4px;
+  padding: 10px 12px;
   background: var(--surface-2);
 }
 
 details summary {
   cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
 }
 
 @media (max-width: 900px) {
   .nutrition-page {
-    padding: 20px 16px;
+    padding: 24px 18px;
   }
 }
 
-/* === Loading skeleton (meal plan placeholder) === */
+/* === Loading skeleton === */
 .ll-skel-meals {
   display: grid;
   gap: 10px;
@@ -1434,16 +1537,16 @@ details summary {
 
 .ll-skel-row {
   height: 54px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  border: 1px solid rgba(124, 58, 237, 0.06);
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.06),
-    rgba(255, 255, 255, 0.11),
-    rgba(255, 255, 255, 0.06)
+    rgba(124, 58, 237, 0.03),
+    rgba(124, 58, 237, 0.07),
+    rgba(124, 58, 237, 0.03)
   );
   background-size: 200% 100%;
-  animation: ll-shimmer 1.2s ease-in-out infinite;
+  animation: ll-shimmer 1.4s ease-in-out infinite;
 }
 
 @keyframes ll-shimmer {

@@ -1,14 +1,16 @@
 <template>
   <main class="generate-page">
-    <h1 style="margin: 0 0 10px; font-size: 32px; font-weight: 900; letter-spacing: -0.02em;">Generate Plan</h1>
-    <p style="margin: 0 0 24px; opacity: 0.8; font-size: 15px;">
-      Create a personalized training program tailored to your goals and experience.
-    </p>
+    <div class="page-header">
+      <h1 class="page-title">Generate Plan</h1>
+      <p class="page-sub">
+        Create a training program. Rules engine only — deterministic, no randomness.
+      </p>
+    </div>
 
     <form @submit.prevent="onSubmit" class="generate-form">
       <section class="ll-card">
-        <div style="font-weight: 800; margin-bottom: 12px; font-size: 16px;">Training Parameters</div>
-        
+        <div class="card-heading">Training Parameters</div>
+
         <div class="form-grid">
           <label class="form-field">
             <span class="form-label">Goal</span>
@@ -52,7 +54,7 @@
 
       <section class="ll-card">
         <label class="form-field">
-          <span class="form-label">User Notes / Preferences</span>
+          <span class="form-label">Notes / Preferences</span>
           <textarea
             v-model="form.constraints"
             rows="6"
@@ -69,7 +71,8 @@
       </section>
 
       <button :disabled="loading" type="submit" class="generate-button">
-        {{ loading ? "Generating plan…" : "Generate plan" }}
+        <span>{{ loading ? "Generating…" : "Generate plan" }}</span>
+        <span v-if="loading" class="btn-spinner"></span>
       </button>
 
       <LLLoadingPanel
@@ -175,58 +178,85 @@ async function onSubmit() {
 
 
 <style scoped>
-/* Make the dark theme cover the entire app page */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
 :global(html),
 :global(body) {
-  background: #0b0f19;
+  background: #090907;
   margin: 0;
 }
 
 :global(#__nuxt) {
-  background: #0b0f19;
+  background: #090907;
   min-height: 100vh;
 }
 
 .generate-page {
-  --accent: #7c3aed;
-  --accent-dark: #6d28d9;
-  --ink: #f8fafc;
-  --muted: #a1a1aa;
-  --page: #0b0f19;
-  --surface: #111827;
-  --surface-2: #0f172a;
-  --border: rgba(255,255,255,0.10);
-  --shadow: 0 10px 30px rgba(0,0,0,0.35);
-
-  background: var(--page);
-  color: var(--ink);
-  padding: 32px 48px;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  max-width: none;
-  margin: 0;
+  background-color: #090907;
+  background-image:
+    linear-gradient(rgba(124, 58, 237, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  color: #f0ede6;
+  padding: 40px 48px;
+  font-family: 'DM Sans', sans-serif;
   min-height: 100vh;
 }
 
 .generate-page > * {
-  max-width: 900px;
+  max-width: 860px;
   margin-left: auto;
   margin-right: auto;
 }
 
+/* Page header */
+.page-header {
+  margin-bottom: 28px;
+}
+
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  margin: 0 0 6px;
+  color: #f0ede6;
+}
+
+.page-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: rgba(240, 237, 230, 0.4);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+/* Form */
 .generate-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .ll-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: var(--shadow);
+  background: #111110;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid rgba(124, 58, 237, 0.4);
+  border-radius: 4px;
+  padding: 22px 20px;
 }
 
+.card-heading {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(240, 237, 230, 0.4);
+  margin-bottom: 18px;
+}
+
+/* Form grid */
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -244,87 +274,107 @@ async function onSubmit() {
 }
 
 .form-label {
-  font-size: 13px;
-  font-weight: 600;
-  opacity: 0.85;
-  letter-spacing: -0.01em;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(240, 237, 230, 0.4);
 }
 
 .form-input {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--ink);
+  padding: 10px 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #191917;
+  color: #f0ede6;
   font-size: 14px;
-  font-family: inherit;
-  transition: border-color 140ms ease, box-shadow 140ms ease;
+  font-family: 'DM Sans', sans-serif;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.07);
+}
+
+.form-input::placeholder {
+  color: rgba(240, 237, 230, 0.25);
+  font-size: 13px;
+}
+
+.form-input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .form-select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding-right: 44px;
-  background-image:
-    linear-gradient(135deg, transparent 50%, rgba(226, 232, 240, 0.9) 50%),
-    linear-gradient(225deg, transparent 50%, rgba(226, 232, 240, 0.9) 50%),
-    linear-gradient(var(--surface-2), var(--surface-2));
-  background-position:
-    calc(100% - 18px) 52%,
-    calc(100% - 12px) 52%,
-    0 0;
-  background-size:
-    6px 6px,
-    6px 6px,
-    100% 100%;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='rgba(240,237,230,0.35)' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 38px;
 }
 
-.form-select:disabled {
-  background-image:
-    linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, 0.7) 50%),
-    linear-gradient(225deg, transparent 50%, rgba(148, 163, 184, 0.7) 50%),
-    linear-gradient(var(--surface-2), var(--surface-2));
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
-}
-
-.form-input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
+.form-select option {
+  background: #191917;
+  color: #f0ede6;
 }
 
 textarea.form-input {
   resize: vertical;
-  line-height: 1.5;
+  line-height: 1.55;
+  min-height: 120px;
 }
 
+/* Generate button */
 .generate-button {
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  color: #fff;
-  font-weight: 700;
-  font-size: 15px;
-  padding: 12px 24px;
-  border-radius: 10px;
+  background: #7c3aed;
+  border: none;
+  border-radius: 3px;
+  color: #ffffff;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 13px 28px;
   cursor: pointer;
-  transition: background 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+  transition: background 0.15s, transform 0.1s, opacity 0.15s;
   width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .generate-button:hover:not(:disabled) {
-  background: var(--accent-dark);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+  background: #6d28d9;
+  transform: translateY(-1px);
 }
 
-.generate-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.generate-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Makes loading panel feel like part of the form flow */
@@ -332,36 +382,20 @@ textarea.form-input {
   margin-top: 6px;
 }
 
-
-.generate-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .error-message {
-  background: rgba(220, 38, 38, 0.15);
-  border: 1px solid rgba(220, 38, 38, 0.3);
+  background: rgba(248, 113, 113, 0.07);
+  border-left: 2px solid #f87171;
+  border-radius: 0 3px 3px 0;
   color: #fca5a5;
   padding: 12px 16px;
-  border-radius: 10px;
-  font-size: 14px;
-}
-
-.result-output {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  white-space: pre-wrap;
-  font-size: 13px;
-  color: var(--ink);
-  opacity: 0.9;
-  overflow-x: auto;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 @media (max-width: 900px) {
   .generate-page {
-    padding: 20px 16px;
+    padding: 24px 18px;
   }
 
   .form-grid {
