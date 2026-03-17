@@ -52,11 +52,13 @@ EXERCISES: Dict[str, ExerciseMeta] = {
     "Leg Press": ExerciseMeta("Leg Press", KIND_COMPOUND, "lower", ("quads", "machine")),
     "Bulgarian Split Squat": ExerciseMeta("Bulgarian Split Squat", KIND_COMPOUND, "lower", ("quads", "glutes")),
     "Romanian Deadlift": ExerciseMeta("Romanian Deadlift", KIND_COMPOUND, "lower", ("hamstrings", "hinge")),
+    "Stiff-Leg Deadlift": ExerciseMeta("Stiff-Leg Deadlift", KIND_COMPOUND, "lower", ("hamstrings", "hinge")),
+    "Dumbbell Romanian Deadlift": ExerciseMeta("Dumbbell Romanian Deadlift", KIND_COMPOUND, "lower", ("hamstrings", "hinge", "dumbbell")),
     "Hip Thrust": ExerciseMeta("Hip Thrust", KIND_COMPOUND, "lower", ("glutes",)),
+    "Dumbbell Hip Thrust": ExerciseMeta("Dumbbell Hip Thrust", KIND_COMPOUND, "lower", ("glutes", "dumbbell")),
 
     # ---- Isolations (Lower) ----
     "Leg Extension": ExerciseMeta("Leg Extension", KIND_ISOLATION, "lower", ("quads",)),
-    "Sissy Squats": ExerciseMeta("Sissy Squats", KIND_ISOLATION, "lower", ("quads",)),
 
     "Seated Leg Curl": ExerciseMeta("Seated Leg Curl", KIND_ISOLATION, "lower", ("hamstrings",)),
     "Lying Leg Curl": ExerciseMeta("Lying Leg Curl", KIND_ISOLATION, "lower", ("hamstrings",)),

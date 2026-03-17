@@ -26,7 +26,8 @@ ROW_CLOSE = ["T-Bar Row (Close grip)", "Chest Supported Rows (Close grip)", "Sea
 ROW_WIDE  = ["T-Bar Row (Wide Grip)", "Chest Supported Rows (Wide Grip)", "Seated Cable Row"]   # :contentReference[oaicite:7]{index=7}
 
 QUAD_COMPOUND = ["Hack Squat", "Leg Press", "Bulgarian Split Squat"]            # :contentReference[oaicite:8]{index=8}
-HINGE = ["Romanian Dead Lifts", "Romanian Deadlift"]                           # :contentReference[oaicite:9]{index=9}
+HINGE     = ["Romanian Deadlift", "Stiff-Leg Deadlift", "Dumbbell Romanian Deadlift"]
+HINGE_HAM = ["Stiff-Leg Deadlift", "Romanian Deadlift", "Dumbbell Romanian Deadlift"]                           # :contentReference[oaicite:9]{index=9}
 
 CHEST_ISO = ["Pec Deck", "Cable Fly (low, mid, high)"]                          # :contentReference[oaicite:11]{index=11}
 LATERAL = ["Machine Lateral Raises", "Cable Lateral Raises", "Lateral Raises (DB)", "Lateral Raises"]  # :contentReference[oaicite:12]{index=12}
@@ -62,7 +63,7 @@ HAM_CURL = ["Seated Leg Curl", "Lying Leg Curl"]                                
 ABS = ["Machine Crunch", "Cable Crunch", "Hanging Leg Raises"]                        # :contentReference[oaicite:20]{index=20}
 
 SHOULDER_PRESS = ["Machine Shoulder Press", "Dumbell Shoulder Press", "Dumbbell Shoulder Press"]  # :contentReference[oaicite:21]{index=21}
-HIP_THRUST = ["Smith Machine Hip Thrust", "Machine Hip Thrust"]
+HIP_THRUST = ["Hip Thrust", "Dumbbell Hip Thrust"]
 
 ADDUCTOR = ["Machine Hip Adduction", "Hip Adduction"]
 ABDUCTOR = ["Machine Hip Abduction", "Hip Abduction"]
@@ -93,8 +94,10 @@ _SWAP = {
     "barbell squat": ["Hack Squat", "Leg Press", "Smith Machine Squat"],
     "barbell bench press": ["Smith Machine Bench Press", "Machine Chest Press", "Chest Press"],
     "deadlift": ["Back Extension", "Seated Leg Curl", "Hamstring Curl"],
-    "hip thrust": ["Smith Machine Hip Thrust", "Machine Hip Thrust", "Dumbbell Hip Thrust"],
-    "romanian deadlift": ["Back Extension", "Seated Leg Curl", "Hamstring Curl"]}
+    "hip thrust": ["Dumbbell Hip Thrust"],
+    "romanian deadlift": ["Dumbbell Romanian Deadlift", "Seated Leg Curl", "Lying Leg Curl"],
+    "stiff-leg deadlift": ["Dumbbell Romanian Deadlift", "Romanian Deadlift", "Seated Leg Curl"],
+}
 
 
 
@@ -159,6 +162,7 @@ def _is_barbell_like(name: str) -> bool:
         "front squat",
         "deadlift",
         "romanian deadlift",
+        "stiff-leg deadlift",
         "rdl",
         "bent-over barbell row",
         "barbell bench press",
@@ -811,12 +815,12 @@ def _template_slots(template_key: str, req: GeneratePlanRequest) -> Tuple[List[L
 
     if t == "LOWER_QUAD":
         main = [LEG_EXT, QUAD_COMPOUND]
-        acc  = [HAM_CURL, HIP_THRUST, CALVES, ABS]
+        acc  = [HAM_CURL, HINGE, CALVES, ABS]
         return main, acc
 
     if t == "LOWER_HAM":
-        main = [HAM_CURL, HINGE]
-        acc  = [LEG_EXT, HIP_THRUST, CALVES, ABS]
+        main = [HAM_CURL, HINGE_HAM]
+        acc  = [LEG_EXT, CALVES, ABS]
         return main, acc
 
     if t == "SHARMS":
@@ -954,9 +958,61 @@ def _triceps_slots_for_day(template_key: str, has_sharms: bool) -> list[list[str
         return [TRI_SIDES]  # FB_C default
     return []
 
+def _apply_glute_leg_day(day: DayPlan, template_key: str) -> None:
+    """Fixed structure for glute-bias leg days. Structure differs by template."""
+    hinge_name = _pick_first_valid(HINGE_HAM, set())  # SLDL-first for both
+    abs_name   = _pick_first_valid(ABS, set())
+
+    if template_key == "LOWER_HAM":
+        # Hip Thrust → Leg Curl → SLDL → Leg Extension → Bulgarian Split Squat → Abs
+        exercises: list[ExerciseItem] = [
+            ExerciseItem(name="Hip Thrust",            sets=2, reps="8-12", rest_seconds=240, notes=""),
+            ExerciseItem(name="Seated Leg Curl",       sets=2, reps="8-12", rest_seconds=180, notes=""),
+        ]
+        if hinge_name:
+            exercises.append(ExerciseItem(name=hinge_name, sets=2, reps="6-8", rest_seconds=240, notes=""))
+        exercises += [
+            ExerciseItem(name="Leg Extension",         sets=2, reps="8-12", rest_seconds=180, notes=""),
+            ExerciseItem(name="Bulgarian Split Squat", sets=2, reps="8-12", rest_seconds=240, notes=""),
+        ]
+        if abs_name:
+            exercises.append(ExerciseItem(name=abs_name, sets=2, reps="8-12", rest_seconds=180, notes=""))
+    else:  # LOWER_QUAD
+        # Hip Thrust → Leg Extension → Bulgarian Split Squat → Seated Leg Curl → SLDL → Abs
+        exercises = [
+            ExerciseItem(name="Hip Thrust",            sets=2, reps="8-12", rest_seconds=240, notes=""),
+            ExerciseItem(name="Leg Extension",         sets=2, reps="8-12", rest_seconds=180, notes=""),
+            ExerciseItem(name="Bulgarian Split Squat", sets=2, reps="8-12", rest_seconds=240, notes=""),
+            ExerciseItem(name="Seated Leg Curl",       sets=2, reps="8-12", rest_seconds=180, notes=""),
+        ]
+        if hinge_name:
+            exercises.append(ExerciseItem(name=hinge_name, sets=2, reps="6-8", rest_seconds=240, notes=""))
+        if abs_name:
+            exercises.append(ExerciseItem(name=abs_name, sets=2, reps="8-12", rest_seconds=180, notes=""))
+
+    day.main[:] = exercises
+    day.accessories[:] = []
+
+
+_SQUAT_NAMES = {"Hack Squat", "Leg Press", "Bulgarian Split Squat", "Barbell Back Squat"}
+
+
+def _ensure_hamstring_day_squat(day: DayPlan) -> None:
+    """Add a single-set squat to hamstring-focused days to preserve quad pattern."""
+    all_ex = day.main + day.accessories
+    if any(normalize_name(ex.name) in _SQUAT_NAMES for ex in all_ex):
+        return
+    squat_name = _pick_first_valid(QUAD_COMPOUND, set())
+    if squat_name:
+        day.main.append(ExerciseItem(
+            name=squat_name, sets=1, reps="6-8", rest_seconds=240, notes=""
+        ))
+
+
 def _prioritize_focus_exercises(day: DayPlan, focus_muscles: List[str]) -> None:
-    """Move exercises targeting focus_muscles to the front of main and accessories.
-    Stable sort — relative order within each group is preserved.
+    """Move exercises targeting focus_muscles to the front of the combined list.
+    Merges main + accessories into a single list with focused exercises first.
+    Stable sort — relative order within focused/non-focused groups is preserved.
     """
     focus_set = {m.lower() for m in focus_muscles}
 
@@ -964,8 +1020,11 @@ def _prioritize_focus_exercises(day: DayPlan, focus_muscles: List[str]) -> None:
         meta = EXERCISES.get(normalize_name(ex.name))
         return bool(meta and any(t in focus_set for t in meta.tags))
 
-    day.main[:] = sorted(day.main, key=lambda ex: 0 if is_focused(ex) else 1)
-    day.accessories[:] = sorted(day.accessories, key=lambda ex: 0 if is_focused(ex) else 1)
+    all_exercises = day.main + day.accessories
+    focused = [ex for ex in all_exercises if is_focused(ex)]
+    non_focused = [ex for ex in all_exercises if not is_focused(ex)]
+    day.main[:] = focused + non_focused
+    day.accessories[:] = []
 
 
 def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, has_sharms: bool) -> None:
@@ -1343,6 +1402,12 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
             day.accessories = []
             continue
         _apply_template(day, req, template_key, has_sharms)
+        if req.focus_muscles:
+            focus_lower = {m.lower() for m in req.focus_muscles}
+            if "glutes" in focus_lower and template_key in ("LOWER_QUAD", "LOWER_HAM"):
+                _apply_glute_leg_day(day, template_key)
+        if template_key == "LOWER_HAM":
+            _ensure_hamstring_day_squat(day)
         if req.focus_muscles:
             _prioritize_focus_exercises(day, req.focus_muscles)
         _enforce_equipment_from_notes(day, req)
