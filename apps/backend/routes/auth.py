@@ -8,7 +8,8 @@ from email.message import EmailMessage
 import bcrypt
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, Field
 
 from services.db import (
     get_or_create_user,
@@ -19,6 +20,7 @@ from services.db import (
     create_session,
     delete_session,
     delete_all_sessions_for_user,
+    delete_user,
     create_login_code,
     verify_login_code,
     purge_expired_login_codes,
@@ -225,7 +227,58 @@ def logout(request: Request):
 
 @router.get("/me")
 def me(user=Depends(get_current_user)):
-    return {"id": user["id"], "email": user["email"]}
+    full = get_user_by_id(user["id"])
+    if not full:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {
+        "id": full["id"],
+        "email": full["email"],
+        "has_password": full["password_hash"] is not None,
+        "created_at": full["created_at"],
+        "email_verified": bool(full["email_verified"]),
+    }
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+
+
+@router.post("/change-password")
+def change_password(req: ChangePasswordRequest, user=Depends(get_current_user)):
+    full = get_user_by_email(user["email"])
+    if not full or not full.get("password_hash"):
+        raise HTTPException(status_code=400, detail="Account uses magic link only — no password to change")
+    if not bcrypt.checkpw(req.current_password.encode(), full["password_hash"].encode()):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(req.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    new_hash = bcrypt.hashpw(req.new_password.encode(), bcrypt.gensalt()).decode()
+    update_password_hash(user["id"], new_hash)
+    delete_all_sessions_for_user(user["id"])
+    resp = JSONResponse({"ok": True, "detail": "Password updated. Please sign in again."})
+    resp.delete_cookie("ll_session", path="/")
+    return resp
+
+
+class DeleteAccountRequest(BaseModel):
+    password: Optional[str] = None
+
+
+@router.delete("/account")
+def delete_account(req: DeleteAccountRequest, user=Depends(get_current_user)):
+    full = get_user_by_email(user["email"])
+    if not full:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if full["password_hash"]:
+        if not req.password:
+            raise HTTPException(status_code=400, detail="Password required to delete account")
+        if not bcrypt.checkpw(req.password.encode(), full["password_hash"].encode()):
+            raise HTTPException(status_code=400, detail="Incorrect password")
+    delete_user(user["id"])
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie("ll_session", path="/")
+    return resp
 
 
 @router.post("/register", status_code=202)

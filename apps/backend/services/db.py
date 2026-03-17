@@ -653,7 +653,7 @@ def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
     """Fetch a user row by primary key."""
     with _conn() as conn:
         row = conn.execute(
-            "SELECT id, email, email_verified FROM users WHERE id = ?",
+            "SELECT id, email, email_verified, password_hash, created_at FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
         return dict(row) if row else None
@@ -890,6 +890,26 @@ def set_active_plan(user_id: int, plan_id: int) -> None:
             "UPDATE users SET active_plan_id = ? WHERE id = ?",
             (plan_id, user_id),
         )
+
+
+def delete_user(user_id: int) -> None:
+    """Delete a user and all associated data. Explicit order required (SQLite FK cascades off by default)."""
+    with _conn() as conn:
+        row = conn.execute("SELECT email FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row:
+            return
+        email = row["email"]
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM login_codes WHERE email = ?", (email,))
+        conn.execute("DELETE FROM email_verification_tokens WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (user_id,))
+        conn.execute(
+            "DELETE FROM plan_versions WHERE plan_id IN (SELECT id FROM plans WHERE owner_id = ?)",
+            (user_id,),
+        )
+        conn.execute("DELETE FROM plans WHERE owner_id = ?", (user_id,))
+        conn.execute("DELETE FROM nutrition_plans WHERE owner_id = ?", (user_id,))
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 
 def get_user_active_plan(user_id: int) -> Optional[int]:
