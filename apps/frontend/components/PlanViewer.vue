@@ -49,8 +49,7 @@
         </div>
 
         <template v-else>
-          <TableSection title="Main" :lifts="normalizeToLifts(day.main)" />
-          <TableSection title="Accessories" :lifts="normalizeToLifts(day.accessories)" />
+          <TableSection :lifts="normalizeToLifts([...(day.main ?? []), ...(day.accessories ?? [])])" />
         </template>
       </article>
     </div>
@@ -142,7 +141,7 @@ function dayChipLabel(day: Day) {
 
 const TableSection = defineComponent({
   props: {
-    title: { type: String, required: true },
+    title: { type: String, default: "" },
     lifts: { type: Array as PropType<Lift[]>, default: () => [] },
   },
   setup(sectionProps) {
@@ -153,14 +152,14 @@ const TableSection = defineComponent({
         "text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);";
       const tdStyle = "padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: top;";
       return h("section", { style: "margin-top: 12px;" }, [
-        h(
+        ...(sectionProps.title ? [h(
           "h4",
           {
             style:
               "margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;",
           },
           sectionProps.title
-        ),
+        )] : []),
         h(
           "div",
           { style: "overflow-x: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;" },
