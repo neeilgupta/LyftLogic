@@ -43,6 +43,8 @@ The result: plans that are **stable, explainable, versioned, and human-sane** �
 - Email + password registration and login
 - Magic link (OTP) login
 - Cookie-based sessions (httponly, samesite=lax)
+- Email verification + password reset flows
+- Account settings — change password, delete account (full data cascade)
 - Plans and nutrition plans persisted to DB, scoped to owner
 - My Plans dashboard — training + nutrition in one view
 - Versioned plan history + restore
@@ -112,6 +114,9 @@ Training plans resemble how experienced lifters actually program.
 - Core lifts repeat across the week
 - Primary compounds are never accessories
 - Session length strictly limits exercise count
+- Muscle focus prioritization — selected muscles surface their exercises first in the plan
+- Glute-bias leg days get a fixed, Hip Thrust-first structure with no filler
+- Hamstring-focused days always include a squat-pattern movement
 
 All plans support:
 - Versioned snapshots
@@ -208,7 +213,8 @@ No plan is shown unless it passes validation.
 - Diffs rendered explicitly
 - UX favors clarity over density
 - No "magic" edits
-- Auth-aware nav (email + sign out when logged in)
+- Auth-aware nav (email, settings, and sign out when logged in)
+- Account settings page — view account info, change password, delete account
 
 ---
 
@@ -275,10 +281,11 @@ npm run dev
 
 ## Roadmap
 
-- v1: Deterministic training + nutrition generation
-- v2: Accounts + sessions + owner-scoped plan persistence
-- v3: My Plans dashboard (training + nutrition unified)
-- Up next: Email verification flow, password reset, macro reconciliation enforcement
+- v1: Deterministic training + nutrition generation ✅
+- v2: Accounts + sessions + owner-scoped plan persistence ✅
+- v3: My Plans dashboard (training + nutrition unified) ✅
+- v4: Auth polish — email verification, password reset, macro reconciliation, focus muscles ✅
+- v5: Account settings — change password, delete account, full data cleanup ✅
 
 ---
 
