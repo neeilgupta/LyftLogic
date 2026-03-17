@@ -68,7 +68,7 @@ const headerStyle = computed(() => ({
 
 <style scoped>
 .csa-container {
-  height: 60rem;
+  height: 44rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -78,13 +78,13 @@ const headerStyle = computed(() => ({
 
 @media (min-width: 768px) {
   .csa-container {
-    height: 80rem;
+    height: 54rem;
     padding: 80px;
   }
 }
 
 .csa-inner {
-  padding: 40px 0;
+  padding: 20px 0;
   width: 100%;
   position: relative;
   perspective: 1000px;
@@ -92,7 +92,7 @@ const headerStyle = computed(() => ({
 
 @media (min-width: 768px) {
   .csa-inner {
-    padding: 160px 0;
+    padding: 60px 0;
   }
 }
 
