@@ -27,6 +27,7 @@ async function handleLogout() {
 
         <template v-if="user">
           <span class="nav-email">{{ user.email }}</span>
+          <NuxtLink to="/settings" class="nav-link">Settings</NuxtLink>
           <button class="nav-signout" @click="handleLogout">Sign out</button>
         </template>
         <NuxtLink v-else to="/login" class="nav-sign-in">Sign in</NuxtLink>

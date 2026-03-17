@@ -2,7 +2,13 @@
 import { useRuntimeConfig } from "nuxt/app";
 import { $fetch } from "ofetch";
 
-type User = { id: number; email: string };
+type User = {
+  id: number;
+  email: string;
+  has_password?: boolean;
+  created_at?: string;
+  email_verified?: boolean;
+};
 
 export function useAuth() {
   const config = useRuntimeConfig();
@@ -102,6 +108,24 @@ export function useAuth() {
     });
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<{ ok: boolean; detail: string }> => {
+    return await $fetch("/auth/change-password", {
+      baseURL,
+      method: "POST",
+      credentials: "include",
+      body: { current_password: currentPassword, new_password: newPassword },
+    });
+  };
+
+  const deleteAccount = async (password?: string): Promise<{ ok: boolean }> => {
+    return await $fetch("/auth/account", {
+      baseURL,
+      method: "DELETE",
+      credentials: "include",
+      body: { password: password ?? null },
+    });
+  };
+
   return {
     requestCode,
     verifyCode,
@@ -113,5 +137,7 @@ export function useAuth() {
     resendVerification,
     forgotPassword,
     resetPassword,
+    changePassword,
+    deleteAccount,
   };
 }
