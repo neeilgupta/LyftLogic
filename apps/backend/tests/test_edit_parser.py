@@ -8,7 +8,11 @@ class DummyReq:
 
 def call(msg: str):
     # plan_id doesn't matter for parser logic
-    return edit_saved_plan(plan_id=1, body=DummyReq(msg))
+    return edit_saved_plan(
+        plan_id=1,
+        body=DummyReq(msg),
+        user={"id": 1, "email": "pytest@example.com"},
+    )
 
 
 def test_no_barbells():

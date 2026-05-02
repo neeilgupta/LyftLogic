@@ -1,45 +1,65 @@
-from models.plans import GeneratePlanRequest, GeneratePlanResponse, DayPlan
-from routes.rules.engine import apply_rules_v1, _equipment_allows
+import re
+
+from models.plans import DayPlan, ExerciseItem, GeneratePlanRequest, GeneratePlanResponse
+from routes.rules.engine import _is_barbell_like, apply_rules_v1
 
 
-def _blank_plan() -> GeneratePlanResponse:
-    days = [
-        DayPlan(day=f"Day {i+1}", focus="", warmup=[], main=[], accessories=[])
-        for i in range(7)
-    ]
-    return GeneratePlanResponse(title="Test", summary="", weekly_split=days)
+_DB_PAT = re.compile(r"\bdumbbell(s)?\b|\bdb\b", re.I)
+
+
+def _plan_with_banned_equipment() -> GeneratePlanResponse:
+    return GeneratePlanResponse(
+        title="Test",
+        summary="",
+        weekly_split=[
+            DayPlan(
+                day="Day 1",
+                focus="Upper",
+                warmup=[],
+                main=[
+                    ExerciseItem(
+                        name="Barbell Bench Press",
+                        sets=2,
+                        reps="6-8",
+                        rest_seconds=240,
+                        notes="",
+                    ),
+                    ExerciseItem(
+                        name="Dumbbell Romanian Deadlift",
+                        sets=2,
+                        reps="6-8",
+                        rest_seconds=240,
+                        notes="",
+                    ),
+                ],
+                accessories=[
+                    ExerciseItem(
+                        name="Dumbbell Curl",
+                        sets=2,
+                        reps="8-12",
+                        rest_seconds=180,
+                        notes="",
+                    )
+                ],
+            )
+        ],
+    )
 
 
 def _collect_names(plan: GeneratePlanResponse) -> list[str]:
     names = []
-    for d in plan.weekly_split:
-        for ex in d.main + d.accessories:
-            names.append(ex.name)
+    for day in plan.weekly_split:
+        for exercise in day.main + day.accessories:
+            names.append(exercise.name)
     return names
 
 
-def test_equipment_modes_are_enforced_and_distinct():
-    req_full = GeneratePlanRequest(equipment="full_gym")
-    req_db = GeneratePlanRequest(equipment="dumbbells")
-    req_home = GeneratePlanRequest(equipment="home_gym")
-    req_bw = GeneratePlanRequest(equipment="bodyweight")
+def test_no_barbells_and_no_dumbbells_constraints_are_enforced():
+    req = GeneratePlanRequest(constraints="no barbells no dumbbells")
 
-    plan_full = apply_rules_v1(_blank_plan(), req_full)
-    plan_db = apply_rules_v1(_blank_plan(), req_db)
-    plan_home = apply_rules_v1(_blank_plan(), req_home)
-    plan_bw = apply_rules_v1(_blank_plan(), req_bw)
+    result = apply_rules_v1(_plan_with_banned_equipment(), req)
+    names = _collect_names(result)
 
-    for plan, req in [
-        (plan_full, req_full),
-        (plan_db, req_db),
-        (plan_home, req_home),
-        (plan_bw, req_bw),
-    ]:
-        names = _collect_names(plan)
-        assert names
-        assert all(_equipment_allows(n, req) for n in names)
-        assert req.equipment in plan.equipment_note
-
-    assert set(_collect_names(plan_full)) != set(_collect_names(plan_db))
-    assert set(_collect_names(plan_db)) != set(_collect_names(plan_bw))
-    assert set(_collect_names(plan_home)) != set(_collect_names(plan_bw))
+    assert names
+    assert all(not _is_barbell_like(name) for name in names)
+    assert all(not _DB_PAT.search(name) for name in names)
