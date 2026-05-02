@@ -319,13 +319,6 @@
             <option value="vegetarian">Vegetarian</option>
             <option value="vegan">Vegan</option>
             <option value="pescatarian">Pescatarian</option>
-            <option value="keto">Keto</option>
-            <option value="paleo">Paleo</option>
-            <option value="halal">Halal</option>
-            <option value="kosher">Kosher</option>
-            <option value="gluten_free">Gluten-free</option>
-            <option value="dairy_free">Dairy-free</option>
-
           </select>
         </label>
 
@@ -654,13 +647,7 @@ type DietChoice =
   | "none"
   | "vegetarian"
   | "vegan"
-  | "pescatarian"
-  | "keto"
-  | "paleo"
-  | "halal"
-  | "kosher"
-  | "gluten_free"
-  | "dairy_free";
+  | "pescatarian";
   type RateChoice = "0.5" | "1" | "2";
 
 

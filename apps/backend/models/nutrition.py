@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from services.nutrition.generate import normalize_supported_diet
 
 
 class NutritionTargets(BaseModel):
@@ -43,6 +45,11 @@ class NutritionGenerateRequest(BaseModel):
     batch_size: int = Field(ge=0, le=20)
     max_attempts: int = Field(ge=1, le=50)
 
+    @field_validator("diet", mode="before")
+    @classmethod
+    def validate_diet(cls, value: Optional[str]) -> Optional[str]:
+        return normalize_supported_diet(value)
+
 
 class NutritionGenerateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -65,6 +72,11 @@ class NutritionRegenerateRequest(BaseModel):
     meals_needed: int = Field(ge=1, le=20)
     max_attempts: int = Field(ge=1, le=50)
     batch_size: int = Field(ge=1, le=20)
+
+    @field_validator("diet", mode="before")
+    @classmethod
+    def validate_diet(cls, value: Optional[str]) -> Optional[str]:
+        return normalize_supported_diet(value)
 
 
 class NutritionRegenerateResponse(BaseModel):

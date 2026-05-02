@@ -10,6 +10,24 @@ from services.nutrition.allergens import build_allergen_set, meal_is_safe, meal_
 from services.nutrition.contracts import Meal
 
 
+SUPPORTED_DIETS = frozenset({"vegan", "vegetarian", "pescatarian"})
+
+
+def normalize_supported_diet(diet: Optional[str]) -> Optional[str]:
+    if diet is None:
+        return None
+
+    normalized = str(diet).strip().lower()
+    if normalized in ("", "none"):
+        return None
+
+    if normalized not in SUPPORTED_DIETS:
+        supported = ", ".join(sorted(SUPPORTED_DIETS))
+        raise ValueError(f"Unsupported diet '{diet}'. Supported diets: {supported}.")
+
+    return normalized
+
+
 
 @dataclass(frozen=True)
 class GenerationRequest:
@@ -21,7 +39,6 @@ class GenerationRequest:
     meals_needed: int
     max_attempts: int  # total LLM calls allowed
     batch_size: int    # meals per LLM call
-    calorie_cap_per_meal: int | None = None 
 
     target_calories: float | None = None
 
@@ -40,10 +57,9 @@ def required_diet_tags_for_user(diet: Optional[str]) -> set[str]:
     Maps user diet preference into required diet tags enforced by meal_is_safe().
     Keep it tiny + deterministic.
     """
-    if not diet:
+    d = normalize_supported_diet(diet)
+    if d is None:
         return set()
-
-    d = diet.strip().lower()
 
     if d == "vegan":
         return {"vegan"}
@@ -54,8 +70,7 @@ def required_diet_tags_for_user(diet: Optional[str]) -> set[str]:
     if d == "pescatarian":
         return {"pescatarian", "vegetarian", "vegan"}
 
-    # Fail-open: unknown diet strings impose no required tags
-    return set()
+    raise ValueError(f"Unsupported diet '{diet}'.")
 
 
 # LLM function signature:
@@ -86,7 +101,7 @@ def _meal_calories(meal: dict) -> int:
 
 
 
-def _macros_reconciled(meal: dict, tolerance_kcal: int = 10) -> bool:
+def _macros_reconciled(meal: dict, tolerance_pct: float = 0.05) -> bool:
     """Reject meals where protein*4 + carbs*4 + fat*9 diverges from stated calories."""
     macros = meal.get("macros")
     if not isinstance(macros, dict):
@@ -97,11 +112,11 @@ def _macros_reconciled(meal: dict, tolerance_kcal: int = 10) -> bool:
         fat      = float(macros.get("fat_g", 0))
         calories = float(macros.get("calories", 0))
     except (TypeError, ValueError):
-        return True  # unparseable fields; fail open
+        return False
     if calories == 0:
         return True  # no calorie data to validate against
     computed = protein * 4 + carbs * 4 + fat * 9
-    return abs(computed - calories) <= tolerance_kcal
+    return abs(computed - calories) <= calories * tolerance_pct
 
 
 def generate_safe_meals(
