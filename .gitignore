@@ -28,3 +28,6 @@ apps/data/*.db-shm.vscode/
 .vscode/
 apps/backend/scripts/
 CLAUDE.md
+
+#docs
+plan_docs
