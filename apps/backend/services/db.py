@@ -21,7 +21,7 @@ DB_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DB_DIR / "gymgpt.db"
 
 def _conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     # light concurrency safety + durability for dev
     conn.execute("PRAGMA journal_mode = WAL;")
@@ -894,9 +894,12 @@ def set_active_plan(user_id: int, plan_id: int) -> None:
 
 def delete_user(user_id: int) -> None:
     """Delete a user and all associated data. Explicit order required (SQLite FK cascades off by default)."""
-    with _conn() as conn:
+    conn = _conn()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("SELECT email FROM users WHERE id = ?", (user_id,)).fetchone()
         if not row:
+            conn.commit()
             return
         email = row["email"]
         conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
@@ -910,6 +913,12 @@ def delete_user(user_id: int) -> None:
         conn.execute("DELETE FROM plans WHERE owner_id = ?", (user_id,))
         conn.execute("DELETE FROM nutrition_plans WHERE owner_id = ?", (user_id,))
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def get_user_active_plan(user_id: int) -> Optional[int]:
