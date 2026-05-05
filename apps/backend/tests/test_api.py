@@ -14,8 +14,10 @@ from main import app
 client = TestClient(app)
 
 def _requires_openai():
+    if os.getenv("RUN_LIVE_OPENAI_TESTS") != "1":
+        pytest.skip("Set RUN_LIVE_OPENAI_TESTS=1 to run live /plans/generate tests")
     if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY not set; skipping tests that require /plans/generate")
+        pytest.skip("OPENAI_API_KEY not set; skipping live /plans/generate tests")
 
 _cached_plan_id = None
 
