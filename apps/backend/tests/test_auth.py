@@ -74,6 +74,7 @@ def test_otp_rate_limiting_rejects_after_threshold(monkeypatch):
     client = _client_without_overrides()
     rate_limits._ip_times.clear()
     rate_limits._email_times.clear()
+    monkeypatch.setenv("ENV", "production")
     monkeypatch.setattr(auth_routes, "_send_otp", lambda email, code: None)
 
     payload = {"email": "phase1-rate-limit@example.com"}
@@ -81,6 +82,19 @@ def test_otp_rate_limiting_rejects_after_threshold(monkeypatch):
 
     assert statuses[:3] == [202, 202, 202]
     assert statuses[3] == 429
+
+
+def test_dev_rate_limit_allows_repeated_password_login_attempts(monkeypatch):
+    client = _client_without_overrides()
+    rate_limits._ip_times.clear()
+    rate_limits._email_times.clear()
+    monkeypatch.delenv("ENV", raising=False)
+    monkeypatch.setattr(auth_routes.bcrypt, "checkpw", lambda password, stored: False)
+
+    payload = {"email": "phase1-dev-login-limit@example.com", "password": "wrongpassword"}
+    statuses = [client.post("/auth/password-login", json=payload).status_code for _ in range(4)]
+
+    assert statuses == [401, 401, 401, 401]
 
 
 def test_expired_session_rejected():
