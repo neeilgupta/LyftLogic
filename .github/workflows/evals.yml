@@ -1,0 +1,14 @@
+name: Eval Harness
+on: [push, pull_request]
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r apps/backend/requirements.txt
+      - name: Run eval harness
+        run: python apps/backend/evals/run_eval.py
