@@ -449,6 +449,13 @@ const hasRealPatch = computed(() => {
 const config = useRuntimeConfig();
 const apiBase = (config.public as any)?.apiBase ?? "http://127.0.0.1:8000";
 
+function authedPlanFetch<T = any>(path: string, options: any = {}) {
+  return $fetch<T>(`${apiBase}${path}`, {
+    ...options,
+    credentials: "include",
+  });
+}
+
 
 const versions = ref<VersionItem[]>([]);
 const selectedVersionNumber = ref<number | null>(null);
@@ -511,9 +518,7 @@ async function fetchVersions(opts?: { keepSelection?: boolean }) {
   const token = ++versionsReqToken.value;
 
   try {
-    const res: any = await $fetch(`${apiBase}/plans/${id.value}/versions`, {
-      credentials: "include",
-    });
+    const res: any = await authedPlanFetch(`/plans/${id.value}/versions`);
     if (token !== versionsReqToken.value) return; // ignore stale response
 
     const items: VersionItem[] = res.items ?? res ?? [];
@@ -549,10 +554,9 @@ async function restoreSelected() {
 
   restoring.value = true;
   try {
-    await $fetch(`${apiBase}/plans/${id.value}/restore`, {
+    await authedPlanFetch(`/plans/${id.value}/restore`, {
       method: "POST",
       body: { version: v },
-      credentials: "include",
     });
 
     // 1) pull newest versions first (so we can select latest deterministically)
@@ -587,7 +591,7 @@ async function applyPatch() {
 
   applyPending.value = true;
   try {
-    const res = await $fetch(`${apiBase}/plans/${id.value}/apply`, {
+    const res = await authedPlanFetch(`/plans/${id.value}/apply`, {
       method: "POST",
       body: patch,
     });
@@ -631,7 +635,7 @@ async function sendEdit() {
 
   editPending.value = true;
   try {
-    const res = await $fetch<EditPlanResponseT>(`${apiBase}/plans/${id.value}/edit`, {
+    const res = await authedPlanFetch<EditPlanResponseT>(`/plans/${id.value}/edit`, {
       method: "POST",
       body: { message: msg },
     });
@@ -655,7 +659,7 @@ async function sendEditAndApply() {
 
   try {
     // 1) EDIT
-    const res = await $fetch<EditPlanResponseT>(`${apiBase}/plans/${id.value}/edit`, {
+    const res = await authedPlanFetch<EditPlanResponseT>(`/plans/${id.value}/edit`, {
       method: "POST",
       body: { message: msg },
     });
@@ -673,15 +677,13 @@ async function sendEditAndApply() {
       return;
     }
 
-    // 2) APPLY (same request shape you already use)
-    // 2) APPLY
-const applyRes = await $fetch(`${apiBase}/plans/${id.value}/apply`, {
-  method: "POST",
-  body: patch,
-});
+    const applyRes = await authedPlanFetch(`/plans/${id.value}/apply`, {
+      method: "POST",
+      body: patch,
+    });
 
-applyResponse.value = applyRes;
-lastDiff.value = (applyRes as any)?.diff ?? null;
+    applyResponse.value = applyRes;
+    lastDiff.value = (applyRes as any)?.diff ?? null;
 
 
     // 3) Refresh plan (pulls updated output + chat_history)
