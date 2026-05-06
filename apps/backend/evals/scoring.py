@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from models.plans import DayPlan, GeneratePlanRequest, GeneratePlanResponse
-from routes.rules.engine import apply_rules_v1, _estimate_day_minutes, _expand_focus_set
+from routes.rules.engine import apply_rules_v1, _allowed_for_equipment, _estimate_day_minutes, _expand_focus_set
 from routes.rules.exercise_catalog import EXERCISES
 
 
@@ -34,7 +34,7 @@ def no_equipment_violations(day: DayPlan, equipment: str) -> bool:
     if equipment == "full_gym":
         return True
     all_exercises = day.main + day.accessories
-    return not any(_is_barbell_like(ex.name) for ex in all_exercises)
+    return all(_allowed_for_equipment(ex.name, equipment) for ex in all_exercises)
 
 
 def no_duplicate_exercises(day: DayPlan) -> bool:

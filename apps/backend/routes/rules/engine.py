@@ -20,31 +20,33 @@ _CANON = {k.lower(): k for k in EXERCISES.keys()}
 # -----------------------------
 # LyftLogic v2 priorities (minimal set for templates)
 # -----------------------------
-CHEST_COMPOUND = ["Incline Bench Press", "Chest Press", "Barbell Bench Press"]  # :contentReference[oaicite:4]{index=4}
-LAT_COMPOUND = ["Lat Pulldown", "Pull Ups"]                                     # :contentReference[oaicite:5]{index=5}
-ROW_CLOSE = ["T-Bar Row (Close grip)", "Chest Supported Rows (Close grip)", "Seated Cable Row"]  # :contentReference[oaicite:6]{index=6}
-ROW_WIDE  = ["T-Bar Row (Wide Grip)", "Chest Supported Rows (Wide Grip)", "Seated Cable Row"]   # :contentReference[oaicite:7]{index=7}
+CHEST_COMPOUND = ["Incline Bench Press", "Chest Press", "Dumbbell Bench Press", "Incline Dumbbell Press", "Push-Ups", "Barbell Bench Press"]  # :contentReference[oaicite:4]{index=4}
+LAT_COMPOUND = ["Lat Pulldown", "Pull Ups", "Inverted Rows"]                    # :contentReference[oaicite:5]{index=5}
+ROW_CLOSE = ["T-Bar Row (Close grip)", "Chest Supported Rows (Close grip)", "Seated Cable Row", "Single Arm Dumbbell Rows", "Inverted Rows"]  # :contentReference[oaicite:6]{index=6}
+ROW_WIDE  = ["T-Bar Row (Wide Grip)", "Chest Supported Rows (Wide Grip)", "Seated Cable Row", "Single Arm Dumbbell Rows", "Inverted Rows"]   # :contentReference[oaicite:7]{index=7}
 
-QUAD_COMPOUND = ["Hack Squat", "Leg Press", "Bulgarian Split Squat"]            # :contentReference[oaicite:8]{index=8}
-HINGE     = ["Romanian Deadlift", "Stiff-Leg Deadlift", "Dumbbell Romanian Deadlift"]
-HINGE_HAM = ["Stiff-Leg Deadlift", "Romanian Deadlift", "Dumbbell Romanian Deadlift"]                           # :contentReference[oaicite:9]{index=9}
+QUAD_COMPOUND = ["Hack Squat", "Leg Press", "Goblet Squat", "Bulgarian Split Squat", "Bodyweight Squat", "Reverse Lunge", "Bodyweight Split Squat"]            # :contentReference[oaicite:8]{index=8}
+HINGE     = ["Romanian Deadlift", "Stiff-Leg Deadlift", "Dumbbell Romanian Deadlift", "Glute Bridge", "Single-Leg Glute Bridge", "Hamstring Walkouts"]
+HINGE_HAM = ["Stiff-Leg Deadlift", "Romanian Deadlift", "Dumbbell Romanian Deadlift", "Glute Bridge", "Single-Leg Glute Bridge", "Hamstring Walkouts"]                           # :contentReference[oaicite:9]{index=9}
 
-CHEST_ISO = ["Pec Deck", "Cable Fly (low, mid, high)"]                          # :contentReference[oaicite:11]{index=11}
-LATERAL = ["Machine Lateral Raises", "Cable Lateral Raises", "Lateral Raises (DB)", "Lateral Raises"]  # :contentReference[oaicite:12]{index=12}
-REAR_DELT = ["Reverse Pec Deck", "Rear Delt Fly (DB)", "Face Pull (rear-delt bias)"]  # :contentReference[oaicite:13]{index=13}
+CHEST_ISO = ["Pec Deck", "Cable Fly (low, mid, high)", "Push-Ups"]              # :contentReference[oaicite:11]{index=11}
+LATERAL = ["Machine Lateral Raises", "Cable Lateral Raises", "Lateral Raises (DB)", "Lateral Raises", "Prone Y Raises"]  # :contentReference[oaicite:12]{index=12}
+REAR_DELT = ["Reverse Pec Deck", "Rear Delt Fly (DB)", "Face Pull (rear-delt bias)", "Prone Y Raises"]  # :contentReference[oaicite:13]{index=13}
 
 BICEPS = [
     "Preacher Curl",
     "EZ Bar Curl",
     "Incline Dumbbell Curl",
-    "EZ Bar Preacher Curl",
     "Dumbbell Curl",
+    "Bodyweight Curl",
+    "EZ Bar Preacher Curl",
     "Cable Curl",
     "Hammer Curl",
 
 ]
 
 TRI_SIDES = [
+    "Close-Grip Push-Ups",
     "Triceps Pushdown",
     "V-Bar Tricep Pushdown",
     "Rope Triceps Pushdown",
@@ -57,19 +59,19 @@ TRI_OVERHEAD = [
     "Skullcrushers",
     "JM Press",
 ]
-CALVES = ["Seated Calf Raise", "Standing Calf Raise"]                                 # :contentReference[oaicite:17]{index=17}
-LEG_EXT = ["Leg Extension (machine)", "Leg Extension"]                                # :contentReference[oaicite:18]{index=18}
-HAM_CURL = ["Seated Leg Curl", "Lying Leg Curl"]                                      # :contentReference[oaicite:19]{index=19}
-ABS = ["Machine Crunch", "Cable Crunch", "Hanging Leg Raises"]                        # :contentReference[oaicite:20]{index=20}
+CALVES = ["Seated Calf Raise", "Standing Calf Raise", "Bodyweight Calf Raise"]        # :contentReference[oaicite:17]{index=17}
+LEG_EXT = ["Leg Extension (machine)", "Leg Extension", "Bodyweight Squat", "Reverse Lunge"]  # :contentReference[oaicite:18]{index=18}
+HAM_CURL = ["Seated Leg Curl", "Lying Leg Curl", "Hamstring Walkouts", "Glute Bridge"]  # :contentReference[oaicite:19]{index=19}
+ABS = ["Machine Crunch", "Cable Crunch", "Hanging Leg Raises", "Crunches", "Plank"]   # :contentReference[oaicite:20]{index=20}
 
-SHOULDER_PRESS = ["Machine Shoulder Press", "Dumbell Shoulder Press", "Dumbbell Shoulder Press"]  # :contentReference[oaicite:21]{index=21}
-HIP_THRUST = ["Hip Thrust", "Dumbbell Hip Thrust"]
+SHOULDER_PRESS = ["Machine Shoulder Press", "Dumbell Shoulder Press", "Dumbbell Shoulder Press", "Pike Push-Ups"]  # :contentReference[oaicite:21]{index=21}
+HIP_THRUST = ["Hip Thrust", "Dumbbell Hip Thrust", "Glute Bridge", "Single-Leg Glute Bridge"]
 
 ADDUCTOR = ["Machine Hip Adduction", "Hip Adduction"]
 ABDUCTOR = ["Machine Hip Abduction", "Hip Abduction"]
 CABLE_CRUNCH = ["Cable Crunch"]
-FLAT_PRESS = ["Machine Chest Press", "Smith Machine Bench Press", "Chest Press"]
-UPPER_BACK_ROW = ["Chest Supported Row", "Machine Row", "Hammer Strength Row", "Seated Cable Row", "T-Bar Row"]
+FLAT_PRESS = ["Machine Chest Press", "Smith Machine Bench Press", "Chest Press", "Dumbbell Bench Press", "Push-Ups"]
+UPPER_BACK_ROW = ["Chest Supported Row", "Machine Row", "Hammer Strength Row", "Seated Cable Row", "T-Bar Row", "Single Arm Dumbbell Rows", "Inverted Rows"]
 
 
 _DB_PAT = re.compile(r"\bdumbbell(s)?\b|\bdb\b", re.I)
@@ -155,6 +157,8 @@ def _wants_barbells(req: GeneratePlanRequest) -> bool:
 
 def _is_barbell_like(name: str) -> bool:
     n = _lc(name)
+    if "dumbbell" in n or "db " in f"{n} ":
+        return False
     return any(k in n for k in (
         "barbell",
         "ez bar",
@@ -172,6 +176,92 @@ def _is_barbell_like(name: str) -> bool:
         "incline bench press",
         "hip thrust"
     ))
+
+
+_MACHINE_TOKENS = (
+    "machine",
+    "smith",
+    "hack squat",
+    "leg press",
+    "pec deck",
+    "pulldown",
+    "pushdown",
+    "seated calf",
+    "lever",
+    "leg extension",
+    "leg curl",
+    "adductor",
+    "abductor",
+    "pullover",
+)
+_CABLE_TOKENS = ("cable", "face pull")
+_DUMBBELL_TOKENS = ("dumbbell", "db ")
+_BODYWEIGHT_TOKENS = (
+    "bodyweight",
+    "push-up",
+    "push up",
+    "pull up",
+    "pull-up",
+    "inverted row",
+    "pike push",
+    "lunge",
+    "split squat",
+    "glute bridge",
+    "walkout",
+    "bodyweight calf raise",
+    "standing calf raise",
+    "crunch",
+    "plank",
+    "hanging leg raise",
+)
+
+
+def _exercise_tags(name: str) -> tuple[str, ...]:
+    cn = _canon_like(name) or name
+    meta = EXERCISES.get(cn)
+    return meta.tags if meta else ()
+
+
+def _is_machine_like(name: str) -> bool:
+    n = _lc(name)
+    tags = _exercise_tags(name)
+    return "machine" in tags or any(tok in n for tok in _MACHINE_TOKENS)
+
+
+def _is_cable_like(name: str) -> bool:
+    n = _lc(name)
+    tags = _exercise_tags(name)
+    return "cable" in tags or any(tok in n for tok in _CABLE_TOKENS)
+
+
+def _is_dumbbell_like(name: str) -> bool:
+    n = _lc(name)
+    tags = _exercise_tags(name)
+    return "dumbbell" in tags or any(tok in n for tok in _DUMBBELL_TOKENS)
+
+
+def _is_bodyweight_like(name: str) -> bool:
+    n = _lc(name)
+    tags = _exercise_tags(name)
+    return "bodyweight" in tags or any(tok in n for tok in _BODYWEIGHT_TOKENS)
+
+
+def _allowed_for_equipment(name: str, equipment: str) -> bool:
+    if equipment == "full_gym":
+        return True
+    if equipment == "bodyweight":
+        return _is_bodyweight_like(name) and not (
+            _is_dumbbell_like(name) or _is_barbell_like(name) or _is_machine_like(name) or _is_cable_like(name)
+        )
+    if equipment == "dumbbells":
+        return (_is_dumbbell_like(name) or _is_bodyweight_like(name)) and not (
+            _is_barbell_like(name) or _is_machine_like(name) or _is_cable_like(name)
+        )
+    return True
+
+
+def _filter_for_equipment(names: List[str], equipment: str) -> List[str]:
+    return [name for name in names if _allowed_for_equipment(name, equipment)]
 
 # Phase 2: prefer_cables deterministic swaps (only when token is set)
 _PREFER_CABLES_SWAP = {
@@ -394,6 +484,8 @@ def _default_warmup_for_focus(focus: str) -> List[str]:
     ]
 
 def _movement_bucket(session_minutes: int) -> Tuple[int, int]:
+    if session_minutes <= 35:
+        return (3, 4)
     if session_minutes <= 45:
         return (4, 5)
     if session_minutes <= 60:
@@ -411,13 +503,6 @@ def _trim_or_pad_movements(day: DayPlan, req: GeneratePlanRequest) -> None:
       - pad isolation-first (no duplicates), compounds only if under cap
     """
     lo, hi = _movement_bucket(req.session_minutes)
-
-    if len(day.main) >= 2 and len(day.accessories) >= 3:
-        # still enforce cap + dedupe and exit
-        _dedupe_day(day)
-        _enforce_compound_cap(day, req.session_minutes)
-        _dedupe_day(day)
-        return
 
     def total() -> int:
         return len(day.main) + len(day.accessories)
@@ -470,13 +555,19 @@ def _trim_or_pad_movements(day: DayPlan, req: GeneratePlanRequest) -> None:
                 if normalize_name(n) not in existing:
                     sharms_iso.append(n)
 
-        iso_pool = sharms_iso
+        iso_pool = _filter_for_equipment(sharms_iso, req.equipment)
         comp_pool = []
 
     else:
         flags = _notes_flags(req)
-        iso_pool = [n for n in get_isolations_for_focus(day.focus) if normalize_name(n) not in existing]
-        comp_pool = [n for n in get_compounds_for_focus(day.focus) if normalize_name(n) not in existing]
+        iso_pool = [
+            n for n in get_isolations_for_focus(day.focus)
+            if normalize_name(n) not in existing and _allowed_for_equipment(n, req.equipment)
+        ]
+        comp_pool = [
+            n for n in get_compounds_for_focus(day.focus)
+            if normalize_name(n) not in existing and _allowed_for_equipment(n, req.equipment)
+        ]
 
         # If avoiding shoulders, filter out shoulder-dominant movements from filler pools
         if flags.get("avoid_shoulders", False):
@@ -497,7 +588,7 @@ def _trim_or_pad_movements(day: DayPlan, req: GeneratePlanRequest) -> None:
         day.accessories.append(
             ExerciseItem(
                 name=name,
-                sets=2,
+                sets=1 if req.session_minutes <= 35 else 2,
                 reps=_normalize_reps(name, ""),                 # becomes 6-8 or 8-12
                 rest_seconds=_normalize_rest_seconds(name, None),
                 notes="",
@@ -742,7 +833,9 @@ def _pick_first_valid(
     prefer_machines: bool = False,
     prefer_cables: bool = False,
     focus_muscles: Optional[List[str]] = None,
+    equipment: str = "full_gym",
 ) -> Optional[str]:
+    priority = _filter_for_equipment(priority, equipment)
     has_equip_pref = prefer_machines or prefer_cables
     has_focus = bool(focus_muscles)
 
@@ -981,32 +1074,36 @@ def _triceps_slots_for_day(template_key: str, has_sharms: bool) -> list[list[str
         return [TRI_SIDES]  # FB_C default
     return []
 
-def _apply_glute_leg_day(day: DayPlan, template_key: str) -> None:
+def _apply_glute_leg_day(day: DayPlan, template_key: str, req: GeneratePlanRequest) -> None:
     """Fixed structure for glute-bias leg days. Structure differs by template."""
-    hinge_name = _pick_first_valid(HINGE_HAM, set())  # SLDL-first for both
-    abs_name   = _pick_first_valid(ABS, set())
+    hinge_name = _pick_first_valid(HINGE_HAM, set(), equipment=req.equipment)  # SLDL-first for both
+    abs_name   = _pick_first_valid(ABS, set(), equipment=req.equipment)
+    hip_name = _pick_first_valid(HIP_THRUST, set(), equipment=req.equipment) or "Glute Bridge"
+    curl_name = _pick_first_valid(HAM_CURL, set(), equipment=req.equipment) or "Hamstring Walkouts"
+    quad_name = _pick_first_valid(LEG_EXT, set(), equipment=req.equipment) or "Bodyweight Squat"
+    split_name = _pick_first_valid(["Bulgarian Split Squat", "Reverse Lunge", "Bodyweight Split Squat"], set(), equipment=req.equipment) or "Reverse Lunge"
 
     if template_key == "LOWER_HAM":
         # Hip Thrust → Leg Curl → SLDL → Leg Extension → Bulgarian Split Squat → Abs
         exercises: list[ExerciseItem] = [
-            ExerciseItem(name="Hip Thrust",            sets=2, reps="8-12", rest_seconds=240, notes=""),
-            ExerciseItem(name="Seated Leg Curl",       sets=2, reps="8-12", rest_seconds=180, notes=""),
+            ExerciseItem(name=hip_name,                sets=2, reps="8-12", rest_seconds=240, notes=""),
+            ExerciseItem(name=curl_name,               sets=2, reps="8-12", rest_seconds=180, notes=""),
         ]
         if hinge_name:
             exercises.append(ExerciseItem(name=hinge_name, sets=2, reps="6-8", rest_seconds=240, notes=""))
         exercises += [
-            ExerciseItem(name="Leg Extension",         sets=2, reps="8-12", rest_seconds=180, notes=""),
-            ExerciseItem(name="Bulgarian Split Squat", sets=2, reps="8-12", rest_seconds=240, notes=""),
+            ExerciseItem(name=quad_name,               sets=2, reps="8-12", rest_seconds=180, notes=""),
+            ExerciseItem(name=split_name,              sets=2, reps="8-12", rest_seconds=240, notes=""),
         ]
         if abs_name:
             exercises.append(ExerciseItem(name=abs_name, sets=2, reps="8-12", rest_seconds=180, notes=""))
     else:  # LOWER_QUAD
         # Hip Thrust → Leg Extension → Bulgarian Split Squat → Seated Leg Curl → SLDL → Abs
         exercises = [
-            ExerciseItem(name="Hip Thrust",            sets=2, reps="8-12", rest_seconds=240, notes=""),
-            ExerciseItem(name="Leg Extension",         sets=2, reps="8-12", rest_seconds=180, notes=""),
-            ExerciseItem(name="Bulgarian Split Squat", sets=2, reps="8-12", rest_seconds=240, notes=""),
-            ExerciseItem(name="Seated Leg Curl",       sets=2, reps="8-12", rest_seconds=180, notes=""),
+            ExerciseItem(name=hip_name,                sets=2, reps="8-12", rest_seconds=240, notes=""),
+            ExerciseItem(name=quad_name,               sets=2, reps="8-12", rest_seconds=180, notes=""),
+            ExerciseItem(name=split_name,              sets=2, reps="8-12", rest_seconds=240, notes=""),
+            ExerciseItem(name=curl_name,               sets=2, reps="8-12", rest_seconds=180, notes=""),
         ]
         if hinge_name:
             exercises.append(ExerciseItem(name=hinge_name, sets=2, reps="6-8", rest_seconds=240, notes=""))
@@ -1043,11 +1140,13 @@ def _prioritize_focus_exercises(day: DayPlan, focus_muscles: List[str]) -> None:
         meta = EXERCISES.get(normalize_name(ex.name))
         return bool(meta and any(t in focus_set for t in meta.tags))
 
+    main_len = len(day.main)
     all_exercises = day.main + day.accessories
     focused = [ex for ex in all_exercises if is_focused(ex)]
     non_focused = [ex for ex in all_exercises if not is_focused(ex)]
-    day.main[:] = focused + non_focused
-    day.accessories[:] = []
+    ordered = focused + non_focused
+    day.main[:] = ordered[:main_len]
+    day.accessories[:] = ordered[main_len:]
 
 
 def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, has_sharms: bool) -> None:
@@ -1070,6 +1169,7 @@ def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, h
                 prefer_machines=flags["prefer_machines"],
                 prefer_cables=flags.get("prefer_cables", False),
                 focus_muscles=req.focus_muscles,
+                equipment=req.equipment,
             )
             if not pick:
                 continue
@@ -1078,7 +1178,7 @@ def _apply_template(day: DayPlan, req: GeneratePlanRequest, template_key: str, h
             if flags.get("avoid_shoulders", False) and _is_shoulder_dominant(pick):
                 alternative = None
                 for raw in slot:
-                    cand = _pick_first_valid([raw], banned=banned, prefer_machines=flags["prefer_machines"], prefer_cables=flags.get("prefer_cables", False))
+                    cand = _pick_first_valid([raw], banned=banned, prefer_machines=flags["prefer_machines"], prefer_cables=flags.get("prefer_cables", False), equipment=req.equipment)
                     if cand and not _is_shoulder_dominant(cand):
                         alternative = cand
                         break
@@ -1193,11 +1293,21 @@ def _enforce_session_minutes(day: DayPlan, req: GeneratePlanRequest) -> None:
             while ex.sets > 1 and estimate() > target_sec:
                 ex.sets -= 1
 
-    # 3) Remove optional warmup bullets (if any are marked optional)
+    # 3) Reduce main work to one set before dropping required movements.
+    if day.main and estimate() > target_sec:
+        for ex in reversed(day.main):
+            while ex.sets > 1 and estimate() > target_sec:
+                ex.sets -= 1
+
+    # 4) Remove optional warmup bullets (if any are marked optional)
     if estimate() > target_sec:
         _remove_optional_warmups(day)
 
-    # 4) If under target by a large margin: add volume deterministically
+    # 5) If still over, trim lower-priority main exercises but keep at least one movement.
+    while len(day.main) > 1 and estimate() > target_sec:
+        day.main.pop()
+
+    # 6) If under target by a large margin: add volume deterministically
     if estimate() + UNDER_TARGET_MARGIN_SECONDS <= target_sec and day.accessories:
         primary_count = max(1, len(day.accessories) // 2)
         primary = day.accessories[:primary_count]
@@ -1223,10 +1333,13 @@ def _enforce_session_minutes(day: DayPlan, req: GeneratePlanRequest) -> None:
             try_add_set(ex)
 
         # Optional short finisher if equipment allows and within cap
-        if estimate() + UNDER_TARGET_MARGIN_SECONDS <= target_sec:
+        if req.session_minutes > 45 and estimate() + UNDER_TARGET_MARGIN_SECONDS <= target_sec:
             if req.equipment in ("full_gym", "dumbbells", "bodyweight"):
                 used = {normalize_name(e.name) for e in (day.main + day.accessories)}
-                pool = [n for n in get_isolations_for_focus(day.focus) if normalize_name(n) not in used]
+                pool = [
+                    n for n in get_isolations_for_focus(day.focus)
+                    if normalize_name(n) not in used and _allowed_for_equipment(n, req.equipment)
+                ]
                 if req.equipment == "bodyweight":
                     pool = [n for n in pool if "hanging" in _lc(n) or "leg raise" in _lc(n)]
 
@@ -1324,6 +1437,58 @@ def _pick_replacement(name: str, prefer_machines: bool, no_dumbbells: bool, no_b
                 return c
 
     return filtered[0]
+
+
+def _pick_equipment_replacement(ex: ExerciseItem, day: DayPlan, req: GeneratePlanRequest, used: set[str]) -> str | None:
+    old_tags = set(_exercise_tags(ex.name))
+    same_kind = is_compound(ex.name)
+    focus = getattr(day, "focus", "")
+    primary = get_compounds_for_focus(focus) if same_kind else get_isolations_for_focus(focus)
+    secondary = get_isolations_for_focus(focus) if same_kind else get_compounds_for_focus(focus)
+    candidates = primary + secondary + list(EXERCISES.keys())
+
+    scored: list[tuple[int, str]] = []
+    for cand in candidates:
+        cn = _canon_like(cand) or cand
+        nn = normalize_name(cn)
+        if not nn or nn in used:
+            continue
+        if not _allowed_for_equipment(cn, req.equipment):
+            continue
+        tags = set(_exercise_tags(cn))
+        scored.append((-len(old_tags & tags), cn))
+
+    if not scored:
+        return None
+    scored.sort(key=lambda item: item[0])
+    return scored[0][1]
+
+
+def _enforce_strict_equipment(day: DayPlan, req: GeneratePlanRequest) -> None:
+    if req.equipment == "full_gym":
+        return
+
+    used: set[str] = set()
+    out: list[ExerciseItem] = []
+    for ex in (day.main + day.accessories):
+        if _allowed_for_equipment(ex.name, req.equipment):
+            ex.name = _canon_like(ex.name) or ex.name
+            out.append(ex)
+            used.add(normalize_name(ex.name))
+            continue
+
+        repl = _pick_equipment_replacement(ex, day, req, used)
+        if not repl:
+            continue
+        ex.name = repl
+        ex.notes = ""
+        out.append(ex)
+        used.add(normalize_name(repl))
+
+    main_len = min(len(day.main), len(out))
+    day.main = out[:main_len]
+    day.accessories = out[main_len:]
+
 
 def _enforce_equipment_from_notes(day, req) -> None:
     flags = _notes_flags(req)
@@ -1436,12 +1601,13 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
         if req.focus_muscles:
             focus_lower = {m.lower() for m in req.focus_muscles}
             if "glutes" in focus_lower and template_key in ("LOWER_QUAD", "LOWER_HAM"):
-                _apply_glute_leg_day(day, template_key)
+                _apply_glute_leg_day(day, template_key, req)
         if template_key == "LOWER_HAM":
             _ensure_hamstring_day_squat(day)
         if req.focus_muscles:
             _prioritize_focus_exercises(day, req.focus_muscles)
         _enforce_equipment_from_notes(day, req)
+        _enforce_strict_equipment(day, req)
         _enforce_prefer_cables(day, req)
 
 
@@ -1461,17 +1627,22 @@ def apply_rules_v1(plan: GeneratePlanResponse, req: GeneratePlanRequest) -> Gene
 
         # Enforce movement counts by time bucket
 
-        if (not template_key.upper().startswith("FB_")) and (template_key != "CHEST_BACK"):
+        if template_key != "CHEST_BACK":
             _trim_or_pad_movements(day, req)
             _dedupe_day(day)
             _enforce_compound_cap(day, req.session_minutes) 
+            _enforce_strict_equipment(day, req)
         
         _enforce_avoid_shoulders(day, req)
         _dedupe_day(day)
+        _enforce_strict_equipment(day, req)
 
         # Deterministic time enforcement against session_minutes
         _enforce_session_minutes(day, req)
         _dedupe_day(day)
+        _enforce_strict_equipment(day, req)
+        _enforce_session_minutes(day, req)
+        _enforce_strict_equipment(day, req)
 
         
         

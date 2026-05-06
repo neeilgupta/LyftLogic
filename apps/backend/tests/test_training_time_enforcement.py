@@ -1,5 +1,5 @@
-from routes.rules.engine import _estimate_day_minutes, _enforce_session_minutes
-from models.plans import DayPlan, ExerciseItem, GeneratePlanRequest
+from routes.rules.engine import _estimate_day_minutes, _enforce_session_minutes, apply_rules_v1
+from models.plans import DayPlan, ExerciseItem, GeneratePlanRequest, GeneratePlanResponse
 
 
 def _make_day() -> DayPlan:
@@ -53,3 +53,31 @@ def test_enforce_session_minutes_adds_volume_under_target():
     after_sets = [ex.sets for ex in day.accessories]
 
     assert sum(after_sets) >= sum(before_sets)
+
+
+def test_six_day_thirty_minute_plan_stays_within_time_budget():
+    plan = GeneratePlanResponse(
+        title="Test",
+        summary="",
+        weekly_split=[
+            DayPlan(
+                day="Day 1",
+                focus="",
+                warmup=[],
+                main=[ExerciseItem(name="Bench Press", sets=3, reps="8-12", rest_seconds=180, notes="")],
+                accessories=[],
+            )
+        ],
+    )
+    req = GeneratePlanRequest(
+        days_per_week=6,
+        session_minutes=30,
+        equipment="full_gym",
+        focus_muscles=["shoulders"],
+    )
+
+    result = apply_rules_v1(plan, req)
+
+    for day in result.weekly_split:
+        if day.main or day.accessories:
+            assert _estimate_day_minutes(day) <= req.session_minutes
