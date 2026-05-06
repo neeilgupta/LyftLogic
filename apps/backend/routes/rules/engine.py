@@ -713,6 +713,29 @@ def _canon_name(name: str) -> Optional[str]:
     return None
 
 
+_FOCUS_TAG_ALIASES: dict[str, frozenset] = {
+    "legs":       frozenset({"quads", "hamstrings", "glutes", "calves", "legs", "adductors", "abductors"}),
+    "arms":       frozenset({"biceps", "triceps", "arms"}),
+    "shoulders":  frozenset({"shoulders", "side_delts", "front_delts", "rear_delts"}),
+    "back":       frozenset({"back", "lats", "upper_back", "rear_delts"}),
+    "chest":      frozenset({"chest"}),
+    "core":       frozenset({"abs", "core"}),
+    "glutes":     frozenset({"glutes"}),
+    "quads":      frozenset({"quads"}),
+    "hamstrings": frozenset({"hamstrings"}),
+    "calves":     frozenset({"calves"}),
+}
+
+
+def _expand_focus_set(focus_muscles: List[str]) -> frozenset:
+    """Expand broad muscle group names to the specific tags used in the exercise catalog."""
+    expanded: set = set()
+    for m in focus_muscles:
+        ml = m.lower()
+        expanded.update(_FOCUS_TAG_ALIASES.get(ml, {ml}))
+    return frozenset(expanded)
+
+
 def _pick_first_valid(
     priority: List[str],
     banned: set[str],
@@ -724,7 +747,7 @@ def _pick_first_valid(
     has_focus = bool(focus_muscles)
 
     if has_equip_pref or has_focus:
-        focus_set = {m.lower() for m in focus_muscles} if has_focus else set()
+        focus_set = _expand_focus_set(focus_muscles) if has_focus else frozenset()
 
         def equip_score(n: str) -> int:
             nl = n.lower()
@@ -1014,7 +1037,7 @@ def _prioritize_focus_exercises(day: DayPlan, focus_muscles: List[str]) -> None:
     Merges main + accessories into a single list with focused exercises first.
     Stable sort — relative order within focused/non-focused groups is preserved.
     """
-    focus_set = {m.lower() for m in focus_muscles}
+    focus_set = _expand_focus_set(focus_muscles)
 
     def is_focused(ex: ExerciseItem) -> bool:
         meta = EXERCISES.get(normalize_name(ex.name))
@@ -1256,6 +1279,14 @@ def _notes_flags(req) -> dict:
         or bool(re.search(r"\bavoid\s+shoulders?\b", text))
     )
 
+
+    # Derive equipment bans from the structured equipment field
+    equipment = getattr(req, 'equipment', 'full_gym')
+    if equipment == 'dumbbells':
+        no_barbells = True
+    elif equipment == 'bodyweight':
+        no_barbells = True
+        no_dumbbells = True
 
     return {
         "no_dumbbells": no_dumbbells,
