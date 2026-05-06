@@ -187,7 +187,7 @@ async def request_code(req: RequestCodeRequest, _=Depends(otp_rate_limit)):
 
 
 @router.post("/verify-code")
-def verify_code(req: VerifyCodeRequest):
+def verify_code(req: VerifyCodeRequest, _=Depends(otp_rate_limit)):
     email = req.email.strip().lower()
     code = (req.code or "").strip()
 
@@ -310,7 +310,7 @@ def register(req: RegisterRequest):
 
 
 @router.post("/password-login")
-def password_login(req: PasswordLoginRequest):
+def password_login(req: PasswordLoginRequest, _=Depends(otp_rate_limit)):
     email = req.email.strip().lower()
     password = req.password
 

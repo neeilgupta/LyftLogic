@@ -49,7 +49,10 @@ def _get_or_create_plan_id() -> int:
 def test_health():
     r = client.get("/health")
     assert r.status_code == 200, r.text
-    assert r.json() == {"status": "ok"}
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["db"] == "ok"
+    assert "version" in body
 
 
 def test_generate_plan_basic():
